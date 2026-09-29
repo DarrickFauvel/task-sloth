@@ -1,0 +1,21 @@
+{
+  "name": "task-sloth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env server.js",
+    "start": "node --env-file-if-exists=.env server.js",
+    "migrate": "node --env-file-if-exists=.env src/db/migrate.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@starfederation/datastar-sdk": "^1.0.0",
+    "eta": "^4.6.0",
+    "express": "^5.2.1"
+  }
+}

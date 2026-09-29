@@ -1,0 +1,15 @@
+<% layout("/layout", { title: "Sign in" }) %>
+<h1>Task Sloth</h1>
+<% if (it.google) { %>
+  <p><a class="button" href="/auth/google?next=<%= encodeURIComponent(it.next) %>">Sign in with Google</a></p>
+<% } %>
+<% if (it.devLogin) { %>
+  <form method="post" action="/auth/dev" class="stack">
+    <input type="hidden" name="next" value="<%= it.next %>">
+    <label>Dev login as <input name="handle" required placeholder="alex" autocomplete="off"></label>
+    <button>Sign in</button>
+  </form>
+<% } %>
+<% if (!it.google && !it.devLogin) { %>
+  <p>No sign-in method is configured. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, or DEV_LOGIN=1 for local development.</p>
+<% } %>

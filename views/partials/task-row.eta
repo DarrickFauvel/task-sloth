@@ -1,0 +1,29 @@
+<% const t = it.t; const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
+<li class="task<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>" id="task-<%= t.id %>">
+  <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>')">
+    <input type="hidden" name="view" value="<%= it.view %>">
+    <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><%= done ? "✓" : "" %></button>
+  </form>
+  <div class="task-body">
+    <span class="task-title"><%= t.title %></span>
+    <span class="meta">
+      <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
+      <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
+      <% if (t.project_name) { %><span class="project" style="--c: <%= t.project_color %>"><%= t.project_emoji %> <%= t.project_name %></span><% } %>
+      <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
+      <% if (Number(t.comment_count)) { %><span title="Comments">💬 <%= t.comment_count %></span><% } %>
+      <% if (t.assignee) { %>
+        <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>
+      <% } else if (!done) { %>
+        <form method="post" action="/tasks/<%= t.id %>/claim" data-on:submit="@post('/tasks/<%= t.id %>/claim')" class="inline">
+          <input type="hidden" name="view" value="<%= it.view %>">
+          <button class="link">Claim</button>
+        </form>
+      <% } %>
+    </span>
+  </div>
+  <form method="post" action="/tasks/<%= t.id %>/delete" data-on:submit="@post('/tasks/<%= t.id %>/delete')">
+    <input type="hidden" name="view" value="<%= it.view %>">
+    <button class="icon" aria-label="Delete task" title="Delete">×</button>
+  </form>
+</li>
