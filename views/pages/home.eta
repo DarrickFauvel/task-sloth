@@ -4,7 +4,9 @@
   <form method="post" action="/logout"><button>Sign out</button></form>
 </header>
 <% if (it.membership) { %>
-  <div data-signals="{view: '<%= it.list.view %>', quick: ''}">
+  <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
+  <div data-signals="{view: '<%= it.list.view %>', quick: ''}"
+       data-init="@get('/events?view=<%= it.list.view %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^view$/}})">
     <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
       <input type="hidden" name="view" value="<%= it.list.view %>">
       <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
