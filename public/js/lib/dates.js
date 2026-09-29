@@ -44,7 +44,7 @@ export function nextWeekday(ymd, weekday) {
 export const daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / 86_400_000);
 
 export const isValidDate = (ymd) =>
-  typeof ymd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(ymd) && fromDate(toDate(ymd)) === ymd;
+  typeof ymd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(ymd) && !isNaN(toDate(ymd)) && fromDate(toDate(ymd)) === ymd;
 
 /** Human label relative to today: "Today", "Tomorrow", "Fri", "3 days overdue", "Oct 12". */
 export function relativeLabel(ymd, today) {

@@ -7,6 +7,8 @@
 import { addDays, isValidDate, MONTHS, nextWeekday, WEEKDAYS, weekdayOf } from "./dates.js";
 import { firstOccurrence } from "./recurrence.js";
 
+// Month names or their usual abbreviations ("sept", "dec."), but not words like "decorate".
+const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 const WEEKDAY_RE = "(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|sday|urday)?";
 const weekdayIndex = (word) => WEEKDAYS.findIndex((d) => d.startsWith(word.toLowerCase().slice(0, 3)));
 const normalize = (s) => s.toLowerCase().replace(/[\s_-]+/g, "");
@@ -86,7 +88,7 @@ export function parseQuickAdd(input, ctx) {
     if (date < today) date = `${year + 1}-${pad(m)}-${pad(d)}`;
     setDate(date);
   });
-  take(new RegExp(`\\s(?:on\\s+)?(${MONTHS.join("|")})[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?=\\s)`, "i"), ([, mon, d]) => {
+  take(new RegExp(`\\s(?:on\\s+)?${MONTH_RE}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?=\\s)`, "i"), ([, mon, d]) => {
     const year = Number(today.slice(0, 4));
     const m = String(MONTHS.indexOf(mon.toLowerCase().slice(0, 3)) + 1).padStart(2, "0");
     let date = `${year}-${m}-${d.padStart(2, "0")}`;
