@@ -92,3 +92,4 @@ select {
 .edit .row { display: flex; flex-wrap: wrap; gap: .75rem; }
 .edit .row > label { flex: 1; min-width: 9rem; }
 .edit .actions { display: flex; gap: 1rem; align-items: center; }
+.hint { color: var(--muted); font-size: .85rem; }

@@ -22,6 +22,7 @@ export async function loadSession(cookies) {
     [sha256(token)],
   );
   if (!row || row.expires_at < now()) return null;
+  delete row.password_hash; // req.user is passed to every template; keep the hash out of it
   const halfway = new Date(Date.now() + (MAX_AGE_DAYS / 2) * 86_400_000).toISOString();
   if (row.expires_at < halfway) {
     const expires = new Date(Date.now() + MAX_AGE_DAYS * 86_400_000).toISOString();

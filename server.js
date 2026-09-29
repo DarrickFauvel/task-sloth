@@ -8,7 +8,8 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { upsertDevUser, upsertGoogleUser } from "./src/services/users.js";
+import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
@@ -341,13 +342,59 @@ app.post("/invite/:token", requireUser, async (req, res) => {
 
 // --- Auth -----------------------------------------------------------------------------
 
+const renderLogin = (res, data, status) =>
+  render(res, "pages/login", { google: googleConfigured(), devLogin: config.devLogin, ...data }, status);
+
 app.get("/login", (req, res) => {
   if (req.user) return redirect(res, safeNext(req.query.next));
-  render(res, "pages/login", {
-    next: safeNext(req.query.next),
-    google: googleConfigured(),
-    devLogin: config.devLogin,
-  });
+  renderLogin(res, { next: safeNext(req.query.next) });
+});
+
+// Slows password guessing: failed sign-ins per account, and per IP across accounts
+// (higher, since a household or office can share one IP). Sign-ups: new accounts per IP.
+const accountFailures = createRateLimit({ limit: 10, windowMs: 15 * 60_000 });
+const ipFailures = createRateLimit({ limit: 50, windowMs: 15 * 60_000 });
+const signups = createRateLimit({ limit: 10, windowMs: 60 * 60_000 });
+
+app.post("/login", async (req, res) => {
+  const next = safeNext(req.body.next);
+  const identifier = String(req.body.identifier ?? "").trim().slice(0, 254);
+  const accountKey = `account:${identifier.toLowerCase()}`;
+  if (accountFailures.isLimited(accountKey) || ipFailures.isLimited(req.ip)) {
+    return renderLogin(res, { next, identifier, error: "Too many failed sign-ins. Try again in 15 minutes." }, 429);
+  }
+  const userId = await verifyLogin(identifier, req.body.password);
+  if (!userId) {
+    accountFailures.hit(accountKey);
+    ipFailures.hit(req.ip);
+    return renderLogin(res, { next, identifier, error: "That username or email and password don't match." }, 401);
+  }
+  accountFailures.reset(accountKey);
+  await startSession(res, userId);
+  redirect(res, next);
+});
+
+app.get("/signup", (req, res) => {
+  if (req.user) return redirect(res, safeNext(req.query.next));
+  render(res, "pages/signup", { next: safeNext(req.query.next) });
+});
+
+app.post("/signup", async (req, res) => {
+  const next = safeNext(req.body.next);
+  const form = { next, username: String(req.body.username ?? "").slice(0, 30), email: String(req.body.email ?? "").slice(0, 254) };
+  if (signups.isLimited(req.ip)) {
+    return render(res, "pages/signup", { ...form, error: "Too many new accounts from here. Try again later." }, 429);
+  }
+  let userId;
+  try {
+    userId = await createPasswordUser(req.body);
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 400) return render(res, "pages/signup", { ...form, error: err.message }, 400);
+    throw err;
+  }
+  signups.hit(req.ip);
+  await startSession(res, userId);
+  redirect(res, next);
 });
 
 app.get("/auth/google", (req, res) => {
