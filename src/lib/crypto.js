@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { config } from "../config.js";
 
 const key = createHash("sha256").update(`enc:${config.sessionSecret}`).digest();
@@ -37,4 +38,22 @@ export function unsign(signed) {
   const expected = Buffer.from(sign(value));
   const actual = Buffer.from(signed);
   return expected.length === actual.length && timingSafeEqual(expected, actual) ? value : null;
+}
+
+const scryptAsync = promisify(scrypt);
+const SCRYPT = { N: 16384, r: 8, p: 1 };
+
+/** Hashes a password as "scrypt$N$r$p$salt$hash", so the cost can be raised later without breaking old hashes. */
+export async function hashPassword(password) {
+  const salt = randomBytes(16);
+  const hash = await scryptAsync(password.normalize("NFKC"), salt, 64, SCRYPT);
+  return ["scrypt", SCRYPT.N, SCRYPT.r, SCRYPT.p, salt.toString("base64url"), hash.toString("base64url")].join("$");
+}
+
+export async function verifyPassword(password, stored) {
+  const [alg, N, r, p, salt, hash] = String(stored ?? "").split("$");
+  if (alg !== "scrypt" || !salt || !hash) return false;
+  const expected = Buffer.from(hash, "base64url");
+  const actual = await scryptAsync(password.normalize("NFKC"), Buffer.from(salt, "base64url"), expected.length, { N: Number(N), r: Number(r), p: Number(p) });
+  return timingSafeEqual(expected, actual);
 }

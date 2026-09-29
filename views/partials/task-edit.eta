@@ -1,0 +1,49 @@
+<%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing. It sits outside #task-head, so live updates never touch a form that's being filled in. */%>
+<div id="task-edit" data-show="$editing">
+<% if (it.form) { const f = it.form; const t = f.task; %>
+  <form class="edit stack" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})">
+    <label>Title <input name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off"></label>
+    <div class="row">
+      <label>Due <input type="date" name="dueDate" value="<%= t.due_date ?? '' %>"></label>
+      <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
+    </div>
+    <label>Repeats
+      <select name="recurrence">
+        <% f.repeats.forEach((r) => { %>
+          <option value="<%= r.value %>"<%~ r.value === f.currentRepeat ? " selected" : "" %>><%= r.label %></option>
+        <% }) %>
+      </select>
+    </label>
+    <div class="row">
+      <label>Assigned to
+        <select name="assigneeId">
+          <option value="">Up for grabs</option>
+          <% f.members.forEach((m) => { %>
+            <option value="<%= m.id %>"<%~ m.id === t.assignee_id ? " selected" : "" %>><%= m.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Priority
+        <select name="priority">
+          <% [[1, "High"], [0, "Normal"], [-1, "Low"]].forEach(([value, label]) => { %>
+            <option value="<%= value %>"<%~ Number(t.priority) === value ? " selected" : "" %>><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+    <label>Project
+      <select name="projectId">
+        <option value="">No project</option>
+        <% f.projects.forEach((p) => { %>
+          <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Notes <textarea name="notes" rows="3" maxlength="10000"><%= t.notes %></textarea></label>
+    <div class="actions">
+      <button>Save</button>
+      <a href="/tasks/<%= t.id %>" data-on:click__prevent="$editing = false">Cancel</a>
+    </div>
+  </form>
+<% } %>
+</div>

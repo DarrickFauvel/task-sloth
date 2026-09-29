@@ -11,6 +11,17 @@ export const VIEWS = {
 
 export const cleanView = (view) => (view in VIEWS ? view : "mine");
 
+/** Adds the display fields views/partials/task-row.eta and views/pages/task.eta use. */
+export function decorateTask(t, membership, today) {
+  return {
+    ...t,
+    assignee: t.assignee_id ? membership.members.find((m) => m.id === t.assignee_id) ?? null : null,
+    dueLabel: t.due_date ? relativeLabel(t.due_date, today) : "",
+    dueState: t.due_date && t.status === "open" ? dueState(t.due_date, today) : "",
+    repeats: describeRecurrence(parseRule(t.recurrence)),
+  };
+}
+
 /** Loads the tasks for one tab of the home page and shapes them for views/partials/task-list.eta. */
 export async function taskListView({ userId, membership, view, today }) {
   const householdId = membership.household.id;
@@ -20,14 +31,7 @@ export async function taskListView({ userId, membership, view, today }) {
     grabs: { status: "open", assigneeId: null },
     done: { status: "done", limit: 50 },
   }[view];
-  const membersById = Object.fromEntries(membership.members.map((m) => [m.id, m]));
-  const tasks = (await listTasks(householdId, filter)).map((t) => ({
-    ...t,
-    assignee: t.assignee_id ? membersById[t.assignee_id] : null,
-    dueLabel: t.due_date ? relativeLabel(t.due_date, today) : "",
-    dueState: t.due_date && t.status === "open" ? dueState(t.due_date, today) : "",
-    repeats: describeRecurrence(parseRule(t.recurrence)),
-  }));
+  const tasks = (await listTasks(householdId, filter)).map((t) => decorateTask(t, membership, today));
 
   if (view === "done") return { view, groups: tasks.length ? [{ label: "Recently done", tasks }] : [] };
 

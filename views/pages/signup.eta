@@ -1,0 +1,18 @@
+<% layout("/layout", { title: "Create account" }) %>
+<h1>Create your account</h1>
+<form method="post" action="/signup" class="stack">
+  <input type="hidden" name="next" value="<%= it.next %>">
+  <% if (it.error) { %><p class="flash is-error" role="alert"><%= it.error %></p><% } %>
+  <label>Username
+    <input name="username" value="<%= it.username ?? '' %>" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_.\-]+"
+           autocomplete="username" autocapitalize="none" spellcheck="false" autofocus aria-describedby="username-hint">
+    <small id="username-hint" class="hint">What your household sees, and what they type after @ to assign you.</small>
+  </label>
+  <label>Email <input type="email" name="email" value="<%= it.email ?? '' %>" required maxlength="254" autocomplete="email"></label>
+  <label>Password
+    <input type="password" name="password" required minlength="8" maxlength="200" autocomplete="new-password" aria-describedby="password-hint">
+    <small id="password-hint" class="hint">At least 8 characters.</small>
+  </label>
+  <button>Create account</button>
+</form>
+<p>Already have an account? <a href="/login?next=<%= encodeURIComponent(it.next) %>">Sign in</a></p>
