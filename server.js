@@ -5,7 +5,7 @@ import { config, googleConfigured } from "./src/config.js";
 import { initDb } from "./src/db/client.js";
 import { migrate } from "./src/db/migrate.js";
 import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http.js";
-import { publish } from "./src/lib/pubsub.js";
+import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
 import { upsertDevUser, upsertGoogleUser } from "./src/services/users.js";
@@ -93,6 +93,49 @@ const requireHousehold = (req, res, next) => {
   req.actor = { id: req.user.id, householdId: req.membership.household.id };
   next();
 };
+
+// Live updates: the home page holds this stream open, and any change in the household
+// (from a member or from Google) re-renders that page's task list. The list is also sent
+// on connect, so a reconnect catches up on whatever was missed while disconnected.
+app.get("/events", requireHousehold, async (req, res) => {
+  const view = cleanView(req.query.view);
+  const { householdId } = req.actor;
+  let closed = false;
+
+  await sse(req, res, async (stream) => {
+    const push = async () => {
+      // Reload the membership each time: members can join, or this user can leave.
+      const membership = await getHouseholdForUser(req.user.id);
+      if (closed) return;
+      if (membership?.household.id !== householdId) return res.end();
+      const list = await taskListView({ userId: req.user.id, membership, view, today: today(req) });
+      if (!closed) stream.patchElements(eta.render("partials/task-list", { ...list, userId: req.user.id }));
+    };
+
+    // One render at a time; changes that arrive mid-render are folded into one more render.
+    let running = null;
+    let again = false;
+    const refresh = () => {
+      if (running) return void (again = true);
+      running = (async () => {
+        do {
+          again = false;
+          await push();
+        } while (again && !closed);
+      })()
+        .catch((err) => console.error("live update failed", err))
+        .finally(() => (running = null));
+    };
+
+    const unsubscribe = subscribe(householdId, refresh);
+    const heartbeat = setInterval(() => res.write(": ping\n\n"), 25_000); // keeps proxies from idling us out
+    refresh();
+    await new Promise((resolve) => res.on("close", resolve));
+    closed = true;
+    unsubscribe();
+    clearInterval(heartbeat);
+  });
+});
 
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
 async function sendTaskList(req, res, { flash, signals } = {}) {
