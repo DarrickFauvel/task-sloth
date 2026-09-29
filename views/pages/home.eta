@@ -1,0 +1,43 @@
+<% layout("/layout") %>
+<header class="bar">
+  <h1>Task Sloth</h1>
+  <form method="post" action="/logout"><button>Sign out</button></form>
+</header>
+<% if (it.membership) { %>
+  <div data-signals="{view: '<%= it.list.view %>', quick: ''}">
+    <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
+      <input type="hidden" name="view" value="<%= it.list.view %>">
+      <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
+             placeholder="Add a task… e.g. “trash every tue @me”">
+      <button>Add</button>
+    </form>
+    <nav class="tabs">
+      <% Object.entries(it.views).forEach(([key, label]) => { %>
+        <a href="/?view=<%= key %>"<%~ key === it.list.view ? ' aria-current="page"' : '' %>><%= label %></a>
+      <% }) %>
+    </nav>
+    <div id="flash" role="status"></div>
+    <%~ include("/partials/task-list", { ...it.list, userId: it.user.id }) %>
+  </div>
+
+  <details class="household">
+    <summary><%= it.membership.household.name %> · <%= it.membership.members.length %> member<%= it.membership.members.length === 1 ? "" : "s" %></summary>
+    <ul class="members">
+      <% it.membership.members.forEach((m) => { %>
+        <li><span class="dot" style="background: <%= m.color %>"></span><%= m.name %><%= m.id === it.user.id ? " (you)" : "" %></li>
+      <% }) %>
+    </ul>
+    <div id="invite">
+      <button data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
+    </div>
+  </details>
+<% } else { %>
+  <section class="stack">
+    <h2>Welcome, <%= it.user.name %></h2>
+    <p>Start a household, or ask someone in yours for an invite link.</p>
+    <form method="post" action="/household" class="stack">
+      <label>Household name <input name="name" required maxlength="80" placeholder="Our home" autocomplete="off"></label>
+      <button>Create household</button>
+    </form>
+  </section>
+<% } %>

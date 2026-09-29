@@ -1,0 +1,6 @@
+<div id="flash" role="status" class="flash<%= it.error ? ' is-error' : '' %>">
+  <span><%= it.message %></span>
+  <% if (it.undo) { %>
+    <button class="link" data-on:click="@post('<%= it.undo %>')">Undo</button>
+  <% } %>
+</div>

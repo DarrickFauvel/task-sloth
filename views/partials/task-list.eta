@@ -1,0 +1,18 @@
+<section id="task-list">
+  <% if (!it.groups.length) { %>
+    <p class="empty"><%= {
+      mine: "Nothing on your plate. Nice.",
+      all: "No open tasks. Add one above.",
+      grabs: "Nothing up for grabs.",
+      done: "Nothing finished yet.",
+    }[it.view] %></p>
+  <% } %>
+  <% it.groups.forEach((g) => { %>
+    <h3 class="group <%= g.label === 'Overdue' ? 'overdue' : '' %>"><%= g.label %> <span class="count"><%= g.tasks.length %></span></h3>
+    <ul class="tasks">
+      <% g.tasks.forEach((t) => { %>
+        <%~ include("/partials/task-row", { t, view: it.view, userId: it.userId }) %>
+      <% }) %>
+    </ul>
+  <% }) %>
+</section>

@@ -1,0 +1,6 @@
+<div id="invite" class="stack">
+  <label>Send this link to someone you live with. It works once and expires in 7 days.
+    <input readonly value="<%= it.url %>" data-on:focus="el.select()">
+  </label>
+  <button data-on:click="navigator.clipboard.writeText('<%= it.url %>'); el.textContent = 'Copied'">Copy link</button>
+</div>

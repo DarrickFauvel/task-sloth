@@ -1,0 +1,4 @@
+<% layout("/layout", { title: String(it.status) }) %>
+<h1><%= it.status %></h1>
+<p><%= it.message %></p>
+<p><a href="/">Back home</a></p>
