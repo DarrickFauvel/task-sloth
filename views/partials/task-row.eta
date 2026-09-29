@@ -5,7 +5,7 @@
     <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><%= done ? "✓" : "" %></button>
   </form>
   <div class="task-body">
-    <span class="task-title"><%= t.title %></span>
+    <a class="task-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
     <span class="meta">
       <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
       <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>

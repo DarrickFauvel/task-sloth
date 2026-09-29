@@ -1,0 +1,22 @@
+<% const t = it.task; const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
+<header id="task-head" class="task-head<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>">
+  <h1 class="task-title"><%= t.title %></h1>
+  <span class="meta">
+    <% if (done) { %><span>Done</span><% } %>
+    <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
+    <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
+    <% if (t.priority < 0) { %><span>Low priority</span><% } %>
+    <% if (t.project_name) { %><span class="project" style="--c: <%= t.project_color %>"><%= t.project_emoji %> <%= t.project_name %></span><% } %>
+    <% if (t.assignee) { %>
+      <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>
+    <% } else if (!done) { %><span>Up for grabs</span><% } %>
+  </span>
+  <% if (t.notes) { %><p class="notes"><%= t.notes %></p><% } %>
+  <div class="actions">
+    <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">
+      <input type="hidden" name="back" value="task">
+      <button><%= done ? "Reopen" : "Mark done" %></button>
+    </form>
+    <a class="button" href="/tasks/<%= t.id %>/edit" data-on:click__prevent="@get('/tasks/<%= t.id %>/edit')">Edit</a>
+  </div>
+</header>

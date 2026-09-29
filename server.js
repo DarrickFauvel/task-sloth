@@ -11,9 +11,12 @@ import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/goog
 import { upsertDevUser, upsertGoogleUser } from "./src/services/users.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
-import { assignTask, createTask, deleteTask, getTask, restoreTask, setDone } from "./src/services/tasks.js";
+import { assignTask, createTask, deleteTask, getTask, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
-import { cleanView, taskListView, VIEWS } from "./src/web/task-list.js";
+import { cleanView, decorateTask, taskListView, VIEWS } from "./src/web/task-list.js";
+import { checklistView } from "./src/web/checklist.js";
+import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
 import { relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
@@ -94,13 +97,30 @@ const requireHousehold = (req, res, next) => {
   next();
 };
 
-// Live updates: the home page holds this stream open, and any change in the household
-// (from a member or from Google) re-renders that page's task list. The list is also sent
-// on connect, so a reconnect catches up on whatever was missed while disconnected.
+const isNotFound = (err) => err instanceof HttpError && err.status === 404;
+
+// Live updates: the home page and task pages hold this stream open, and any change in the
+// household (from a member or from Google) re-renders the page's task list or checklist.
+// It's also sent on connect, so a reconnect catches up on whatever was missed.
 app.get("/events", requireHousehold, async (req, res) => {
   const view = cleanView(req.query.view);
+  const taskId = typeof req.query.task === "string" ? req.query.task : null;
   const { householdId } = req.actor;
+  // The task was deleted: 204 is the one response Datastar's retry: 'always' won't retry.
+  if (taskId && !(await getTask(householdId, taskId).then(() => true, (err) => (isNotFound(err) ? false : Promise.reject(err))))) {
+    return res.status(204).end();
+  }
   let closed = false;
+
+  /** @returns {Promise<string[]>} the page's live parts */
+  const renderPage = async (membership) => {
+    if (taskId) {
+      const checklist = await checklistView(householdId, taskId);
+      return [renderTaskHead(req, checklist.task, membership), eta.render("partials/checklist", checklist)];
+    }
+    const list = await taskListView({ userId: req.user.id, membership, view, today: today(req) });
+    return [eta.render("partials/task-list", { ...list, userId: req.user.id })];
+  };
 
   await sse(req, res, async (stream) => {
     const push = async () => {
@@ -108,8 +128,15 @@ app.get("/events", requireHousehold, async (req, res) => {
       const membership = await getHouseholdForUser(req.user.id);
       if (closed) return;
       if (membership?.household.id !== householdId) return res.end();
-      const list = await taskListView({ userId: req.user.id, membership, view, today: today(req) });
-      if (!closed) stream.patchElements(eta.render("partials/task-list", { ...list, userId: req.user.id }));
+      let parts;
+      try {
+        parts = await renderPage(membership);
+      } catch (err) {
+        if (!isNotFound(err)) throw err;
+        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true }));
+        return res.end();
+      }
+      if (!closed) for (const html of parts) stream.patchElements(html);
     };
 
     // One render at a time; changes that arrive mid-render are folded into one more render.
@@ -139,6 +166,7 @@ app.get("/events", requireHousehold, async (req, res) => {
 
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
 async function sendTaskList(req, res, { flash, signals } = {}) {
+  if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const view = cleanView(req.body.view);
   if (!isDatastar(req)) return redirect(res, `/?view=${view}`);
   const list = await taskListView({ userId: req.user.id, membership: req.membership, view, today: today(req) });
@@ -191,6 +219,96 @@ app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
   await restoreTask(req.actor, req.params.id);
   await sendTaskList(req, res);
+});
+
+// --- Task page + checklist ------------------------------------------------------------
+
+const renderTaskHead = (req, task, membership = req.membership) =>
+  eta.render("partials/task-head", { task: decorateTask(task, membership, today(req)), userId: req.user.id });
+
+const editView = async (req, task) =>
+  editFormView(task, { members: req.membership.members, projects: await listProjects(req.actor.householdId) });
+
+async function renderTaskPage(req, res, { editing = false } = {}) {
+  const checklist = await checklistView(req.actor.householdId, req.params.id);
+  const task = decorateTask(checklist.task, req.membership, today(req));
+  const form = editing ? await editView(req, checklist.task) : null;
+  render(res, "pages/task", { task, checklist, form, userId: req.user.id });
+}
+
+/** Datastar: re-render the task details (plus an optional flash, and closing the edit form). Plain posts: back to the task page. */
+async function sendTaskHead(req, res, taskId, { flash, signals } = {}) {
+  if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
+  const html = renderTaskHead(req, await getTask(req.actor.householdId, taskId));
+  const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
+  await sse(req, res, (stream) => {
+    stream.patchElements(html);
+    stream.patchElements(flashHtml);
+    if (signals) stream.patchSignals(JSON.stringify(signals));
+  });
+}
+
+app.get("/tasks/:id", requireHousehold, (req, res) => renderTaskPage(req, res));
+
+// Edit form: always rendered fresh, so it opens with whatever the task looks like now.
+app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
+  if (!isDatastar(req)) return renderTaskPage(req, res, { editing: true });
+  const html = eta.render("partials/task-edit", { form: await editView(req, await getTask(req.actor.householdId, req.params.id)) });
+  await sse(req, res, (stream) => {
+    stream.patchElements(html);
+    stream.patchSignals(JSON.stringify({ editing: true }));
+  });
+});
+
+app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
+  await updateTask(req.actor, req.params.id, editInput(req.body));
+  await sendTaskHead(req, res, req.params.id, { signals: { editing: false } });
+});
+
+/** Datastar: re-render the checklist (and clear any error). Plain form posts: back to the task page. */
+async function sendChecklist(req, res, taskId, { signals } = {}) {
+  if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
+  const html = eta.render("partials/checklist", await checklistView(req.actor.householdId, taskId));
+  await sse(req, res, (stream) => {
+    stream.patchElements(html);
+    stream.patchElements('<div id="flash" role="status"></div>');
+    if (signals) stream.patchSignals(JSON.stringify(signals));
+  });
+}
+
+app.post("/tasks/:id/items", requireHousehold, async (req, res) => {
+  await addItems(req.actor, req.params.id, String(req.body.items ?? ""));
+  await sendChecklist(req, res, req.params.id, { signals: { items: "" } });
+});
+
+app.post("/tasks/:id/mode/:mode", requireHousehold, async (req, res) => {
+  const listMode = req.params.mode === "shopping" ? "shopping" : "checklist";
+  // Fill in store sections first, so the re-render that updateTask triggers shows them.
+  if (listMode === "shopping") await autoCategorize(req.actor, req.params.id);
+  await updateTask(req.actor, req.params.id, { listMode });
+  await sendChecklist(req, res, req.params.id);
+});
+
+app.post("/tasks/:id/uncheck-all", requireHousehold, async (req, res) => {
+  await uncheckAll(req.actor, req.params.id);
+  await sendChecklist(req, res, req.params.id);
+});
+
+app.post("/tasks/:id/clear-checked", requireHousehold, async (req, res) => {
+  await clearChecked(req.actor, req.params.id);
+  await sendChecklist(req, res, req.params.id);
+});
+
+app.post("/items/:id/check", requireHousehold, async (req, res) => {
+  await sendChecklist(req, res, await setItemChecked(req.actor, req.params.id, true));
+});
+
+app.post("/items/:id/uncheck", requireHousehold, async (req, res) => {
+  await sendChecklist(req, res, await setItemChecked(req.actor, req.params.id, false));
+});
+
+app.post("/items/:id/delete", requireHousehold, async (req, res) => {
+  await sendChecklist(req, res, await deleteItem(req.actor, req.params.id));
 });
 
 // --- Household ------------------------------------------------------------------------
