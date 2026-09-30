@@ -17,7 +17,7 @@ import { assignTask, createTask, deleteTask, getTask, LISTS, nextToSort, restore
 import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
-import { cleanListQuery, cleanView, decorateTask, listQueryString, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
+import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
@@ -96,7 +96,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString, qr: appQr });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -178,7 +178,7 @@ app.get("/events", requireHousehold, async (req, res) => {
 
 /** The home page's live parts: the tabs (for the inbox count) and the task list. */
 const renderList = (list, userId) => [
-  eta.render("partials/tabs", { list, views: VIEWS, listQueryString }),
+  eta.render("partials/tabs", { list, views: VIEWS, nav: NAV, listQueryString }),
   eta.render("partials/task-list", { ...list, userId }),
 ];
 
