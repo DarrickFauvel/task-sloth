@@ -330,6 +330,8 @@ const renderTaskHead = (req, task, membership = req.membership) =>
 
 const editView = async (req, task) =>
   editFormView(task, {
+    today: today(req),
+    userId: req.user.id,
     members: req.membership.members,
     projects: await listProjects(req.actor.householdId),
     contexts: await listContexts(req.actor.householdId),

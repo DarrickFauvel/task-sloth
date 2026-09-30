@@ -1,71 +1,99 @@
-<%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing. It sits outside #task-head, so live updates never touch a form that's being filled in. */%>
+<%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing.
+     It sits outside #task-head, so live updates never touch a form that's being filled in.
+     Grouped like the rest of the app (When, Who, Where…), with chips instead of dropdowns where the
+     choices are few, and Save/Cancel pinned to the bottom of the screen. Field names are unchanged. */%>
 <div id="task-edit" data-show="$editing">
-<% if (it.form) { const f = it.form; const t = f.task; %>
-  <form class="edit stack" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})">
-    <label>Title <input name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off"></label>
-    <div class="row">
-      <label>List
-        <select name="list">
-          <% f.lists.forEach((o) => { %>
-            <option value="<%= o.value %>"<%~ o.value === t.list ? " selected" : "" %>><%= o.label %></option>
-          <% }) %>
-        </select>
-      </label>
-      <label>Waiting on <span class="hint">(if waiting)</span>
+<% if (it.form) { const f = it.form; const t = f.task; const checked = (on) => (on ? " checked" : ""); %>
+  <form class="edit" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})">
+    <section class="edit-main">
+      <label for="edit-title" class="hint">Task</label>
+      <input id="edit-title" class="edit-title" name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off">
+      <textarea name="notes" rows="2" maxlength="10000" aria-label="Notes" placeholder="Add notes…"><%= t.notes %></textarea>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">📅</span> When</h3>
+      <div class="pills" role="group" aria-label="Quick dates">
+        <% f.quickDates.forEach((d) => { %>
+          <button type="button" class="pill" data-on:click="el.form.elements.dueDate.value = '<%= d.date %>'"><%= d.label %></button>
+        <% }) %>
+        <button type="button" class="pill" data-on:click="el.form.elements.dueDate.value = ''; el.form.elements.dueTime.value = ''">No date</button>
+      </div>
+      <div class="edit-row is-when">
+        <label>Date <input type="date" name="dueDate" value="<%= t.due_date ?? '' %>"></label>
+        <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
+      </div>
+      <fieldset class="pills">
+        <legend>Repeats</legend>
+        <% f.repeats.forEach((r) => { %>
+          <label class="pill"><input type="radio" name="recurrence" value="<%= r.value %>"<%~ checked(r.value === f.currentRepeat) %>><span><%= r.label %></span></label>
+        <% }) %>
+      </fieldset>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">👤</span> Who</h3>
+      <fieldset class="pills">
+        <legend class="visually-hidden">Who does it</legend>
+        <% f.members.forEach((m) => { %>
+          <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>"<%~ checked(m.id === t.assignee_id) %>><span><%= m.id === f.userId ? "Me" : m.name %></span></label>
+        <% }) %>
+        <label class="pill"><input type="radio" name="assigneeId" value=""<%~ checked(!t.assignee_id) %>><span>Anyone</span></label>
+      </fieldset>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">📍</span> Where / how <span class="hint">· and tags</span></h3>
+      <div class="edit-row is-stacked">
+        <label>Where / how
+          <input name="context" value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone">
+        </label>
+        <label>Tags
+          <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
+        </label>
+      </div>
+      <datalist id="contexts">
+        <% f.contexts.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %>
+      </datalist>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">📥</span> List</h3>
+      <fieldset class="pills">
+        <legend class="visually-hidden">Which list it's on</legend>
+        <% f.lists.forEach((o) => { %>
+          <label class="pill"><input type="radio" name="list" value="<%= o.value %>"<%~ checked(o.value === t.list) %>><span><%= o.label %></span></label>
+        <% }) %>
+      </fieldset>
+      <%/* Shown only while "Waiting on" is picked (CSS :has, no script). */%>
+      <label class="waiting-field">Waiting on who or what?
         <input name="waitingOn" value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
       </label>
-    </div>
-    <div class="row">
-      <label>Due <input type="date" name="dueDate" value="<%= t.due_date ?? '' %>"></label>
-      <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
-    </div>
-    <label>Repeats
-      <select name="recurrence">
-        <% f.repeats.forEach((r) => { %>
-          <option value="<%= r.value %>"<%~ r.value === f.currentRepeat ? " selected" : "" %>><%= r.label %></option>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">❗</span> Priority</h3>
+      <fieldset class="pills">
+        <legend class="visually-hidden">Priority</legend>
+        <% f.priorities.forEach((p) => { %>
+          <label class="pill"><input type="radio" name="priority" value="<%= p.value %>"<%~ checked(Number(t.priority) === p.value) %>><span><%= p.label %></span></label>
         <% }) %>
-      </select>
-    </label>
-    <div class="row">
-      <label>Assigned to
-        <select name="assigneeId">
-          <option value="">Up for grabs</option>
-          <% f.members.forEach((m) => { %>
-            <option value="<%= m.id %>"<%~ m.id === t.assignee_id ? " selected" : "" %>><%= m.name %></option>
-          <% }) %>
-        </select>
-      </label>
-      <label>Priority
-        <select name="priority">
-          <% [[1, "High"], [0, "Normal"], [-1, "Low"]].forEach(([value, label]) => { %>
-            <option value="<%= value %>"<%~ Number(t.priority) === value ? " selected" : "" %>><%= label %></option>
-          <% }) %>
-        </select>
-      </label>
-    </div>
-    <label>Project
-      <select name="projectId">
+      </fieldset>
+    </section>
+
+    <section class="edit-group">
+      <h3><span aria-hidden="true">📁</span> Project</h3>
+      <select name="projectId" aria-label="Project">
         <option value="">No project</option>
         <% f.projects.forEach((p) => { %>
           <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
         <% }) %>
       </select>
-    </label>
-    <div class="row">
-      <label>Where / how
-        <input name="context" value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone">
-      </label>
-      <label>Tags
-        <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand quick-win">
-      </label>
-    </div>
-    <datalist id="contexts">
-      <% f.contexts.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %>
-    </datalist>
-    <label>Notes <textarea name="notes" rows="3" maxlength="10000"><%= t.notes %></textarea></label>
-    <div class="actions">
-      <button>Save</button>
-      <a href="/tasks/<%= t.id %>" data-on:click__prevent="$editing = false">Cancel</a>
+    </section>
+
+    <div class="edit-actions">
+      <a class="button" href="/tasks/<%= t.id %>" data-on:click__prevent="$editing = false">Cancel</a>
+      <button class="button primary">Save</button>
     </div>
   </form>
 <% } %>
