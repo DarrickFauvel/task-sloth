@@ -1,0 +1,85 @@
+<% layout("/layout", { title: null, wide: true, description: "A shared to-do list for your household. Jot things down in a second, sort them when you're ready, and see only what you can actually do." }) %>
+<%/* The front door for anyone not signed in (GET / without a session). It shows the app with its own pieces:
+     the preview is real task-row markup and styles, made inert, so it stays in step with the app. */%>
+<script type="module" src="/js/type-writer.js"></script>
+<div class="landing">
+  <header class="landing-bar">
+    <%~ include("/partials/brand", {}) %>
+    <a class="landing-signin" href="/login">Sign in</a>
+  </header>
+
+  <section class="landing-hero">
+    <div class="landing-pitch">
+      <p class="landing-kicker">For households that would rather not rush</p>
+      <h1>One <span class="landing-glow">unhurried</span> to&#8209;do list for everyone at home.</h1>
+      <p class="lead">Jot things down in a second. Sort them when you're ready. Then see only what you can actually do, and who's doing what, without the nagging.</p>
+      <div class="landing-actions">
+        <a class="button primary" href="/signup">Create your household</a>
+        <a class="button" href="/login">Sign in</a>
+      </div>
+      <p class="hint">Then invite the people you live with, with a link.</p>
+    </div>
+
+    <%/* A still of the app, a little alive: the add box types itself out, a task ticks itself off now and
+         then, and the flame flickers. Hidden from screen readers; the next paragraph says what it shows. */%>
+    <figure class="landing-demo" aria-hidden="true">
+      <div class="demo-screen">
+        <div class="demo-top">
+          <img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">
+          <span class="done-badge"><span class="done-emoji is-fire"><span>🔥</span><span>🔥</span></span><span class="done-count">5</span></span>
+          <span class="demo-avatars"><span class="avatar" style="--c: #6d5dfc">S</span><span class="avatar" style="--c: #e0763b">A</span></span>
+        </div>
+        <div class="demo-add"><span class="demo-input"><type-writer>call the plumber 555-123-4567 tomorrow</type-writer></span><span class="button primary">Add</span></div>
+        <h3 class="group overdue">Overdue <span class="count">1</span></h3>
+        <ul class="tasks">
+          <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Pick up prescription</span></span>
+            <span class="meta"><span class="due overdue">Today 17:00 · overdue</span><span class="chip">@Pharmacy</span><span class="who"><span class="dot" style="background: #e0763b"></span>Alex</span></span></div></li>
+        </ul>
+        <h3 class="group">Today <span class="count">3</span></h3>
+        <ul class="tasks">
+          <li class="task demo-ticking"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Water the plants</span></span>
+            <span class="meta"><span class="due today">Today</span><span class="who"><span class="dot" style="background: #6d5dfc"></span>Me</span></span></div></li>
+          <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Groceries</span></span>
+            <span class="meta"><span class="due today">Today</span><span class="chip">@Target</span><span>☑ 3/8</span><span class="who"><span class="dot" style="background: #6d5dfc"></span>Me</span></span></div></li>
+          <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Book the car in for a service</span></span>
+            <span class="meta"><span class="due today">Today</span><span class="chip phone">📞 Call</span><span>Up for grabs</span></span></div></li>
+        </ul>
+      </div>
+    </figure>
+    <p class="visually-hidden">A preview of Task Sloth: a shared list with tasks grouped into Overdue and Today, each showing when it's due, where it can be done, and who's on it.</p>
+  </section>
+
+  <section class="landing-section" aria-labelledby="how">
+    <h2 id="how">How it works</h2>
+    <ol class="landing-steps">
+      <li><span class="landing-icon" aria-hidden="true">✏️</span><h3>Jot</h3><p>Type it the moment you think of it. It lands in your own Inbox, so you don't have to decide anything yet.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">🗂️</span><h3>Sort</h3><p>When you have a minute, go through your Inbox one thing at a time: do it now, give it a day, wait on someone, or park it for later.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">✅</span><h3>Do</h3><p>Your list shows only what's ready, soonest first. Out at the shops? Tap <strong>@Target</strong> to see everything you can do there.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">🔄</span><h3>Check in</h3><p>Now and then, look at what you're waiting on and what you parked. Nothing gets lost, and nobody has to remember it all.</p></li>
+    </ol>
+  </section>
+
+  <section class="landing-section" aria-labelledby="features">
+    <h2 id="features">Made for sharing a home</h2>
+    <ul class="landing-features">
+      <li><span class="landing-icon" aria-hidden="true">🏠</span><h3>One list, everyone</h3><p>See what's yours, what's everyone's, and what's up for grabs. Claim a task with one tap.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">⚡</span><h3>Live on every phone</h3><p>Tick something off and it's ticked off for everyone, straight away. No refreshing.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">⌨️</span><h3>Shortcuts as you type</h3><p><code>fri</code>, <code>at 3pm</code>, <code>@Target</code>, <code>+errand</code>: add the details in the same breath as the task.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">🛒</span><h3>Checklists that sort themselves</h3><p>Shopping lists fall into sections like Produce and Dairy on their own. Drag items into your own order.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">⏰</span><h3>Gentle reminders</h3><p>Past its time? A task turns red and moves to the top. Repeating chores come back on their own.</p></li>
+      <li><span class="landing-icon" aria-hidden="true">📷</span><h3>Photos and phone numbers</h3><p>Snap the part you need to buy, and call the plumber straight from the task. Photos stay private to your household.</p></li>
+    </ul>
+  </section>
+
+  <section class="landing-cta">
+    <img class="landing-cta-logo" src="/img/logo.png" alt="" width="192" height="192">
+    <h2>Slow down. Still get it done.</h2>
+    <p>Set up your household in a minute, then invite everyone else.</p>
+    <a class="button primary" href="/signup">Create your household</a>
+    <p class="hint">Already have an account? <a href="/login">Sign in</a></p>
+  </section>
+
+  <footer class="landing-footer">
+    <a href="/about">About</a> · Made by <a href="https://darrickdevelops.com" rel="noopener">Darrick Develops</a>
+  </footer>
+</div>
