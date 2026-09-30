@@ -547,6 +547,11 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
   display: inline-grid; place-items: center; flex: none; width: 2rem; height: 2rem; border-radius: 50%; overflow: hidden;
   background: var(--c, var(--accent)); color: #fff; font-weight: 700; font-size: var(--step--1); line-height: 1;
 }
+/* A new color fades in softly (Settings changes it in place). */
+.avatar { transition: background-color 0.45s ease; }
+label.pill.swatch span { transition: box-shadow 0.25s ease, transform 0.25s ease; }
+label.pill.swatch input:checked + span { transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .avatar, label.pill.swatch span { transition: none; } }
 .avatar.is-lg { width: 2.75rem; height: 2.75rem; font-size: var(--step-1); }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 

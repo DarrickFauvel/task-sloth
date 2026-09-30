@@ -9,7 +9,7 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { createPasswordUser, MEMBER_COLORS, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { createPasswordUser, MEMBER_COLOR_NAMES, MEMBER_COLORS, updateColor, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
@@ -481,6 +481,7 @@ const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
     user: req.user, // loaded fresh each request, so a just-saved name shows
     membership: req.membership,
     colors: MEMBER_COLORS,
+    colorNames: MEMBER_COLOR_NAMES,
     saved,
     error,
   }, status);
@@ -499,6 +500,14 @@ app.post("/settings/profile", requireUser, async (req, res) => {
   // Housemates' open pages show the new name and color.
   if (req.membership) changed(req.membership.household.id);
   redirect(res, "/settings?saved=profile");
+});
+
+// Picking a swatch saves the color at once (the page has already recolored your avatars).
+app.post("/settings/color", requireUser, async (req, res) => {
+  await updateColor(req.user.id, req.body.color);
+  if (req.membership) changed(req.membership.household.id);
+  if (!isDatastar(req)) return redirect(res, "/settings?saved=profile");
+  await sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: "Color saved" })));
 });
 
 // Only the household's owner (whoever set it up) can rename it; renameHousehold checks.

@@ -3,8 +3,7 @@
 <% const u = it.user; %>
 <a class="back" href="/">← All tasks</a>
 <h1>Settings</h1>
-<% if (it.saved) { %><div class="flash" role="status"><span><%= it.saved %></span></div><% } %>
-<% if (it.error) { %><div class="flash is-error" role="alert"><span><%= it.error %></span></div><% } %>
+<% if (it.saved || it.error) { %><%~ include("/partials/flash", { message: it.saved ?? it.error, error: Boolean(it.error) }) %><% } else { %><div id="flash" role="status"></div><% } %>
 
 <div class="settings">
   <section class="panel">
@@ -15,10 +14,13 @@
         <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name">
         <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one.</small>
       </label>
-      <fieldset class="pills swatches">
-        <legend>Your color</legend>
+      <%/* Picking a color takes effect straight away: your avatars on this page fade to it, and it saves
+           in the background ("Save profile" is only needed for the name). */%>
+      <fieldset class="pills swatches" data-signals="{color: '<%= u.color %>'}"
+                data-on:change="$color = evt.target.value; document.querySelectorAll('.avatar').forEach((a) => a.dataset.member === '<%= u.id %>' && a.style.setProperty('--c', $color)); @post('/settings/color')">
+        <legend>Your color <span class="hint">· changes straight away</span></legend>
         <% it.colors.forEach((c) => { %>
-          <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" aria-label="<%= c %>"></span></label>
+          <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" title="<%= it.colorNames[c] %>" aria-label="<%= it.colorNames[c] %>"></span></label>
         <% }) %>
       </fieldset>
       <button class="button primary">Save profile</button>

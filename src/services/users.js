@@ -7,6 +7,18 @@ export const getUser = (id) => db.get("SELECT * FROM users WHERE id = ?", [id]);
 /** Colors a member can pick for their avatar and the dot beside their tasks. */
 export const MEMBER_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b", "#3a86ff", "#8d6e63", "#7cb342"];
 
+/** Names for the colors, for screen readers and tooltips. */
+export const MEMBER_COLOR_NAMES = {
+  "#6d5dfc": "Purple", "#e0527a": "Pink", "#1f9d8b": "Teal", "#e38b1b": "Orange",
+  "#3a86ff": "Blue", "#8d6e63": "Brown", "#7cb342": "Green",
+};
+
+/** Changes just the member's color (Settings saves it as soon as a swatch is picked). */
+export async function updateColor(userId, color) {
+  if (!MEMBER_COLORS.includes(color)) throw new HttpError(400, "Pick one of the colors");
+  await db.run("UPDATE users SET color = ? WHERE id = ?", [color, userId]);
+}
+
 /** Updates the name housemates see (and type after @) and the member's color. */
 export async function updateProfile(userId, { name, color }) {
   name = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
