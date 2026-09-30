@@ -32,7 +32,7 @@
         <button name="theme" value="<%= value %>" class="pill<%= (it.theme ?? 'system') === value ? ' is-on' : '' %>"><%= label %></button>
       <% }) %>
     </form>
-    <p class="hint">The ☀️/🌙 button at the top switches too.</p>
+    <p class="hint">You can also switch from the menu under your picture.</p>
   </section>
 
   <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>

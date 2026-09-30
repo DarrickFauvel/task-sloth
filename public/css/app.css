@@ -126,10 +126,17 @@ button.icon:focus-visible { opacity: 1; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
 .bar h1 { margin: 0; font-size: var(--step-2); }
 .brand { color: inherit; text-decoration: none; }
-/* The household's name under the brand; a long one is cut short rather than pushing the icons over. */
-.brand-block { min-width: 0; flex: 1; }
-.brand-block h1 { line-height: 1.15; }
-.household-label { margin: 0.1rem 0 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The household's name and your avatar: one button that opens the account menu. A long name is
+   cut short rather than wrapping the header. */
+.app-header { flex-wrap: nowrap; }
+.app-header h1 { flex: none; }
+.account-button {
+  display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 60%;
+  padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: 2rem; background: none;
+}
+.account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .account-button:hover { border-color: var(--line); } }
+.household-label { min-width: 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-actions { display: flex; gap: var(--space-s); align-items: center; }
 .bar-actions form { margin: 0; }
 .bar-actions a { text-decoration: none; }
@@ -542,10 +549,8 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
 }
 .avatar.is-lg { width: 2.75rem; height: 2.75rem; font-size: var(--step-1); }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-button { min-width: var(--tap); padding: 0; border: 0; background: none; border-radius: 50%; }
-.avatar-button:focus-visible .avatar { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* The light/dark button shows a moon while light and a sun while dark. */
+/* The light/dark item: a moon and "Dark mode" while light, a sun and "Light mode" while dark. */
 .theme-toggle .sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
 :root[data-theme="dark"] .theme-toggle .moon { display: none; }
@@ -553,7 +558,6 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
   :root:not([data-theme]) .theme-toggle .sun { display: block; }
   :root:not([data-theme]) .theme-toggle .moon { display: none; }
 }
-.app-header .bar-actions { gap: var(--space-2xs); }
 
 /* Account menu: a native popover. A bottom sheet on phones, a dropdown under the avatar on bigger
    screens; it animates in and out like the other sheets. */
@@ -568,6 +572,7 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
 .menu::backdrop { background: rgb(0 0 0 / 0); transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
 .menu:popover-open::backdrop { background: rgb(0 0 0 / 0.45); }
 @starting-style { .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); } }
+.menu-icon { display: inline-grid; place-items: center; width: 1.5rem; }
 .menu-head { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); border-bottom: 1px solid var(--line); margin-bottom: var(--space-2xs); }
 .menu-head div { display: grid; min-width: 0; }
 .menu-head .hint { overflow-wrap: anywhere; }
