@@ -150,10 +150,10 @@ button.icon:focus-visible { opacity: 1; }
    the flow, so the brand stays centered against the account button whether or not there is one; the header's
    bottom padding makes room for it. A long name is cut short rather than running under the account button. */
 .app-header { flex-wrap: nowrap; }
-.app-header:has(.household-name) { padding-bottom: 1.1rem; }
+.app-header:has(.brand-household) { padding-bottom: 1.1rem; }
 .brand-block { position: relative; flex: none; min-width: 0; }
 .app-header h1 { flex: none; }
-.household-name {
+.brand-household {
   position: absolute; top: calc(100% + 0.1rem); left: calc(2.25 * var(--step-2) + var(--space-xs));
   max-width: calc(100vw - 2.25 * var(--step-2) - 3 * var(--space-m)); margin: 0;
   font-size: var(--step--1); font-style: italic; line-height: 1.2; color: var(--muted);
@@ -813,21 +813,43 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 
 /* --- Settings ----------------------------------------------------------------------------- */
 
-.settings { display: grid; gap: var(--space-s); margin-top: var(--space-s); }
+/* One readable column, even on a wide screen: the cards hold short fields, not long text. */
+.settings-page { max-width: 34rem; margin-inline: auto; }
+.settings { display: grid; gap: var(--space-m); margin-top: var(--space-s); }
+.settings .panel { gap: var(--space-m); }
 .settings h2 { font-size: var(--step-1); }
-.settings .members { gap: var(--space-xs); }
+/* A labelled field or group: label (or legend) on top, the control, then a hint. Fieldsets lose their
+   default box so they look like any other field. */
+.settings .field { display: grid; gap: var(--space-2xs); margin: 0; padding: 0; border: 0; min-width: 0; }
+.settings .field > legend { float: left; width: 100%; padding: 0; margin-bottom: var(--space-2xs); } /* float: sits in the grid like a label */
+.settings .field > .hint { margin: 0; }
+.settings .field > strong { font-size: var(--step-1); }
+.field-title { margin: 0; font-size: inherit; font-weight: normal; }
+.settings .sign-in-fields { gap: var(--space-s); }
+.field-title .count { color: var(--muted); }
+.swatches + .hint { margin-top: var(--space-2xs); }
+
+/* Your photo: the big avatar, then "Add/Change photo" with Remove (or a note) beside it. */
+.profile-photo { display: flex; align-items: center; gap: var(--space-s); margin: 0; padding: 0; border: 0; min-width: 0; }
 .profile-preview { display: flex; }
-/* Your avatar, then "Upload a photo" (a label styled as a button around a hidden file input) and "Remove photo". */
-.profile-photo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); }
-.profile-photo form { margin: 0; }
+.profile-preview .avatar { width: 4rem; height: 4rem; font-size: var(--step-2); }
+.profile-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-s); min-width: 0; }
+.profile-photo-actions form { margin: 0; }
+.profile-photo-actions > .hint { flex-basis: 100%; }
 photo-picker { display: contents; }
 photo-picker label.button { cursor: pointer; }
 photo-picker label.button:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 photo-picker [role=status] { flex-basis: 100%; margin: 0; }
-.settings fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
-.settings legend { padding: 0; margin-bottom: var(--space-2xs); }
+
+/* Color swatches: room between them so the ring around the chosen one isn't crowded. */
+.swatches { gap: var(--space-xs); padding: 0.25rem; margin: -0.25rem; }
 label.pill.swatch span { width: 2.5rem; padding: 0; background: var(--c); border-color: var(--c); }
 label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+
+/* Members: avatar, name, and a quiet note for whoever set the household up. */
+.settings .members { gap: var(--space-xs); }
+.member-name { flex: 1; min-width: 0; }
+.member-note { font-size: var(--step--1); color: var(--muted); padding: 0.1rem var(--space-xs); border-radius: 1rem; background: var(--tint); }
 .inline-field { display: flex; gap: var(--space-xs); }
 .inline-field input { flex: 1; min-width: 0; }
 .panel .inline-field .button.primary { flex: none; width: auto; }

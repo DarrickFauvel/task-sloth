@@ -140,13 +140,23 @@ export async function disconnectGoogle(userId) {
 const USERNAME_RE = /^[a-z0-9_.-]{3,30}$/i; // no "@", so sign-in can tell a username from an email
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function cleanUsername(username) {
+  username = String(username ?? "").trim();
+  if (!USERNAME_RE.test(username)) throw new HttpError(400, "Username must be 3–30 letters, numbers, dots, dashes or underscores");
+  return username;
+}
+
+function cleanEmail(email) {
+  email = String(email ?? "").trim().toLowerCase();
+  if (email.length > 254 || !EMAIL_RE.test(email)) throw new HttpError(400, "Enter a valid email address");
+  return email;
+}
+
 /** Checks and normalizes sign-up fields; throws a 400 with a message for the form. */
 export function validateSignup({ username, email, password }) {
-  username = String(username ?? "").trim();
-  email = String(email ?? "").trim().toLowerCase();
+  username = cleanUsername(username);
+  email = cleanEmail(email);
   password = String(password ?? "");
-  if (!USERNAME_RE.test(username)) throw new HttpError(400, "Username must be 3–30 letters, numbers, dots, dashes or underscores");
-  if (email.length > 254 || !EMAIL_RE.test(email)) throw new HttpError(400, "Enter a valid email address");
   if (password.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
   if (password.length > 200) throw new HttpError(400, "Password must be at most 200 characters");
   return { username, email, password };
@@ -172,6 +182,37 @@ export async function createPasswordUser(input) {
     throw err;
   }
   return id;
+}
+
+/**
+ * Changes a password account's username and email, after checking its current password (so a phone
+ * left signed in can't be used to take the account over). Google and dev accounts have neither to change.
+ * Throws a 400 with a message for the form; `wrongPassword` is set when that was the problem.
+ * @returns {Promise<boolean>} whether anything changed
+ */
+export async function updateSignIn(userId, { username, email, password }) {
+  const user = await db.get("SELECT username, email, password_hash FROM users WHERE id = ?", [userId]);
+  if (!user?.password_hash) throw new HttpError(400, "You sign in with Google, so there's no username or email to change here");
+  username = cleanUsername(username);
+  email = cleanEmail(email);
+  if (!(await verifyPassword(String(password ?? ""), user.password_hash))) {
+    throw Object.assign(new HttpError(400, "That isn't your current password"), { wrongPassword: true });
+  }
+  if (username === user.username && email === user.email) return false;
+  if (await db.get("SELECT 1 FROM users WHERE username = ? COLLATE NOCASE AND id != ?", [username, userId])) {
+    throw new HttpError(400, "That username is taken");
+  }
+  if (await db.get("SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND password_hash IS NOT NULL AND id != ?", [email, userId])) {
+    throw new HttpError(400, "There's already an account with that email");
+  }
+  try {
+    await db.run("UPDATE users SET username = ?, email = ? WHERE id = ?", [username, email, userId]);
+  } catch (err) {
+    // Lost a race with someone else taking the same name or email.
+    if (/UNIQUE/i.test(String(err?.message))) throw new HttpError(400, "That username or email is already in use");
+    throw err;
+  }
+  return true;
 }
 
 // Compared against when no account matches, so a wrong username takes as long as a wrong password.

@@ -20,7 +20,28 @@ export const config = {
   },
   // Task photos: CLOUDINARY_URL is cloudinary://<api key>:<api secret>@<cloud name>, as Cloudinary's dashboard shows it.
   cloudinary: parseCloudinaryUrl(env.CLOUDINARY_URL),
+  // Sending email: SMTP_URL is smtp://<user>:<password>@<host>:<port> (smtps:// for implicit TLS on 465);
+  // MAIL_FROM is the sender, e.g. "Task Sloth <noreply@example.com>". Nothing sends mail yet.
+  mail: parseSmtpUrl(env.SMTP_URL, env.MAIL_FROM),
 };
+
+function parseSmtpUrl(value, from) {
+  try {
+    const u = new URL(value);
+    if (!["smtp:", "smtps:"].includes(u.protocol) || !u.hostname || !from?.trim()) return null;
+    const secure = u.protocol === "smtps:";
+    return {
+      host: u.hostname,
+      port: Number(u.port) || (secure ? 465 : 587),
+      secure,
+      user: decodeURIComponent(u.username),
+      pass: decodeURIComponent(u.password),
+      from: from.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function parseCloudinaryUrl(value) {
   try {
@@ -34,6 +55,7 @@ function parseCloudinaryUrl(value) {
 
 export const googleConfigured = () => Boolean(config.google.clientId && config.google.clientSecret);
 export const photosConfigured = () => Boolean(config.cloudinary);
+export const mailConfigured = () => Boolean(config.mail);
 
 if (config.isProduction && config.sessionSecret.startsWith("dev-only")) {
   throw new Error("SESSION_SECRET must be set in production");
