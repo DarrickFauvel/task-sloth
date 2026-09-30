@@ -40,7 +40,7 @@
       </select>
     </label>
     <div class="row">
-      <label>Context
+      <label>Where / how
         <input name="context" value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone">
       </label>
       <label>Tags
