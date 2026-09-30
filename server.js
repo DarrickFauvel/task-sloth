@@ -9,7 +9,7 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
@@ -20,6 +20,7 @@ import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
+import { householdPhrase } from "./src/web/household-phrase.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addPhoto, getPhoto, PHOTO_MAX_BYTES, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
@@ -108,7 +109,8 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured() });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
+    householdPhrase: req.membership ? householdPhrase(req.membership.household.name) : null });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -428,7 +430,7 @@ app.post("/tasks/:id/photos", requireHousehold, express.raw({ type: "image/*", l
 app.get("/tasks/:id/photos", requireHousehold, async (req, res) => {
   await getTask(req.actor.householdId, req.params.id);
   const { photos } = await taskPhotosView(req.actor.householdId, req.params.id);
-  res.json({ photos: photos.map(({ full }) => ({ full })) });
+  res.json({ photos: photos.map(({ full, tiny }) => ({ full, tiny })) });
 });
 
 // A task photo, for its household only. Photos are private on Cloudinary, so the app fetches one on a signed
@@ -591,6 +593,28 @@ app.post("/settings/profile", requireUser, async (req, res) => {
   // Housemates' open pages show the new name and color.
   if (req.membership) changed(req.membership.household.id);
   redirect(res, "/settings?saved=profile");
+});
+
+// Leaving the name field saves it (like the color below), with a toast; errors show the same way.
+app.post("/settings/name", requireUser, async (req, res) => {
+  let name;
+  try {
+    name = await updateName(req.user.id, req.body.name);
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    if (!isDatastar(req)) return renderSettings(req, res, { error: err.message, status: 400 });
+    // Put the saved name back in the field, so it doesn't look like the bad one was kept.
+    return sse(req, res, (stream) => {
+      stream.patchElements(eta.render("partials/flash", { message: err.message, error: true }));
+      stream.patchSignals(JSON.stringify({ name: req.user.name }));
+    });
+  }
+  if (req.membership) changed(req.membership.household.id);
+  if (!isDatastar(req)) return redirect(res, "/settings?saved=profile");
+  await sse(req, res, (stream) => {
+    stream.patchElements(eta.render("partials/flash", { message: "Name saved" }));
+    stream.patchSignals(JSON.stringify({ name }));
+  });
 });
 
 // Picking a swatch saves the color at once (the page has already recolored your avatars).

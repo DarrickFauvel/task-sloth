@@ -19,10 +19,22 @@ export async function updateColor(userId, color) {
   await db.run("UPDATE users SET color = ? WHERE id = ?", [color, userId]);
 }
 
-/** Updates the name housemates see (and type after @) and the member's color. */
-export async function updateProfile(userId, { name, color }) {
+function cleanName(name) {
   name = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
   if (!name) throw new HttpError(400, "Your name can't be empty");
+  return name;
+}
+
+/** Updates the name housemates see (and type after @). Returns it as saved (spaces tidied). */
+export async function updateName(userId, name) {
+  name = cleanName(name);
+  await db.run("UPDATE users SET name = ? WHERE id = ?", [name, userId]);
+  return name;
+}
+
+/** Updates the name and the color together: Settings' form without script. */
+export async function updateProfile(userId, { name, color }) {
+  name = cleanName(name);
   if (!MEMBER_COLORS.includes(color)) throw new HttpError(400, "Pick one of the colors");
   await db.run("UPDATE users SET name = ?, color = ? WHERE id = ?", [name, color, userId]);
 }

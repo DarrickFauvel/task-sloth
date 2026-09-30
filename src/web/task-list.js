@@ -80,6 +80,8 @@ export function decorateTask(t, membership, today) {
     blockedBy: t.waiting_task_id && t.waiting_task_status === "open" ? t.waiting_task_title : "",
     // Open tasks waiting on this one.
     blocking: t.blocking_titles ? JSON.parse(t.blocking_titles) : [],
+    // The first few photos, shown as a small overlapping stack on the row.
+    photoIds: t.photo_ids ? JSON.parse(t.photo_ids) : [],
     waitingLabel: t.list === "waiting" && t.status === "open" ? `${t.waiting_on || "someone"} · ${sinceLabel(t.waiting_since ?? today, today)}` : "",
   };
 }

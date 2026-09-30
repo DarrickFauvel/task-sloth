@@ -21,13 +21,17 @@
         <form method="post" action="/settings/photo/remove"><button class="button">Remove photo</button></form>
       <% } %>
     </div>
-    <form method="post" action="/settings/profile" class="stack">
+    <%/* Both save as you go: the name when you leave the field (Enter leaves it too), the color when you pick one.
+         "Save profile" is only for when script is off; data-show hides it once Datastar is running. */%>
+    <form method="post" action="/settings/profile" class="stack" data-on:submit="document.activeElement?.blur()">
       <label>Your name
-        <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name">
-        <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one.</small>
+        <%/* data-bind starts the $name signal from this value; the server sends it back tidied (or restored after an error). */%>
+        <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name"
+               data-bind:name data-on:change="@post('/settings/name')">
+        <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one. Saves when you leave the box.</small>
       </label>
       <%/* Picking a color takes effect straight away: the app's accent and your avatars on this page change to it, and it saves
-           in the background ("Save profile" is only needed for the name). */%>
+           in the background. */%>
       <fieldset class="pills swatches" data-signals="{color: '<%= u.color %>'}"
                 data-on:change="$color = evt.target.value; document.documentElement.style.setProperty('--you', $color); document.querySelectorAll('.avatar').forEach((a) => a.dataset.member === '<%= u.id %>' && a.style.setProperty('--c', $color)); @post('/settings/color')">
         <legend>Your color <span class="hint">· also the app's accent, changes straight away</span></legend>
@@ -35,7 +39,7 @@
           <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" title="<%= it.colorNames[c] %>" aria-label="<%= it.colorNames[c] %>"></span></label>
         <% }) %>
       </fieldset>
-      <button class="button primary">Save profile</button>
+      <button class="button primary" data-show="false">Save profile</button>
     </form>
   </section>
 

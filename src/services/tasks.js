@@ -23,6 +23,7 @@ const TASK_SELECT = `
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id AND c.checked = 1) AS item_done,
          (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id) AS comment_count,
          (SELECT COUNT(*) FROM task_photos ph WHERE ph.task_id = t.id) AS photo_count,
+         (SELECT json_group_array(ph.id) FROM (SELECT id FROM task_photos WHERE task_id = t.id ORDER BY created_at, id LIMIT 3) ph) AS photo_ids,
          wt.title AS waiting_task_title, wt.status AS waiting_task_status,
          (SELECT json_group_array(b.title) FROM tasks b
            WHERE b.waiting_task_id = t.id AND b.status = 'open' AND b.deleted_at IS NULL) AS blocking_titles

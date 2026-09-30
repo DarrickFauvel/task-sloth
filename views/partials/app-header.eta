@@ -1,11 +1,16 @@
-<%/* The home page's top bar: the brand, then the household's name and your avatar as one button that
-     opens the account menu. The menu is a native popover: tapping outside or Esc closes it, with no script. */%>
+<%/* The home page's top bar: the brand with the household's name tucked under it, then your name and avatar
+     as one button that opens the account menu. The menu is a native popover: tapping outside or Esc closes it,
+     with no script. The household name sits outside the heading and link, so neither reads it out. */%>
 <% const u = it.user; const household = it.membership?.household.name; %>
 <header class="bar app-header">
-  <h1><a class="brand" href="/"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</a></h1>
+  <div class="brand-block">
+    <h1><a class="brand" href="/"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</a></h1>
+    <%/* A random sloth-paced line with the household's name in it (src/web/household-phrase.js), typed out softly. */%>
+    <% if (household) { %><p class="household-name"><type-writer><%= it.phrase ?? household %></type-writer></p><% } %>
+  </div>
   <button type="button" class="account-button" popovertarget="account-menu"
           aria-label="Account menu for <%= u.name %><%= household ? `, ${household}` : "" %>">
-    <% if (household) { %><span class="household-label"><%= household %></span><% } %>
+    <span class="account-name"><%= u.name %></span>
     <%~ include("/partials/avatar", { user: u }) %>
   </button>
 </header>
@@ -39,3 +44,4 @@
   </button>
   <form method="post" action="/logout"><button class="menu-item"><span class="menu-icon" aria-hidden="true">↪</span> Sign out</button></form>
 </div>
+<% if (household) { %><script type="module" src="/js/type-writer.js"></script><% } %>

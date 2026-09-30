@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser } from "../src/services/household.js";
-import { getAvatarPhoto, getUser, imageType, removeAvatarPhoto, setAvatarPhoto } from "../src/services/users.js";
+import { getAvatarPhoto, getUser, imageType, removeAvatarPhoto, setAvatarPhoto, updateName } from "../src/services/users.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-avatar-"));
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
@@ -47,4 +47,11 @@ test("a saved photo shows to you and your housemates, not to strangers, until yo
   await removeAvatarPhoto("u1");
   assert.equal((await getUser("u1")).avatar_photo_at, null);
   assert.equal(await getAvatarPhoto("u1", "u1"), undefined);
+});
+
+test("updateName tidies spaces, returns the saved name, and won't take a blank one", async () => {
+  assert.equal(await updateName("u1", "  Sam   Smith "), "Sam Smith");
+  assert.equal((await getUser("u1")).name, "Sam Smith");
+  await assert.rejects(updateName("u1", "   "), /can't be empty/);
+  assert.equal((await getUser("u1")).name, "Sam Smith");
 });

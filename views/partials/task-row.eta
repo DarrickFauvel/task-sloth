@@ -18,9 +18,14 @@
       <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
       <%~ include("/partials/context-tags", { t }) %>
       <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
-      <% if (Number(t.photo_count)) { /* opens the photo viewer; without script, the task page */ %>
-        <a class="photo-count" href="/tasks/<%= t.id %>#task-photos" data-photos="/tasks/<%= t.id %>/photos"
-           aria-label="See <%= t.photo_count %> photo<%= Number(t.photo_count) === 1 ? '' : 's' %>" title="See photos">📷 <%= t.photo_count %></a>
+      <% if (t.photoIds.length) { /* up to 3 overlapping thumbnails (+ how many more); opens the photo viewer, or the task page without script */ %>
+        <% const n = Number(t.photo_count); %>
+        <a class="photo-stack" href="/tasks/<%= t.id %>#task-photos" data-photos="/tasks/<%= t.id %>/photos"
+           aria-label="See <%= n %> photo<%= n === 1 ? '' : 's' %>" title="See photos">
+          <%/* data-index: the viewer opens on the photo tapped; "+k" opens on the first one not shown here. */%>
+          <% t.photoIds.forEach((id, i) => { %><img src="/photos/<%= id %>/tiny" alt="" width="24" height="24" loading="lazy" data-index="<%= i %>"><% }) %>
+          <% if (n > t.photoIds.length) { %><span class="photo-more" data-index="<%= t.photoIds.length %>">+<%= n - t.photoIds.length %></span><% } %>
+        </a>
       <% } %>
       <% if (Number(t.comment_count)) { %><span title="Comments">💬 <%= t.comment_count %></span><% } %>
       <% if (it.view === "inbox") { %>

@@ -108,7 +108,7 @@ button.icon:focus-visible { opacity: 1; }
 
 /* Round tick box: drawn at ~26px, but its tap area reaches 44px. */
 .check {
-  position: relative; flex: none; min-height: 0; width: 1.6rem; height: 1.6rem; padding: 0; margin: 0.1rem 0.1rem 0;
+  position: relative; z-index: 1; flex: none; min-height: 0; width: 1.6rem; height: 1.6rem; padding: 0; margin: 0.1rem 0.1rem 0;
   border-radius: 50%; border: 2px solid var(--muted); line-height: 1; font-size: var(--step--1);
 }
 .check::after { content: ""; position: absolute; inset: -0.6rem; }
@@ -138,18 +138,47 @@ button.icon:focus-visible { opacity: 1; }
 .brand { color: inherit; text-decoration: none; }
 /* The sloth beside the name, in the header and on the sign-in pages. */
 .brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
-.brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; }
-/* The household's name and your avatar: one button that opens the account menu. A long name is
-   cut short rather than wrapping the header. */
+.brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; transition: transform 0.3s cubic-bezier(0.3, 1.5, 0.5, 1); }
+/* Hovering the brand (or tabbing to it) tips the sloth back a little and brings it closer, with a small bounce. */
+@media (hover: hover) {
+  .brand:hover .brand-logo { transform: rotate(-8deg) scale(1.12); }
+  .brand:hover { text-decoration: none; } /* the sloth is the hover cue */
+}
+.brand:focus-visible .brand-logo { transform: rotate(-8deg) scale(1.12); }
+@media (prefers-reduced-motion: reduce) { .brand-logo { transition: none; } }
+/* The brand, with the household's name under the words "Task Sloth" (not the logo). The name is taken out of
+   the flow, so the brand stays centered against the account button whether or not there is one; the header's
+   bottom padding makes room for it. A long name is cut short rather than running under the account button. */
 .app-header { flex-wrap: nowrap; }
+.app-header:has(.household-name) { padding-bottom: 1.1rem; }
+.brand-block { position: relative; flex: none; min-width: 0; }
 .app-header h1 { flex: none; }
+.household-name {
+  position: absolute; top: calc(100% + 0.1rem); left: calc(2.25 * var(--step-2) + var(--space-xs));
+  max-width: calc(100vw - 2.25 * var(--step-2) - 3 * var(--space-m)); margin: 0;
+  font-size: var(--step--1); font-style: italic; line-height: 1.2; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none; /* it can reach under the account button's edge; taps go to the button */
+}
+/* Typed out (see /js/type-writer.js): each letter fades and un-blurs in; the caret blinks softly while it
+   types, then fades away. */
+.tw-char { animation: tw-in 0.35s ease both; }
+@keyframes tw-in { from { opacity: 0; filter: blur(3px); } }
+.tw-caret {
+  display: inline-block; width: 1px; height: 1em; margin-left: 1px; vertical-align: -0.12em; background: currentColor;
+  animation: tw-blink 0.9s ease-in-out infinite;
+}
+.tw-caret.is-done { animation: tw-blink 0.9s ease-in-out infinite, tw-caret-out 0.6s ease 0.8s forwards; }
+@keyframes tw-blink { 50% { opacity: 0.15; } }
+@keyframes tw-caret-out { to { opacity: 0; } }
+/* Your name and avatar: one button that opens the account menu. A long name is cut short. */
 .account-button {
   display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 60%;
   padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: 2rem; background: none;
 }
 .account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: hover) { .account-button:hover { border-color: var(--line); } }
-.household-label { min-width: 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-name { min-width: 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-actions { display: flex; gap: var(--space-s); align-items: center; }
 .bar-actions form { margin: 0; }
 .bar-actions a { text-decoration: none; }
@@ -265,12 +294,13 @@ body:has(.bottom-nav) .toasts { bottom: calc(4.25rem + env(safe-area-inset-botto
 .group a { color: inherit; text-decoration: none; }
 .group.overdue { color: var(--danger); }
 .tasks, .items { list-style: none; margin: 0; padding: 0; }
-.task { display: flex; align-items: flex-start; gap: var(--space-s); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line); }
+/* isolation: the z-index on a row's title and controls (see .meta below) stays inside the row, under sticky bars. */
+.task { display: flex; align-items: flex-start; gap: var(--space-s); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line); isolation: isolate; }
 .task form { margin: 0; }
 .task > form:first-child { padding-top: 0.55rem; }
 .task-body { flex: 1; min-width: 0; display: grid; gap: 0.1rem; padding-top: var(--space-xs); }
 .task-title { overflow-wrap: anywhere; }
-a.task-title { color: inherit; text-decoration: none; }
+a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: none; }
 .task.is-done .task-title { text-decoration: line-through; color: var(--muted); }
 /* Blocked by another task: still on the list, but visibly not ready yet. */
 .task.is-blocked .task-title { color: var(--muted); }
@@ -278,8 +308,16 @@ a.task-title { color: inherit; text-decoration: none; }
 .holding-up { margin: var(--space-xs) 0 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1); }
 .task.is-high .task-title::before { content: "! "; color: var(--danger); font-weight: 600; }
 .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-s); font-size: var(--step--1); color: var(--muted); align-items: center; }
-/* Links in the meta line (Claim, Sort, chips) get a taller hit area without looking any bigger. */
-.meta a, .meta button.link { display: inline-block; padding: var(--space-2xs) 0; margin: calc(-1 * var(--space-2xs)) 0; }
+/* Actions in the meta line (Claim, Sort, Hide, 📷, chips) and the rename box's text links look like small
+   text but take a tap anywhere in a box at least --tap square around them: an invisible ::after, centered
+   on the text, so rows don't grow.
+   Where two boxes overlap, the later one wins; the title, tick box and ✏️ sit above them all. */
+.meta a, .meta button.link, .rename-actions a, .rename-actions button.link { position: relative; display: inline-block; }
+.meta a::after, .meta button.link::after, .rename-actions a::after, .rename-actions button.link::after {
+  content: ""; position: absolute;
+  top: calc(50% - var(--tap) / 2); bottom: calc(50% - var(--tap) / 2);
+  left: min(calc(-1 * var(--space-2xs)), calc(50% - var(--tap) / 2)); right: min(calc(-1 * var(--space-2xs)), calc(50% - var(--tap) / 2));
+}
 .meta form.inline { display: inline; }
 .due.overdue { color: var(--danger); }
 .due.today { color: var(--accent); font-weight: 600; }
@@ -290,10 +328,10 @@ a.task-title { color: inherit; text-decoration: none; }
 /* Renaming a task in place: the title turns into a text box with its actions underneath. */
 .rename { flex: 1; min-width: 0; display: grid; gap: var(--space-xs); padding: var(--space-2xs) 0; }
 .rename-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); font-size: var(--step--1); }
-.rename-actions .button { min-height: 2.25rem; padding-inline: var(--space-s); }
+.rename-actions .button { padding-inline: var(--space-s); }
 .rename-actions a { margin-left: auto; }
 button.link.danger { color: var(--danger); }
-.rename-button { font-size: inherit; }
+.rename-button { position: relative; z-index: 1; font-size: inherit; }
 .chip { color: inherit; text-decoration: none; }
 .chip.tag { color: var(--accent); }
 .chip.project { color: var(--c); }
@@ -360,7 +398,9 @@ label.pill span { overflow-wrap: anywhere; }
 .photo-grid a { display: block; }
 .photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; background: var(--line); }
 .photo-grid form { position: absolute; top: 0.25rem; right: 0.25rem; margin: 0; }
-button.icon.photo-delete { display: grid; place-items: center; min-width: 2rem; min-height: 2rem; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 1; }
+button.icon.photo-delete { position: relative; display: grid; place-items: center; min-width: 2rem; min-height: 2rem; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 1; }
+/* Drawn at 32px, tapped at 44px. */
+button.icon.photo-delete::after { content: ""; position: absolute; inset: calc((2rem - var(--tap)) / 2); }
 #checklist-head h2 { font-size: var(--step-1); margin: 0; }
 .checklist-hint { margin: var(--space-2xs) 0 0; }
 #add-items { position: static; margin: var(--space-xs) 0; padding: 0; }
@@ -602,20 +642,58 @@ dialog.photo-viewer[open] .viewer-stage img { transform: none; }
 .viewer-prev, .viewer-next { top: 50%; translate: 0 -50%; }
 .viewer-prev { left: var(--space-s); }
 .viewer-next { right: var(--space-s); }
-.photo-viewer.is-single .viewer-prev, .photo-viewer.is-single .viewer-next { display: none; }
+.photo-viewer.is-single :is(.viewer-prev, .viewer-next, .viewer-strip) { display: none; }
 .viewer-count {
-  position: absolute; left: 0; right: 0; bottom: max(var(--space-s), env(safe-area-inset-bottom)); margin: 0;
+  position: absolute; left: 0; right: 0; bottom: calc(var(--strip) + var(--space-s)); margin: 0;
   text-align: center; font-size: var(--step--1); color: rgb(255 255 255 / 0.8); pointer-events: none;
 }
 
+/* The thumbnail strip: one small photo per button, the current one full-strength and outlined, the rest dimmed.
+   It scrolls sideways when there are more than fit, keeping the current one centered. --strip is the space
+   it takes at the bottom; the photo and the counter sit above it. */
+dialog.photo-viewer { --strip: calc(3.5rem + max(var(--space-s), env(safe-area-inset-bottom))); }
+dialog.photo-viewer.is-single { --strip: 0rem; }
+dialog.photo-viewer:not(.is-single) .viewer-stage { padding-bottom: calc(var(--strip) + 2.5rem); }
+.viewer-strip {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 0.4rem; overflow-x: auto;
+  padding: 0.25rem var(--space-s) max(var(--space-s), env(safe-area-inset-bottom));
+  scrollbar-width: none; touch-action: pan-x;
+}
+.viewer-strip::-webkit-scrollbar { display: none; }
+/* Centered when they all fit; auto margins (not justify-content) so a long strip still scrolls from its start. */
+.viewer-strip > :first-child { margin-left: auto; }
+.viewer-strip > :last-child { margin-right: auto; }
+.viewer-strip button {
+  flex: none; width: 3rem; height: 3rem; padding: 0; border: 0; border-radius: 0.4rem; overflow: hidden;
+  background: rgb(255 255 255 / 0.1); opacity: 0.5; outline: 2px solid transparent; outline-offset: 2px;
+  transition: opacity 0.2s ease, outline-color 0.2s ease;
+}
+.viewer-strip button img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.viewer-strip button[aria-current] { opacity: 1; outline-color: #fff; }
+@media (hover: hover) { .viewer-strip button:hover { opacity: 0.85; } }
+
 @media (prefers-reduced-motion: reduce) {
-  dialog.photo-viewer, .viewer-stage img { transition: none; }
+  dialog.photo-viewer, .viewer-stage img, .viewer-strip button { transition: none; }
   .viewer-stage img.fade-in, .viewer-stage img.from-right, .viewer-stage img.from-left { animation: none; }
 }
 
-/* The 📷 count on a task row opens the viewer. */
-a.photo-count { color: inherit; text-decoration: none; }
-@media (hover: hover) { a.photo-count:hover { color: var(--accent); } }
+/* A task row's photos: up to three tiny round thumbnails, overlapping like an avatar stack, each ringed in the
+   page color so the edges read. Tapping them opens the viewer. */
+a.photo-stack { display: inline-flex; align-items: center; color: inherit; text-decoration: none; vertical-align: middle; }
+.photo-stack img {
+  width: 1.5rem; height: 1.5rem; object-fit: cover; border-radius: 50%; background: var(--line);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.photo-stack img + img { margin-left: -0.5rem; }
+/* Above the link's enlarged tap area (.meta a::after), so a tap on a thumbnail opens that photo. */
+.photo-stack img, .photo-more { position: relative; z-index: 1; }
+.photo-more { margin-left: 0.3rem; font-size: var(--step--1); }
+@media (hover: hover) {
+  .photo-stack img { transition: margin 0.2s ease; }
+  a.photo-stack:hover img + img { margin-left: -0.2rem; }
+  a.photo-stack:hover .photo-more { color: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) { .photo-stack img { transition: none; } }
 
 /* Nothing behind the dialog scrolls while it's open. */
 html:has(dialog[open]) { overflow: hidden; }

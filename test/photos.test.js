@@ -81,6 +81,19 @@ test("a photo uploads to the household's folder, shows on the task, and deletes 
   assert.deepEqual(await listPhotos("h1", taskId), []);
 });
 
+test("a task row carries its first three photos, oldest first", async () => {
+  const taskId = await createTask(actor, { title: "garden", list: "todo" });
+  const ids = [];
+  for (let i = 0; i < 4; i++) {
+    ids.push(await addPhoto(actor, taskId, JPEG));
+    // Distinct times: two photos in the same millisecond would fall back to (random) id order.
+    await db.run("UPDATE task_photos SET created_at = ? WHERE id = ?", [`2026-09-30T12:00:0${i}.000Z`, ids[i]]);
+  }
+  const task = await getTask("h1", taskId);
+  assert.equal(Number(task.photo_count), 4);
+  assert.deepEqual(JSON.parse(task.photo_ids), ids.slice(0, 3));
+});
+
 test("only images, and only on your household's tasks", async () => {
   const taskId = await createTask(actor, { title: "paint", list: "todo" });
   await assert.rejects(addPhoto(actor, taskId, Buffer.from("not an image")), /isn't a JPEG/);

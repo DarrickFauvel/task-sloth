@@ -6,6 +6,8 @@
     <img alt="">
   </figure>
   <p class="viewer-count" aria-live="polite"></p>
+  <%/* A button per photo, filled in by the script; hidden when there's only one. */%>
+  <nav class="viewer-strip" aria-label="All photos"></nav>
   <button type="button" class="viewer-button viewer-close" aria-label="Close" data-viewer="close">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
