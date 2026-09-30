@@ -4,22 +4,25 @@ import { addDays, isValidDate } from "../../public/js/lib/dates.js";
 import { nextOccurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { activityStatement } from "./activity.js";
 import { changed } from "./changes.js";
+import { cleanTagName, ensureTags } from "./tags.js";
 
 /** @typedef {{ id: string, householdId: string }} Actor  The signed-in user plus their household. */
 
 const TASK_SELECT = `
   SELECT t.*,
          p.name AS project_name, p.emoji AS project_emoji, p.color AS project_color,
+         cx.name AS context_name,
+         (SELECT group_concat(g.name, ' ') FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id) AS tag_names,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id) AS item_count,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id AND c.checked = 1) AS item_done,
          (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id) AS comment_count
-    FROM tasks t LEFT JOIN projects p ON p.id = t.project_id`;
+    FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contexts cx ON cx.id = t.context_id`;
 
 const OPEN_ORDER = "ORDER BY t.due_date IS NULL, t.due_date, t.priority DESC, t.due_time IS NULL, t.due_time, t.sort_order, t.created_at";
 
 /**
  * @param {string} householdId
- * @param {{ assigneeId?: string | null, projectId?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
+ * @param {{ assigneeId?: string | null, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
  *   assigneeId: undefined = anyone, null = unassigned ("up for grabs")
  */
 export async function listTasks(householdId, filter = {}) {
@@ -28,6 +31,11 @@ export async function listTasks(householdId, filter = {}) {
   if (filter.assigneeId === null) where.push("t.assignee_id IS NULL");
   else if (filter.assigneeId !== undefined) (where.push("t.assignee_id = ?"), args.push(filter.assigneeId));
   if (filter.projectId) (where.push("t.project_id = ?"), args.push(filter.projectId));
+  if (filter.contextId) (where.push("t.context_id = ?"), args.push(filter.contextId));
+  if (filter.tag) {
+    where.push("EXISTS (SELECT 1 FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id AND g.name = ?)");
+    args.push(filter.tag);
+  }
   if (filter.status) (where.push("t.status = ?"), args.push(filter.status));
   if (filter.dueOnOrBefore) (where.push("t.due_date <= ?"), args.push(filter.dueOnOrBefore));
   const order = filter.status === "done" ? "ORDER BY t.completed_at DESC" : OPEN_ORDER;
@@ -53,6 +61,18 @@ async function assertProject(householdId, projectId) {
   if (!p) throw new HttpError(400, "Unknown project");
 }
 
+async function assertContext(householdId, contextId) {
+  if (!contextId) return;
+  const c = await db.get("SELECT 1 FROM contexts WHERE id = ? AND household_id = ?", [contextId, householdId]);
+  if (!c) throw new HttpError(400, "Unknown context");
+}
+
+/** The task's tag names, sorted: "errand quick-win" -> ["errand", "quick-win"]. */
+export const tagList = (task) => (task.tag_names ? task.tag_names.split(" ").sort() : []);
+
+const tagInserts = (taskId, tagIds) =>
+  tagIds.map((tagId) => ({ sql: "INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)", args: [taskId, tagId] }));
+
 /** Validates and normalises user-editable task fields. Only keys present in `input` are returned. */
 function cleanFields(input) {
   const out = {};
@@ -71,6 +91,7 @@ function cleanFields(input) {
   }
   if ("priority" in input) out.priority = Math.max(-1, Math.min(1, Number(input.priority) || 0));
   if ("projectId" in input) out.project_id = input.projectId || null;
+  if ("contextId" in input) out.context_id = input.contextId || null;
   if ("assigneeId" in input) out.assignee_id = input.assigneeId || null;
   if ("recurrence" in input) {
     const rule = parseRule(input.recurrence);
@@ -82,12 +103,14 @@ function cleanFields(input) {
 
 /**
  * @param {Actor} actor
- * @param {object} input  title, notes, dueDate, dueTime, priority, projectId, assigneeId (undefined = actor), recurrence, listMode
+ * @param {object} input  title, notes, dueDate, dueTime, priority, projectId, contextId, tags (names), assigneeId (undefined = actor), recurrence, listMode
  */
 export async function createTask(actor, input, { isTemplate = false, fromGoogle = false, items = [] } = {}) {
   const fields = cleanFields({ assigneeId: actor.id, ...input });
   await assertMember(actor.householdId, fields.assignee_id);
   await assertProject(actor.householdId, fields.project_id);
+  await assertContext(actor.householdId, fields.context_id);
+  const tagIds = await ensureTags(actor.householdId, input.tags ?? []);
   const id = newId();
   const ts = now();
   const row = {
@@ -103,6 +126,7 @@ export async function createTask(actor, input, { isTemplate = false, fromGoogle 
   const cols = Object.keys(row);
   await db.batch([
     { sql: `INSERT INTO tasks (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, args: Object.values(row) },
+    ...tagInserts(id, tagIds),
     ...items.map((item, i) => itemInsert(id, item, i, ts)),
     ...(isTemplate ? [] : [activityStatement(actor.householdId, fromGoogle ? null : actor.id, id, "created")]),
   ]);
@@ -118,26 +142,36 @@ export function itemInsert(taskId, item, index, ts = now()) {
   };
 }
 
-/** Edits a task. Assignment changes are logged as "assigned" so they show up in the feed. */
+/**
+ * Edits a task. Assignment changes are logged as "assigned" so they show up in the feed.
+ * `tags` (names), when present, replaces the task's tags.
+ */
 export async function updateTask(actor, id, input, { fromGoogle = false } = {}) {
   const task = await getTask(actor.householdId, id);
   const fields = cleanFields(input);
   if ("assignee_id" in fields) await assertMember(actor.householdId, fields.assignee_id);
   if ("project_id" in fields) await assertProject(actor.householdId, fields.project_id);
+  if ("context_id" in fields) await assertContext(actor.householdId, fields.context_id);
   const diff = Object.fromEntries(Object.entries(fields).filter(([k, v]) => task[k] !== v));
-  if (Object.keys(diff).length === 0) return;
+  const tags = Array.isArray(input.tags) ? [...new Set(input.tags.map(cleanTagName).filter(Boolean))].sort() : null;
+  const tagsChanged = tags !== null && tags.join(" ") !== tagList(task).join(" ");
+  if (Object.keys(diff).length === 0 && !tagsChanged) return;
   const statements = [
     {
-      sql: `UPDATE tasks SET ${Object.keys(diff).map((k) => `${k} = ?`).join(", ")}, updated_at = ? WHERE id = ?`,
+      sql: `UPDATE tasks SET ${Object.keys(diff).map((k) => `${k} = ?`).join(", ")}${Object.keys(diff).length ? ", " : ""}updated_at = ? WHERE id = ?`,
       args: [...Object.values(diff), now(), id],
     },
   ];
+  if (tagsChanged) {
+    statements.push({ sql: "DELETE FROM task_tags WHERE task_id = ?", args: [id] }, ...tagInserts(id, await ensureTags(actor.householdId, tags)));
+  }
   const actorId = fromGoogle ? null : actor.id;
   if ("assignee_id" in diff) {
     statements.push(activityStatement(actor.householdId, actorId, id, "assigned", { from: task.assignee_id, to: diff.assignee_id }));
   }
-  if (Object.keys(diff).some((k) => k !== "assignee_id")) {
-    statements.push(activityStatement(actor.householdId, actorId, id, "updated", { fields: Object.keys(diff) }));
+  const updated = [...Object.keys(diff).filter((k) => k !== "assignee_id"), ...(tagsChanged ? ["tags"] : [])];
+  if (updated.length) {
+    statements.push(activityStatement(actor.householdId, actorId, id, "updated", { fields: updated }));
   }
   await db.batch(statements);
   changed(actor.householdId, id, { fromGoogle });
@@ -191,6 +225,8 @@ export async function copyTask(actor, task, overrides = {}, { isTemplate = false
       dueTime: task.due_time,
       priority: task.priority,
       projectId: task.project_id,
+      contextId: task.context_id,
+      tags: tagList(task),
       assigneeId: task.assignee_id,
       recurrence: task.recurrence,
       listMode: task.list_mode,

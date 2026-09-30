@@ -7,6 +7,7 @@
     <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
     <% if (t.priority < 0) { %><span>Low priority</span><% } %>
     <% if (t.project_name) { %><span class="project" style="--c: <%= t.project_color %>"><%= t.project_emoji %> <%= t.project_name %></span><% } %>
+    <%~ include("/partials/context-tags", { t }) %>
     <% if (t.assignee) { %>
       <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>
     <% } else if (!done) { %><span>Up for grabs</span><% } %>

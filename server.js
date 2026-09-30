@@ -15,7 +15,8 @@ import { changed, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
-import { cleanView, decorateTask, taskListView, VIEWS } from "./src/web/task-list.js";
+import { ensureContext, listContexts } from "./src/services/contexts.js";
+import { cleanListQuery, decorateTask, listQueryString, taskListView, VIEWS } from "./src/web/task-list.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
@@ -83,9 +84,9 @@ const isDatastar = (req) => req.get("datastar-request") === "true";
 
 app.get("/", requireUser, async (req, res) => {
   const list = req.membership
-    ? await taskListView({ userId: req.user.id, membership: req.membership, view: cleanView(req.query.view), today: today(req) })
+    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -104,7 +105,7 @@ const isNotFound = (err) => err instanceof HttpError && err.status === 404;
 // household (from a member or from Google) re-renders the page's task list or checklist.
 // It's also sent on connect, so a reconnect catches up on whatever was missed.
 app.get("/events", requireHousehold, async (req, res) => {
-  const view = cleanView(req.query.view);
+  const listQuery = cleanListQuery(req.query);
   const taskId = typeof req.query.task === "string" ? req.query.task : null;
   const { householdId } = req.actor;
   // The task was deleted: 204 is the one response Datastar's retry: 'always' won't retry.
@@ -119,7 +120,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), eta.render("partials/checklist", checklist)];
     }
-    const list = await taskListView({ userId: req.user.id, membership, view, today: today(req) });
+    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, today: today(req) });
     return [eta.render("partials/task-list", { ...list, userId: req.user.id })];
   };
 
@@ -168,9 +169,9 @@ app.get("/events", requireHousehold, async (req, res) => {
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
 async function sendTaskList(req, res, { flash, signals } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
-  const view = cleanView(req.body.view);
-  if (!isDatastar(req)) return redirect(res, `/?view=${view}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, view, today: today(req) });
+  const listQuery = cleanListQuery(req.body);
+  if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, today: today(req) });
   const html = eta.render("partials/task-list", { ...list, userId: req.user.id });
   const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
   await sse(req, res, (stream) => {
@@ -180,6 +181,13 @@ async function sendTaskList(req, res, { flash, signals } = {}) {
   });
 }
 
+/** Turns names typed for a new project or context into ids, creating them if needed. */
+async function resolveNames(householdId, { projectName, contextName, ...input }) {
+  if (projectName) input.projectId = await createProject(householdId, { name: projectName });
+  if (contextName !== undefined) input.contextId = contextName ? await ensureContext(householdId, contextName) : null;
+  return input;
+}
+
 app.post("/tasks", requireHousehold, async (req, res) => {
   const { household, members } = req.membership;
   const parsed = parseQuickAdd(String(req.body.quick ?? ""), {
@@ -187,10 +195,9 @@ app.post("/tasks", requireHousehold, async (req, res) => {
     meId: req.user.id,
     members,
     projects: await listProjects(household.id),
+    contexts: await listContexts(household.id),
   });
-  const { projectName, ...input } = parsed;
-  if (projectName) input.projectId = await createProject(household.id, { name: projectName });
-  await createTask(req.actor, input);
+  await createTask(req.actor, await resolveNames(household.id, parsed));
   await sendTaskList(req, res, { signals: { quick: "" } });
 });
 
@@ -228,7 +235,11 @@ const renderTaskHead = (req, task, membership = req.membership) =>
   eta.render("partials/task-head", { task: decorateTask(task, membership, today(req)), userId: req.user.id });
 
 const editView = async (req, task) =>
-  editFormView(task, { members: req.membership.members, projects: await listProjects(req.actor.householdId) });
+  editFormView(task, {
+    members: req.membership.members,
+    projects: await listProjects(req.actor.householdId),
+    contexts: await listContexts(req.actor.householdId),
+  });
 
 async function renderTaskPage(req, res, { editing = false } = {}) {
   const checklist = await checklistView(req.actor.householdId, req.params.id);
@@ -262,7 +273,7 @@ app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
-  await updateTask(req.actor, req.params.id, editInput(req.body));
+  await updateTask(req.actor, req.params.id, await resolveNames(req.actor.householdId, editInput(req.body)));
   await sendTaskHead(req, res, req.params.id, { signals: { editing: false } });
 });
 

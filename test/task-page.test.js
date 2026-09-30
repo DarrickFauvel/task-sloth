@@ -27,7 +27,10 @@ test("editFormView keeps a rule that isn't a preset selectable", () => {
 test("editInput turns blank fields into cleared values", () => {
   assert.deepEqual(
     editInput({ title: "Mow", notes: "", dueDate: "", dueTime: "", assigneeId: "", projectId: "", priority: "0", recurrence: "" }),
-    { title: "Mow", notes: "", dueDate: null, dueTime: null, assigneeId: null, projectId: null, priority: "0", recurrence: null },
+    {
+      title: "Mow", notes: "", dueDate: null, dueTime: null, assigneeId: null, projectId: null, priority: "0", recurrence: null,
+      contextName: "", tags: [],
+    },
   );
 });
 
@@ -35,7 +38,10 @@ test("editInput passes filled fields through", () => {
   const input = editInput({
     title: "Mow", notes: "front only", dueDate: "2026-10-03", dueTime: "09:30",
     assigneeId: "u1", projectId: "p1", priority: "1", recurrence: '{"unit":"week","every":2}',
+    context: "  Home   Depot ", tags: "+Errand, quick_win errand",
   });
+  assert.equal(input.contextName, "Home Depot");
+  assert.deepEqual(input.tags, ["errand", "quick-win"]);
   assert.equal(input.dueDate, "2026-10-03");
   assert.equal(input.assigneeId, "u1");
   assert.equal(input.recurrence, '{"unit":"week","every":2}');
@@ -44,4 +50,11 @@ test("editInput passes filled fields through", () => {
 
 test("editInput defaults missing notes to empty", () => {
   assert.equal(editInput({ title: "x" }).notes, "");
+});
+
+test("editFormView lists the task's tags and the saved contexts", () => {
+  const view = editFormView({ tag_names: "quick-win errand" }, { ...ctx, contexts: [{ id: "l1", name: "Target" }] });
+  assert.equal(view.tags, "errand quick-win");
+  assert.deepEqual(view.contexts, [{ id: "l1", name: "Target" }]);
+  assert.equal(editFormView({ tag_names: null }, ctx).tags, "");
 });

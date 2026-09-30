@@ -83,10 +83,11 @@ export function createSyncEngine({ api, appUrl, listTitle, log = console.log }) 
   /** Mirrors one task (and its checklist) into its assignee's Google list. */
   async function pushTask(taskId) {
     const task = await db.get(
-      `SELECT t.*, p.name AS project_name, p.emoji AS project_emoji,
+      `SELECT t.*, p.name AS project_name, p.emoji AS project_emoji, cx.name AS context_name,
+              (SELECT group_concat(g.name, ' ') FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id) AS tag_names,
               (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id) AS item_count,
               (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id AND c.checked = 1) AS item_done
-         FROM tasks t LEFT JOIN projects p ON p.id = t.project_id WHERE t.id = ?`,
+         FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contexts cx ON cx.id = t.context_id WHERE t.id = ?`,
       [taskId],
     );
     let link = await db.get("SELECT * FROM google_links WHERE entity_type = 'task' AND entity_id = ?", [taskId]);
