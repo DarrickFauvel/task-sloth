@@ -13,7 +13,7 @@
       <% g.items.forEach((item) => { const action = item.checked ? "uncheck" : "check"; %>
         <li class="item<%= item.checked ? ' is-done' : '' %>" id="item-<%= item.id %>">
           <form method="post" action="/items/<%= item.id %>/<%= action %>" data-on:submit="@post('/items/<%= item.id %>/<%= action %>')">
-            <button class="check" aria-label="<%= item.checked ? 'Uncheck' : 'Check' %> <%= item.text %>"><%= item.checked ? "✓" : "" %></button>
+            <button class="check" aria-label="<%= item.checked ? 'Uncheck' : 'Check' %> <%= item.text %>"><span aria-hidden="true">✓</span></button>
           </form>
           <% const label = item.quantity ? `${item.quantity} ${item.text}` : item.text; const renaming = `$itemRenaming === '${item.id}'`; %>
           <span class="item-text" data-show="!(<%= renaming %>)"><% if (item.quantity) { %><span class="qty"><%= item.quantity %></span> <% } %><%= item.text %></span>

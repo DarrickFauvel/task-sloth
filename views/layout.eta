@@ -24,6 +24,18 @@
       toast.classList.add("is-leaving");
       setTimeout(() => toast.remove(), 300);
     }
+    // leaveThen(row, then): a soft exit for a row that's about to go (e.g. Hide on a finished task). It fades,
+    // slides a little aside and closes up its space, so the rows below glide up, and then calls `then` (which
+    // asks the server; its re-render drops the row for good). If the row is somehow still there a few
+    // seconds later (the request failed), it comes back.
+    function leaveThen(row, then) {
+      if (!row || matchMedia("(prefers-reduced-motion: reduce)").matches) return then();
+      row.style.height = `${row.offsetHeight}px`;
+      row.getBoundingClientRect(); // start the height transition from here
+      row.classList.add("is-leaving");
+      setTimeout(then, 320);
+      setTimeout(() => row.isConnected && (row.classList.remove("is-leaving"), row.style.height = ""), 5000);
+    }
     // Light/dark. setTheme("light" | "dark" | null) saves the choice (null = match the device) and, where the
     // browser supports view transitions and motion is welcome, grows the new theme out of `origin` in a soft
     // circle (see ::view-transition-new in app.css). Used by the menu's toggle and Settings > Appearance.

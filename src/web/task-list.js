@@ -5,6 +5,7 @@ import { isHiddenDone } from "./hidden-done.js";
 import { cleanTagName } from "../services/tags.js";
 import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
+import { findPhones, splitPhones } from "../../public/js/lib/phone.js";
 
 export const VIEWS = {
   inbox: "Inbox",
@@ -67,13 +68,26 @@ export function cleanListQuery(src = {}) {
 export const listQueryString = ({ view, project, context, tag }) =>
   new URLSearchParams(Object.entries({ view, project, context, tag }).filter(([, v]) => v)).toString();
 
-/** Adds the display fields views/partials/task-row.eta and views/pages/task.eta use. */
-export function decorateTask(t, membership, today) {
+/**
+ * Adds the display fields views/partials/task-row.eta and views/pages/task.eta use.
+ * `time` ("HH:MM" in the viewer's time zone) makes a task due earlier today overdue; without it, only the date counts.
+ */
+export function decorateTask(t, membership, today, time = null) {
+  const state = t.due_date ? dueState(t.due_date, today, t.due_time, time) : "";
+  const dueLabel = t.due_date ? relativeLabel(t.due_date, today) : "";
+  const lateToday = state === "overdue" && t.due_date === today;
   return {
     ...t,
     assignee: t.assignee_id ? membership.members.find((m) => m.id === t.assignee_id) ?? null : null,
-    dueLabel: t.due_date ? relativeLabel(t.due_date, today) : "",
-    dueState: t.due_date && t.status === "open" ? dueState(t.due_date, today) : "",
+    dueLabel,
+    // "Today 15:00 · overdue" once today's due time has passed.
+    dueText: [dueLabel, t.due_date && t.due_time].filter(Boolean).join(" ") + (lateToday && t.status === "open" ? " · overdue" : ""),
+    dueState: t.status === "open" ? state : "",
+    pastDue: state === "overdue",
+    // Phone numbers in the title or notes: a Call chip on the row, and tap-to-call links on the task page.
+    phones: findPhones(t.title, t.notes),
+    titleParts: splitPhones(t.title),
+    notesParts: splitPhones(t.notes ?? ""),
     repeats: describeRecurrence(parseRule(t.recurrence)),
     tags: tagList(t),
     // Blocked by another (still open) task: "patch the walls". It shows on every list the task is on.
@@ -93,9 +107,11 @@ export function decorateTask(t, membership, today) {
  * `groupBy` "where" groups the to-do tabs by where/how instead of by date (see groupByWhere).
  * Tasks finished in the last LINGER_MS stay on their list, ticked, unless this user hid them (hidden-done.js);
  * the Done tab covers DONE_WINDOW_MS.
- * `refreshAt` (ms since the epoch, or null) is when a task next drops off, so a live page can re-render then.
+ * `time` ("HH:MM", the viewer's wall clock) makes tasks due earlier today overdue.
+ * `refreshAt` (ms since the epoch, or null) is when the list next changes on its own, so a live page can re-render
+ * then: a finished task dropping off, and with `time`, a due time passing or midnight.
  */
-export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, now = Date.now() }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, time = null, now = Date.now() }) {
   const householdId = membership.household.id;
   const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
@@ -112,11 +128,12 @@ export async function taskListView({ userId, membership, view, project: projectI
   filter.completedSince = new Date(now - keepFor).toISOString();
   const tasks = (await listTasks(householdId, { ...filter, projectId: project?.id, contextId: context?.id, tag: tag ?? undefined }))
     .filter((t) => view === "done" || t.status !== "done" || !isHiddenDone(userId, t, now))
-    .map((t) => decorateTask(t, membership, today));
+    .map((t) => decorateTask(t, membership, today, time));
   const query = { view, project: project?.id ?? null, context: context?.id ?? null, tag };
   const filterLabel = [project && `${project.emoji} ${project.name}`, context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
   const doneTimes = tasks.filter((t) => t.status === "done").map((t) => Date.parse(t.completed_at));
-  const refreshAt = doneTimes.length ? Math.min(...doneTimes) + keepFor : null;
+  const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...(time ? clockTicks(tasks, today, time, now) : [])];
+  const refreshAt = refreshTimes.length ? Math.min(...refreshTimes) : null;
   const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
@@ -128,8 +145,8 @@ export async function taskListView({ userId, membership, view, project: projectI
 
   const weekOut = addDays(today, 7);
   const groups = [
-    { label: "Overdue", test: (t) => t.due_date && t.due_date < today },
-    { label: "Today", test: (t) => t.due_date === today },
+    { label: "Overdue", test: (t) => t.pastDue },
+    { label: "Today", test: (t) => t.due_date === today && !t.pastDue },
     { label: "This week", test: (t) => t.due_date && t.due_date > today && t.due_date <= weekOut },
     { label: "Later", test: (t) => t.due_date && t.due_date > weekOut },
     { label: "No date", test: (t) => !t.due_date },
@@ -137,6 +154,19 @@ export async function taskListView({ userId, membership, view, project: projectI
     .map(({ label, test }) => ({ label, tasks: tasks.filter(test) }))
     .filter((g) => g.tasks.length);
   return { ...base, canGroup, groupBy: "when", groups };
+}
+
+const minutesOf = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/**
+ * When the viewer's clock changes the list: a minute after each open task's due time today (it turns overdue),
+ * and midnight (dates shift). Times are counted in minutes from `time`, the viewer's wall clock at `now`.
+ */
+function clockTicks(tasks, today, time, now) {
+  const startOfMinute = now - (now % 60_000);
+  const at = (minutes) => startOfMinute + (minutes - minutesOf(time)) * 60_000;
+  const dueLater = tasks.filter((t) => t.status === "open" && t.due_date === today && t.due_time && t.due_time >= time);
+  return [...dueLater.map((t) => at(minutesOf(t.due_time) + 1)), at(24 * 60)];
 }
 
 /**

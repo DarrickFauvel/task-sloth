@@ -1,9 +1,10 @@
 <% const t = it.task; const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
 <header id="task-head" class="task-head<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>">
-  <h1 class="task-title"><%= t.title %></h1>
+  <%/* Phone numbers in the title and notes are tap-to-call links. */%>
+  <h1 class="task-title"><%~ include("/partials/phone-text", { parts: t.titleParts }) %></h1>
   <span class="meta">
     <% if (done) { %><span>Done</span><% } %>
-    <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
+    <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
     <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
     <% if (!done && t.list === "inbox") { %><span>📥 In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
     <% if (t.waitingLabel) { %><span>⏳ Waiting on <%= t.waitingLabel %></span><% } %>
@@ -19,7 +20,7 @@
   <% if (t.blocking.length && !done) { %>
     <p class="holding-up">🔗 Holding up <%= t.blocking.map((b) => `“${b}”`).join(", ") %>. They'll be ready to go once this is done.</p>
   <% } %>
-  <% if (t.notes) { %><p class="notes"><%= t.notes %></p><% } %>
+  <% if (t.notes) { %><p class="notes"><%~ include("/partials/phone-text", { parts: t.notesParts }) %></p><% } %>
   <div class="actions">
     <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">
       <input type="hidden" name="back" value="task">

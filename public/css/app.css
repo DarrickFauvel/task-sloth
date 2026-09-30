@@ -113,6 +113,11 @@ button.icon:focus-visible { opacity: 1; }
 }
 .check::after { content: ""; position: absolute; inset: -0.6rem; }
 .is-done .check { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+/* The tick is always in the button, hidden until done, so ticking a box eases it in rather than swapping text. */
+.check { transition: background-color 0.3s ease, border-color 0.3s ease; }
+.check span { display: block; opacity: 0; scale: 0.4; transition: opacity 0.2s ease, scale 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.is-done .check span { opacity: 1; scale: 1; }
+@media (prefers-reduced-motion: reduce) { .check, .check span { transition: none; } }
 
 /* --- Layout helpers -------------------------------------------------------------------- */
 
@@ -139,12 +144,12 @@ button.icon:focus-visible { opacity: 1; }
 /* The sloth beside the name, in the header and on the sign-in pages. */
 .brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
 .brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; transition: transform 0.3s cubic-bezier(0.3, 1.5, 0.5, 1); }
-/* Hovering the brand (or tabbing to it) tips the sloth back a little and brings it closer, with a small bounce. */
+/* Hovering the brand (or tabbing to it) brings the sloth a little closer, with a small bounce. */
 @media (hover: hover) {
-  .brand:hover .brand-logo { transform: rotate(-8deg) scale(1.12); }
+  .brand:hover .brand-logo { transform: scale(1.12); }
   .brand:hover { text-decoration: none; } /* the sloth is the hover cue */
 }
-.brand:focus-visible .brand-logo { transform: rotate(-8deg) scale(1.12); }
+.brand:focus-visible .brand-logo { transform: scale(1.12); }
 @media (prefers-reduced-motion: reduce) { .brand-logo { transition: none; } }
 /* The brand, with the household's name under the words "Task Sloth" (not the logo). The name is taken out of
    the flow, so the brand stays centered against the account button whether or not there is one; the header's
@@ -162,6 +167,28 @@ button.icon:focus-visible { opacity: 1; }
 }
 /* Typed out (see /js/type-writer.js): each letter fades and un-blurs in; the caret blinks softly while it
    types, then fades away. */
+/* Pinned (see /js/sticky-header.js): the header spans the page's padding and stays on top of the list;
+   scrolled, the household line fades up and away and the header closes the gap it left. */
+.app-header.is-sticky {
+  position: sticky; top: 0; z-index: 2;
+  margin: calc(-1 * var(--space-m)) calc(-1 * var(--space-m)) 0; padding: max(var(--space-m), env(safe-area-inset-top)) var(--space-m) 0;
+  background: var(--bg); transition: padding 0.25s ease;
+}
+.app-header.is-sticky:has(.brand-household) { padding-bottom: 1.1rem; }
+.app-header.is-compact, .app-header.is-compact:has(.brand-household) { padding-block: max(var(--space-xs), env(safe-area-inset-top)) var(--space-2xs); }
+.app-header.is-sticky .brand-household { transition: opacity 0.2s ease, translate 0.25s ease; }
+.app-header.is-compact .brand-household { opacity: 0; translate: 0 -0.4rem; }
+/* The words "Task Sloth" fold away (still read out: they're only squeezed to nothing), leaving the logo. */
+.app-header.is-sticky .brand-name { display: inline-block; max-width: 10em; overflow: hidden; white-space: nowrap; transition: max-width 0.3s ease, opacity 0.2s ease; }
+.app-header.is-compact .brand-name { max-width: 0; opacity: 0; }
+/* Compact, your name gives its room to the badge; the avatar stays (and the button's label still says who). */
+.app-header.is-compact .account-name { display: none; }
+.app-header.is-sticky ~ * .quick-add { top: var(--app-header-h, 0px); }
+/* Once pinned together, a hairline under the add box separates them from the list. */
+.app-header.is-compact ~ * .quick-add { box-shadow: 0 1px 0 var(--line); }
+@media (prefers-reduced-motion: reduce) {
+  .app-header.is-sticky, .app-header.is-sticky .brand-household, .app-header.is-sticky .brand-name { transition: none; }
+}
 .tw-char { animation: tw-in 0.35s ease both; }
 @keyframes tw-in { from { opacity: 0; filter: blur(3px); } }
 .tw-caret {
@@ -173,7 +200,7 @@ button.icon:focus-visible { opacity: 1; }
 @keyframes tw-caret-out { to { opacity: 0; } }
 /* Your name and avatar: one button that opens the account menu. A long name is cut short. */
 .account-button {
-  display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 60%;
+  display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0;
   padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: 2rem; background: none;
 }
 .account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -196,6 +223,58 @@ button.icon:focus-visible { opacity: 1; }
   position: sticky; top: 0; z-index: 1; display: flex; gap: var(--space-xs);
   margin: var(--space-s) calc(-1 * var(--space-m)) var(--space-xs); padding: var(--space-xs) var(--space-m);
   background: var(--bg);
+}
+/* "Done today" badge (partials/done-today), beside the account button. The emoji pops when the count changes;
+   when a task has just been finished, a cheer ("5 done today!") pops out below it in a little bubble for a
+   moment. The bubble floats, so nothing in the header moves. */
+.header-end { display: flex; align-items: center; gap: var(--space-2xs); min-width: 0; }
+.done-badge {
+  position: relative; display: inline-flex; align-items: center; gap: 0.3em; flex: none; min-height: var(--tap); padding: 0 var(--space-xs);
+  border-radius: 999px; color: var(--fg); font-size: var(--step--1); font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.done-badge.is-zero { color: var(--muted); font-weight: normal; }
+.done-emoji { display: inline-block; animation: done-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.done-cheer {
+  position: absolute; top: calc(100% - 0.2rem); right: 0; z-index: 3; padding: 0.3rem 0.7rem; border-radius: 999px;
+  background: var(--accent); color: var(--bg); font-size: var(--step--1); font-weight: 600; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 0.3rem 1rem rgb(0 0 0 / 0.15); transform-origin: top right; opacity: 0; animation: done-cheer 2.8s ease both;
+}
+/* Its tail points up at the badge. */
+.done-cheer::before {
+  content: ""; position: absolute; bottom: 100%; right: 1rem; border: 0.35rem solid transparent; border-bottom-color: var(--accent);
+}
+/* On a roll: the flame and its mirror image fade into each other, so it licks left and right, while it
+   flickers a little taller and shorter from its base. */
+.done-emoji.is-fire { display: inline-grid; transform-origin: 50% 90%; animation: done-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1), flame-flicker 1.3s ease-in-out 0.6s infinite; }
+.done-emoji.is-fire > span { grid-area: 1 / 1; }
+.done-emoji.is-fire > span:first-child { animation: flame-sway 1.8s ease-in-out infinite; }
+.done-emoji.is-fire > span:last-child { scale: -1 1; animation: flame-sway 1.8s ease-in-out -0.9s infinite; }
+@keyframes flame-sway { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes flame-flicker {
+  0%, 100% { scale: 1 1; }
+  25% { scale: 0.97 1.06; }
+  50% { scale: 1.02 0.97; }
+  75% { scale: 0.98 1.04; }
+}
+@keyframes done-pop { 0% { scale: 0.5; } 60% { scale: 1.25; rotate: -10deg; } 100% { scale: 1; } }
+@keyframes done-cheer {
+  0% { opacity: 0; scale: 0.6; translate: 0 -0.3rem; }
+  12% { opacity: 1; scale: 1.05; translate: 0 0; }
+  18%, 82% { opacity: 1; scale: 1; }
+  100% { opacity: 0; scale: 0.9; translate: 0 -0.2rem; }
+}
+@media (hover: hover) { .done-badge:hover { background: var(--tint); text-decoration: none; } }
+.done-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The Done tab's "today" line: a dot per task finished today, in the finisher's color. */
+.done-today-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); margin: var(--space-s) 0 0; color: var(--muted); font-size: var(--step--1); }
+.done-dots { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.done-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--c, var(--muted)); animation: done-dot-in 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+.done-more { font-size: var(--step--2); }
+@keyframes done-dot-in { from { scale: 0; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .done-emoji, .done-dot, .done-emoji.is-fire, .done-emoji.is-fire > span { animation: none; }
+  .done-emoji.is-fire > span:last-child { display: none; }
+  .done-cheer { animation: none; } /* the badge's label and title still say it */
 }
 .quick-add input, .quick-add textarea { flex: 1; min-width: 0; }
 .input-wrap { position: relative; display: flex; flex: 1; min-width: 0; }
@@ -301,7 +380,23 @@ body:has(.bottom-nav) .toasts { bottom: calc(4.25rem + env(safe-area-inset-botto
 .task-body { flex: 1; min-width: 0; display: grid; gap: 0.1rem; padding-top: var(--space-xs); }
 .task-title { overflow-wrap: anywhere; }
 a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: none; }
-.task.is-done .task-title { text-decoration: line-through; color: var(--muted); }
+/* Done: the title fades to muted while a line draws across it, left to right (and line by line when it wraps).
+   The line is a background on an inline span (the link itself is a full-width grid item) so it can grow; the list re-renders by morphing, so the row stays put and this
+   transitions rather than jumping. Reopening runs it backwards. */
+.task-title { transition: color 0.4s ease; }
+.task-title > span {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0 1px;
+  transition: background-size 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
+}
+.task.is-done .task-title { color: var(--muted); }
+.task.is-done .task-title > span { background-size: 100% 1px; }
+@media (prefers-reduced-motion: reduce) { .task-title, .task-title > span { transition: none; } }
+/* Leaving (leaveThen() in the layout sets its height first, so this can close it up smoothly). */
+.task.is-leaving {
+  height: 0 !important; padding-block: 0; overflow: hidden; opacity: 0; translate: 0.75rem 0; border-bottom-color: transparent;
+  transition: height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.06s, padding 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.06s,
+    opacity 0.22s ease, translate 0.3s ease, border-color 0.32s ease;
+}
 /* Blocked by another task: still on the list, but visibly not ready yet. */
 .task.is-blocked .task-title { color: var(--muted); }
 .blocked { color: var(--fg); }
@@ -335,6 +430,9 @@ button.link.danger { color: var(--danger); }
 .chip { color: inherit; text-decoration: none; }
 .chip.tag { color: var(--accent); }
 .chip.project { color: var(--c); }
+/* A phone number in the task: tap to call. */
+.chip.phone { color: var(--accent); white-space: nowrap; }
+.phone-link { color: var(--accent); text-decoration: underline; text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
 
 /* --- Task page -------------------------------------------------------------------------- */
 
