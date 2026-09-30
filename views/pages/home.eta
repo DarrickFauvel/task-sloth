@@ -16,6 +16,16 @@
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
+  <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
+  <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"
+          data-on:click="evt.target === el && el.close()">
+    <div class="sheet-body">
+      <h2 id="shortcuts-title">Shortcuts you can type</h2>
+      <p class="hint">Tap one to add it to your task, or type it yourself anywhere in the text.</p>
+      <%~ include("/partials/shortcuts", { ...it.shortcuts, insert: true }) %>
+      <form method="dialog"><button class="button">Close</button></form>
+    </div>
+  </dialog>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
   <% const l = it.list; %>
   <div data-signals="{view: '<%= l.view %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: ''}"
@@ -26,12 +36,14 @@
       <input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
       <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
              placeholder="Add a task…">
+      <button type="button" class="icon-button help-button" aria-label="Shortcuts you can type" aria-haspopup="dialog"
+              data-on:click="document.getElementById('shortcuts-dialog').showModal()">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+        </svg>
+      </button>
       <button>Add</button>
     </form>
-    <details class="shortcuts-help">
-      <summary>Shortcuts you can type</summary>
-      <%~ include("/partials/shortcuts") %>
-    </details>
     <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
     <div id="flash" role="status"></div>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>

@@ -19,6 +19,7 @@ import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutRows } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
@@ -96,7 +97,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req) });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -308,7 +309,14 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
 
 // --- Help ------------------------------------------------------------------------------
 
-app.get("/help", requireUser, (req, res) => render(res, "pages/help", {}));
+/** The shortcuts cheat sheet, with the signed-in user's housemates as the @person examples. */
+const shortcutsView = (req) => ({
+  rows: shortcutRows((req.membership?.members ?? []).filter((m) => m.id !== req.user.id).map((m) => m.name)),
+  example: SHORTCUT_EXAMPLE,
+  insertJs: INSERT_TOKEN,
+});
+
+app.get("/help", requireUser, (req, res) => render(res, "pages/help", { shortcuts: shortcutsView(req) }));
 
 // --- Task page + checklist ------------------------------------------------------------
 

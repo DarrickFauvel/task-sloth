@@ -28,7 +28,7 @@
 
   <h2 id="shortcuts">Shortcuts you can type</h2>
   <p>You never need these, but they save taps:</p>
-  <%~ include("/partials/shortcuts") %>
+  <%~ include("/partials/shortcuts", it.shortcuts) %>
 
   <p class="hint">This way of working comes from a method called <em>Getting Things Done</em> by David Allen. You don't need to know it to use the app.</p>
 </article>
