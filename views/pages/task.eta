@@ -2,7 +2,7 @@
 <% const t = it.task; %>
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them. */%>
-<div data-signals="{items: '', editing: <%= it.form ? 'true' : 'false' %>}"
+<div data-signals="{items: '', editing: <%= it.form ? 'true' : 'false' %>, itemRenaming: '', itemText: ''}"
      data-init="@get('/events?task=<%= t.id %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>

@@ -85,3 +85,26 @@ test("groupItems in shopping mode groups by section", () => {
     ["Household", ["tape"]], // fully checked sections sink to the bottom, even below "Other"
   ]);
 });
+
+test("parseSingleItem reads a renamed item without splitting on commas", async () => {
+  const { parseSingleItem } = await import("../public/js/lib/checklist.js");
+  assert.deepEqual(parseSingleItem("eggs, large"), { text: "eggs, large", quantity: null, category: null });
+  assert.deepEqual(parseSingleItem("3 bananas"), { text: "bananas", quantity: "3", category: null });
+  assert.deepEqual(parseSingleItem("Pets: 2x dog treats"), { text: "dog treats", quantity: "2", category: "Pets" });
+  assert.equal(parseSingleItem("   "), null);
+});
+
+test("renamedCategory re-guesses automatic sections and keeps chosen ones", async () => {
+  const { renamedCategory } = await import("../src/services/checklist.js");
+  const item = (text, category) => ({ text, category });
+  // Guessed section: re-guessed from the new name.
+  assert.equal(renamedCategory(item("milk", "Dairy & eggs"), { text: "sourdough bread", category: null }, "shopping"), "Bakery");
+  assert.equal(renamedCategory(item("milk", "Dairy & eggs"), { text: "birthday card", category: null }, "shopping"), null, "no guess: Other");
+  assert.equal(renamedCategory(item("thing", null), { text: "apples", category: null }, "shopping"), "Produce");
+  // Chosen section (not what "popcorn" would guess): kept.
+  assert.equal(renamedCategory(item("popcorn", "Snacks"), { text: "pretzels", category: null }, "shopping"), "Snacks");
+  // A typed section wins over everything.
+  assert.equal(renamedCategory(item("popcorn", "Snacks"), { text: "treats", category: "Pets" }, "shopping"), "Pets");
+  // Checklist mode: items with no section keep none (switching to shopping fills them in).
+  assert.equal(renamedCategory(item("thing", null), { text: "apples", category: null }, "checklist"), null);
+});

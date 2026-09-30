@@ -18,17 +18,25 @@ export function parseItem(raw) {
   return { text: s, quantity: null };
 }
 
+/** Strips a leading bullet ("- ", "1.", "[ ]") and an optional "Section:" prefix from one line. */
+function splitLine(line) {
+  const rest = line.replace(/^\s*(?:[-*•]|\[\s?[xX ]?\]|\d+[.)])\s+/, ""); // strip bullets / "1." / "[ ]"
+  const cat = rest.match(/^\s*([\p{L}][\p{L}\s&]{1,30}):\s*(.*)$/u);
+  return cat ? { category: cat[1].trim(), rest: cat[2] } : { category: null, rest };
+}
+
+/** One item as typed when renaming it: an optional "Section:" prefix and a quantity, but no splitting on commas. */
+export function parseSingleItem(input) {
+  const { category, rest } = splitLine(String(input ?? "").replace(/\s+/g, " "));
+  const item = parseItem(rest);
+  return item.text ? { ...item, category } : null;
+}
+
 /** @returns {{ text: string, quantity: string | null, category: string | null }[]} */
 export function parseChecklistInput(input) {
   const items = [];
   for (const line of String(input).split(/\r?\n/)) {
-    let rest = line.replace(/^\s*(?:[-*•]|\[\s?[xX ]?\]|\d+[.)])\s+/, ""); // strip bullets / "1." / "[ ]"
-    let category = null;
-    const cat = rest.match(/^\s*([\p{L}][\p{L}\s&]{1,30}):\s*(.*)$/u);
-    if (cat) {
-      category = cat[1].trim();
-      rest = cat[2];
-    }
+    const { category, rest } = splitLine(line);
     for (const part of rest.split(/[,;]/)) {
       if (!part.trim()) continue;
       items.push({ ...parseItem(part), category });

@@ -291,6 +291,7 @@ label.pill span { overflow-wrap: anywhere; }
 .item { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--line); }
 .item form { margin: 0; }
 .item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.item .rename { padding: 0; }
 .item.is-done .item-text { text-decoration: line-through; color: var(--muted); }
 .qty { font-weight: 600; }
 .checklist .actions { margin-top: var(--space-s); font-size: var(--step--1); }

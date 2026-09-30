@@ -11,10 +11,26 @@
           <form method="post" action="/items/<%= item.id %>/<%= action %>" data-on:submit="@post('/items/<%= item.id %>/<%= action %>')">
             <button class="check" aria-label="<%= item.checked ? 'Uncheck' : 'Check' %> <%= item.text %>"><%= item.checked ? "✓" : "" %></button>
           </form>
-          <span class="item-text"><% if (item.quantity) { %><span class="qty"><%= item.quantity %></span> <% } %><%= item.text %></span>
-          <form method="post" action="/items/<%= item.id %>/delete" data-on:submit="@post('/items/<%= item.id %>/delete')">
-            <button class="icon" aria-label="Remove <%= item.text %>" title="Remove">×</button>
+          <% const label = item.quantity ? `${item.quantity} ${item.text}` : item.text; const renaming = `$itemRenaming === '${item.id}'`; %>
+          <span class="item-text" data-show="!(<%= renaming %>)"><% if (item.quantity) { %><span class="qty"><%= item.quantity %></span> <% } %><%= item.text %></span>
+          <%/* Rename in place, like task rows. The typed text lives in $itemText, so a live update can't wipe it.
+               On a shopping list the item re-sorts: see renamedCategory in src/services/checklist.js. */%>
+          <form class="rename" method="post" action="/items/<%= item.id %>/rename" style="display: none"
+                data-show="<%= renaming %>" data-on:submit="@post('/items/<%= item.id %>/rename')">
+            <input id="item-rename-<%= item.id %>" name="text" value="<%= label %>" data-bind:item-text required maxlength="300"
+                   autocomplete="off" aria-label="Item name" data-on:keydown="evt.key === 'Escape' && ($itemRenaming = '')">
+            <div class="rename-actions">
+              <button class="button primary">Save</button>
+              <button type="button" class="button" data-on:click="$itemRenaming = ''">Cancel</button>
+              <button class="link danger" formaction="/items/<%= item.id %>/delete" formnovalidate
+                      data-on:click__prevent="@post('/items/<%= item.id %>/delete')">Remove</button>
+            </div>
           </form>
+          <button type="button" class="icon rename-button" aria-label="Rename “<%= label %>”" title="Rename"
+                  data-label="<%= label %>" data-show="!(<%= renaming %>)"
+                  data-on:click="$itemText = el.dataset.label; $itemRenaming = '<%= item.id %>'; setTimeout(() => { const i = document.getElementById('item-rename-<%= item.id %>'); i.focus(); i.select() })">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
         </li>
       <% }) %>
     </ul>

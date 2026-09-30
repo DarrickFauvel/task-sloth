@@ -14,7 +14,7 @@ import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
-import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
+import { addItems, autoCategorize, clearChecked, deleteItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
@@ -395,12 +395,12 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
 const renderChecklist = (checklist) => [eta.render("partials/checklist-head", checklist), eta.render("partials/checklist", checklist)];
 
 /** Datastar: re-render the checklist (and clear any error). Plain form posts: back to the task page. */
-async function sendChecklist(req, res, taskId, { signals } = {}) {
+async function sendChecklist(req, res, taskId, { signals, flash } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
   const parts = renderChecklist(await checklistView(req.actor.householdId, taskId));
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
-    stream.patchElements('<div id="flash" role="status"></div>');
+    stream.patchElements(flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>');
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });
 }
@@ -437,7 +437,14 @@ app.post("/items/:id/uncheck", requireHousehold, async (req, res) => {
 });
 
 app.post("/items/:id/delete", requireHousehold, async (req, res) => {
-  await sendChecklist(req, res, await deleteItem(req.actor, req.params.id));
+  await sendChecklist(req, res, await deleteItem(req.actor, req.params.id), { signals: { itemRenaming: "" } });
+});
+
+// Rename an item from its row. Datastar sends the typed name as the itemText signal; a plain form sends text.
+app.post("/items/:id/rename", requireHousehold, async (req, res) => {
+  const { taskId, movedTo } = await renameItem(req.actor, req.params.id, req.body.text ?? req.body.itemText);
+  const flash = movedTo ? { message: `Moved to ${movedTo}` } : undefined;
+  await sendChecklist(req, res, taskId, { flash, signals: { itemRenaming: "", itemText: "" } });
 });
 
 // --- Household ------------------------------------------------------------------------
