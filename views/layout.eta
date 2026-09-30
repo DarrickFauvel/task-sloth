@@ -41,7 +41,9 @@
       transition.ready.then(() => {
         root.animate(
           { "--theme-r": ["0px", `${radius}px`] },
-          { duration: 700, easing: "cubic-bezier(0.45, 0, 0.25, 1)", pseudoElement: "::view-transition-new(root)" },
+          // fill: "forwards" holds the full circle until the browser removes the transition; without it
+          // the radius snaps back to 0 for a frame or two first, and the old theme flashes through.
+          { duration: 700, easing: "cubic-bezier(0.45, 0, 0.25, 1)", fill: "forwards", pseudoElement: "::view-transition-new(root)" },
         );
       });
     }
