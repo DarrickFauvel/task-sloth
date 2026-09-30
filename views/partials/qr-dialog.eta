@@ -1,0 +1,11 @@
+<%/* Opened from the QR button in the home header. Tapping the backdrop, Esc, or Done closes it. */%>
+<dialog id="qr-dialog" class="sheet" aria-labelledby="qr-title" closedby="any"
+        data-on:click="evt.target === el && el.close()">
+  <div class="sheet-body">
+    <h2 id="qr-title">Open Task Sloth on another phone</h2>
+    <p class="hint">Point the phone's camera at this code.</p>
+    <div class="qr" role="img" aria-label="QR code for <%= it.url %>"><%~ it.svg %></div>
+    <p class="qr-url"><%= it.url %></p>
+    <form method="dialog"><button class="button primary" autofocus>Done</button></form>
+  </div>
+</dialog>

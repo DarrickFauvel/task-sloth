@@ -17,6 +17,7 @@
     "@libsql/client": "^0.18.0",
     "@starfederation/datastar-sdk": "^1.0.0",
     "eta": "^4.6.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "qrcode": "^1.5.4"
   }
 }

@@ -1,4 +1,5 @@
 import express from "express";
+import QRCode from "qrcode";
 import { Eta } from "eta";
 import { fileURLToPath } from "node:url";
 import { config, googleConfigured } from "./src/config.js";
@@ -30,6 +31,14 @@ const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
 initDb(config.db);
 await migrate();
+
+// The home page's QR code: the app's root URL, drawn once at startup as an inline SVG.
+// Dark on white whatever the theme, since phone cameras read that most reliably.
+const appUrl = config.baseUrl.replace(/\/+$/, "");
+const appQr = {
+  url: appUrl,
+  svg: await QRCode.toString(appUrl, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#1d1b19", light: "#ffffff" } }),
+};
 
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
 const render = (res, name, data = {}, status = 200) => sendHtml(res, eta.render(name, data), status);
@@ -87,7 +96,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString, qr: appQr });
 });
 
 // --- Tasks ----------------------------------------------------------------------------

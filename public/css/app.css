@@ -51,6 +51,7 @@ main {
   max-width: 42rem; margin: 0 auto;
   padding: var(--space-m) max(var(--space-m), env(safe-area-inset-right)) var(--space-l) max(var(--space-m), env(safe-area-inset-left));
 }
+h1, h2, h3 { text-wrap: balance; }
 h1 { font-size: var(--step-3); line-height: 1.15; margin: 0 0 var(--space-s); overflow-wrap: anywhere; }
 h2 { font-size: var(--step-2); line-height: 1.2; margin: var(--space-m) 0 var(--space-2xs); }
 h3 { font-size: var(--step-1); }
@@ -94,8 +95,10 @@ button.icon:focus-visible { opacity: 1; }
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
 .bar h1 { margin: 0; font-size: var(--step-2); }
-.bar-actions { display: flex; gap: var(--space-m); align-items: center; }
+.bar-actions { display: flex; gap: var(--space-s); align-items: center; }
+.wide-only { display: none; }
 .bar-actions form { margin: 0; }
+.bar-actions a { text-decoration: none; }
 .stack { display: grid; gap: var(--space-s); }
 .row { display: grid; gap: var(--space-s); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-m); align-items: center; }
@@ -219,6 +222,9 @@ a.task-title { color: inherit; text-decoration: none; }
 /* --- Bigger screens ------------------------------------------------------------------------ */
 
 @media (min-width: 30rem) {
+  .wide-only { display: inline; }
+  .narrow-only { display: none; }
+  .bar-actions { gap: var(--space-m); }
   .row { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
   .shortcuts { grid-template-columns: auto 1fr; align-items: baseline; }
   .shortcuts dt { margin: var(--space-2xs) 0; }
@@ -246,4 +252,64 @@ a.task-title { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   button:active, .button:active { transform: none; }
+}
+
+/* --- QR dialog ------------------------------------------------------------------------------ */
+
+.icon-button { min-width: var(--tap); padding: 0; border: 0; background: none; color: var(--fg); }
+@media (hover: hover) { .icon-button:hover { color: var(--accent); } }
+
+/* A bottom sheet on phones (thumb-reachable, slides up); a centered card on bigger screens.
+   @starting-style gives the opening state; `overlay` and `display` with allow-discrete keep the
+   dialog in the top layer until its closing transition has finished. */
+dialog.sheet {
+  --sheet-hidden: translateY(100%);
+  width: 100%; max-width: 100%; max-height: 90dvh; overflow: auto;
+  margin: auto 0 0; padding: 0; border: 0; border-radius: 1.25rem 1.25rem 0 0;
+  background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem rgb(0 0 0 / 0.2);
+  opacity: 0; transform: var(--sheet-hidden);
+  transition:
+    opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1),
+    overlay 0.35s allow-discrete, display 0.35s allow-discrete;
+}
+dialog.sheet[open] { opacity: 1; transform: none; }
+@starting-style { dialog.sheet[open] { opacity: 0; transform: var(--sheet-hidden); } }
+
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0);
+  transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete;
+}
+dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0.45); }
+@starting-style { dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0); } }
+
+.sheet-body {
+  display: grid; justify-items: center; gap: var(--space-xs); text-align: center;
+  padding: var(--space-l) var(--space-m) max(var(--space-l), env(safe-area-inset-bottom));
+}
+/* The little grab handle that says "this is a sheet". */
+.sheet-body::before { content: ""; width: 2.5rem; height: 0.3rem; border-radius: 1rem; background: var(--line); margin-bottom: var(--space-xs); }
+.sheet-body h2 { margin: 0; font-size: var(--step-1); }
+.sheet-body .hint { margin: 0; }
+.sheet-body form { width: 100%; margin: var(--space-xs) 0 0; }
+.sheet-body form .button { width: 100%; }
+.qr { width: min(16rem, 70vw); aspect-ratio: 1; margin: var(--space-s) 0 0; padding: var(--space-xs); border-radius: var(--radius); background: #fff; }
+.qr svg { display: block; width: 100%; height: 100%; }
+.qr-url { margin: 0; font-size: var(--step--1); color: var(--muted); overflow-wrap: anywhere; }
+
+/* Nothing behind the dialog scrolls while it's open. */
+html:has(dialog[open]) { overflow: hidden; }
+
+@media (min-width: 30rem) {
+  dialog.sheet {
+    --sheet-hidden: translateY(0.75rem) scale(0.94);
+    width: min(24rem, calc(100% - 2rem)); margin: auto; border-radius: 1.25rem;
+    box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.25);
+  }
+  .sheet-body { padding-bottom: var(--space-l); }
+  .sheet-body::before { display: none; }
+  .sheet-body form .button { width: auto; min-width: 8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet, dialog.sheet::backdrop { transition-duration: 0.01s; }
 }
