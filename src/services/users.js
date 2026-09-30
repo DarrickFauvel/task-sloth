@@ -1,5 +1,6 @@
 import { db, newId, now } from "../db/client.js";
 import { encrypt, hashPassword, verifyPassword } from "../lib/crypto.js";
+import { cancelEmailChange, requestEmailChange } from "./email-confirm.js";
 import { HttpError } from "../lib/http.js";
 
 export const getUser = (id) => db.get("SELECT * FROM users WHERE id = ?", [id]);
@@ -187,32 +188,44 @@ export async function createPasswordUser(input) {
 /**
  * Changes a password account's username and email, after checking its current password (so a phone
  * left signed in can't be used to take the account over). Google and dev accounts have neither to change.
+ * A new username applies at once. A new email only starts a change: it's confirmed by a link sent to it
+ * (see email-confirm.js), and the account keeps signing in with the old one until then. Typing the current
+ * email back in cancels a pending change.
  * Throws a 400 with a message for the form; `wrongPassword` is set when that was the problem.
- * @returns {Promise<boolean>} whether anything changed
+ * @returns {Promise<{ usernameChanged: boolean, pendingEmail: string | null, cancelledEmail: boolean }>}
  */
 export async function updateSignIn(userId, { username, email, password }) {
-  const user = await db.get("SELECT username, email, password_hash FROM users WHERE id = ?", [userId]);
+  const user = await db.get("SELECT * FROM users WHERE id = ?", [userId]);
   if (!user?.password_hash) throw new HttpError(400, "You sign in with Google, so there's no username or email to change here");
   username = cleanUsername(username);
   email = cleanEmail(email);
   if (!(await verifyPassword(String(password ?? ""), user.password_hash))) {
     throw Object.assign(new HttpError(400, "That isn't your current password"), { wrongPassword: true });
   }
-  if (username === user.username && email === user.email) return false;
-  if (await db.get("SELECT 1 FROM users WHERE username = ? COLLATE NOCASE AND id != ?", [username, userId])) {
+  const usernameChanged = username !== user.username;
+  const emailChanged = email !== user.email.toLowerCase();
+  if (usernameChanged && (await db.get("SELECT 1 FROM users WHERE username = ? COLLATE NOCASE AND id != ?", [username, userId]))) {
     throw new HttpError(400, "That username is taken");
   }
-  if (await db.get("SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND password_hash IS NOT NULL AND id != ?", [email, userId])) {
+  if (emailChanged && (await db.get("SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND password_hash IS NOT NULL AND id != ?", [email, userId]))) {
     throw new HttpError(400, "There's already an account with that email");
   }
-  try {
-    await db.run("UPDATE users SET username = ?, email = ? WHERE id = ?", [username, email, userId]);
-  } catch (err) {
-    // Lost a race with someone else taking the same name or email.
-    if (/UNIQUE/i.test(String(err?.message))) throw new HttpError(400, "That username or email is already in use");
-    throw err;
+  if (usernameChanged) {
+    try {
+      await db.run("UPDATE users SET username = ? WHERE id = ?", [username, userId]);
+    } catch (err) {
+      // Lost a race with someone else taking the same name.
+      if (/UNIQUE/i.test(String(err?.message))) throw new HttpError(400, "That username is taken");
+      throw err;
+    }
   }
-  return true;
+  if (emailChanged) {
+    await requestEmailChange({ ...user, username }, email);
+    return { usernameChanged, pendingEmail: email, cancelledEmail: false };
+  }
+  const cancelledEmail = Boolean(user.pending_email);
+  if (cancelledEmail) await cancelEmailChange(userId);
+  return { usernameChanged, pendingEmail: null, cancelledEmail };
 }
 
 // Compared against when no account matches, so a wrong username takes as long as a wrong password.

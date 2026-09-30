@@ -1,5 +1,6 @@
 <% layout("/layout") %>
 <%~ include("/partials/app-header", { user: it.user, membership: it.membership, phrase: it.householdPhrase }) %>
+<% if (it.emailNotice) { %><%~ include("/partials/email-notice", it.emailNotice) %><% } %>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>

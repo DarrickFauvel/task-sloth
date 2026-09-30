@@ -854,6 +854,15 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 .inline-field input { flex: 1; min-width: 0; }
 .panel .inline-field .button.primary { flex: none; width: auto; }
 .panel > p { margin: 0; }
+/* An email waiting to be confirmed: in Settings' Account card, and as a nudge under the home page's header. */
+.email-status, .email-notice {
+  display: grid; gap: var(--space-2xs); padding: var(--space-xs) var(--space-s); border-radius: var(--radius);
+  background: var(--tint); font-size: var(--step--1);
+}
+.email-status p, .email-notice p { margin: 0; overflow-wrap: anywhere; }
+.email-status-actions { display: flex; flex-wrap: wrap; gap: 0 var(--space-m); }
+.email-status form, .email-notice form { margin: 0; }
+.email-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-s); margin: var(--space-xs) 0 0; }
 .account { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2xs) var(--space-s); margin: 0; }
 .account dt { color: var(--muted); }
 .account dd { margin: 0; overflow-wrap: anywhere; }
