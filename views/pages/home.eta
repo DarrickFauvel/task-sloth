@@ -15,10 +15,11 @@
   </dialog>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
   <% const l = it.list; %>
-  <div data-signals="{view: '<%= l.view %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: '', renaming: '', renameText: ''}"
+  <div data-signals="{view: '<%= l.view %>', project: '<%= l.project ?? '' %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: '', renaming: '', renameText: ''}"
        data-init="@get('/events?<%= it.listQueryString(l) %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
     <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
       <input type="hidden" name="view" value="<%= l.view %>">
+      <input type="hidden" name="project" value="<%= l.project ?? '' %>">
       <input type="hidden" name="context" value="<%= l.context ?? '' %>">
       <input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
       <%/* The × clears what's typed (so does Esc) and keeps the cursor in the box. It starts hidden;

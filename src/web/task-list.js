@@ -1,5 +1,6 @@
 import { inboxCount, listTasks, tagList } from "../services/tasks.js";
 import { getContext } from "../services/contexts.js";
+import { getProject } from "../services/projects.js";
 import { cleanTagName } from "../services/tags.js";
 import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
@@ -47,16 +48,17 @@ export function quickAddList(parsed, view) {
 
 export const cleanView = (view) => (view in VIEWS ? view : "mine");
 
-/** Which list the home page shows: a tab, optionally narrowed to one context or one tag. */
+const cleanId = (id) => (typeof id === "string" && id ? id.slice(0, 64) : null);
+
+/** Which list the home page shows: a tab, optionally narrowed to one project, one context or one tag. */
 export function cleanListQuery(src = {}) {
-  const context = typeof src.context === "string" && src.context ? src.context.slice(0, 64) : null;
   const tag = typeof src.tag === "string" ? cleanTagName(src.tag) || null : null;
-  return { view: cleanView(src.view), context, tag };
+  return { view: cleanView(src.view), project: cleanId(src.project), context: cleanId(src.context), tag };
 }
 
 /** Query string for a list, e.g. "view=all&context=abc". */
-export const listQueryString = ({ view, context, tag }) =>
-  new URLSearchParams(Object.entries({ view, context, tag }).filter(([, v]) => v)).toString();
+export const listQueryString = ({ view, project, context, tag }) =>
+  new URLSearchParams(Object.entries({ view, project, context, tag }).filter(([, v]) => v)).toString();
 
 /** Adds the display fields views/partials/task-row.eta and views/pages/task.eta use. */
 export function decorateTask(t, membership, today) {
@@ -77,11 +79,13 @@ export function decorateTask(t, membership, today) {
 
 /**
  * Loads the tasks for one tab of the home page and shapes them for views/partials/task-list.eta.
- * `context` (a context id) and `tag` (a tag name) narrow the tab; an unknown context is ignored.
+ * `project` (a project id), `context` (a context id) and `tag` (a tag name) narrow the tab; an unknown
+ * project or context is ignored.
  * `groupBy` "where" groups the to-do tabs by where/how instead of by date (see groupByWhere).
  */
-export async function taskListView({ userId, membership, view, context: contextId = null, tag = null, groupBy = "when", today }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today }) {
   const householdId = membership.household.id;
+  const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
   const filter = {
     inbox: { status: "open", list: "inbox", creatorId: userId },
@@ -92,11 +96,11 @@ export async function taskListView({ userId, membership, view, context: contextI
     someday: { status: "open", list: "someday" },
     done: { status: "done", limit: 50 },
   }[view];
-  const tasks = (await listTasks(householdId, { ...filter, contextId: context?.id, tag: tag ?? undefined })).map((t) =>
+  const tasks = (await listTasks(householdId, { ...filter, projectId: project?.id, contextId: context?.id, tag: tag ?? undefined })).map((t) =>
     decorateTask(t, membership, today),
   );
-  const query = { view, context: context?.id ?? null, tag };
-  const filterLabel = [context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
+  const query = { view, project: project?.id ?? null, context: context?.id ?? null, tag };
+  const filterLabel = [project && `${project.emoji} ${project.name}`, context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
   const base = { ...query, filterLabel, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
