@@ -1,10 +1,14 @@
 <% const { task, groups, done, total } = it; const shopping = task.list_mode === "shopping"; %>
 <section id="checklist" class="checklist">
+<%/* <reorder-items> (public/js/reorder-items.js) lets the grip on each unchecked row drag it, or move it
+     with the arrow keys, within its section. Checked items stay sunk at the bottom and have no grip. */%>
+<reorder-items>
   <% if (!total) { %>
     <p class="empty">No items yet. Add some above.</p>
   <% } %>
   <% groups.forEach((g) => { %>
     <% if (g.name) { %><h3 class="group"><%= g.name %></h3><% } %>
+    <% const movable = g.items.filter((i) => !i.checked).length > 1; %>
     <ul class="items">
       <% g.items.forEach((item) => { const action = item.checked ? "uncheck" : "check"; %>
         <li class="item<%= item.checked ? ' is-done' : '' %>" id="item-<%= item.id %>">
@@ -31,10 +35,17 @@
                   data-on:click="$itemText = el.dataset.label; $itemRenaming = '<%= item.id %>'; setTimeout(() => { const i = document.getElementById('item-rename-<%= item.id %>'); i.focus(); i.select() })">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </button>
+          <% if (movable && !item.checked) { %>
+            <button type="button" class="icon drag-handle" data-move="<%= item.id %>" data-show="!(<%= renaming %>)"
+                    aria-label="Move “<%= label %>”: drag, or use the up and down arrow keys" title="Drag to reorder">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+            </button>
+          <% } %>
         </li>
       <% }) %>
     </ul>
   <% }) %>
+</reorder-items>
   <% if (done) { %>
     <div class="actions">
       <form method="post" action="/tasks/<%= task.id %>/uncheck-all" data-on:submit="@post('/tasks/<%= task.id %>/uncheck-all')">

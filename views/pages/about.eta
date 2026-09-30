@@ -1,0 +1,13 @@
+<% layout("/layout", { title: "About" }) %>
+<%/* What Task Sloth is and who made it. Open to everyone, signed in or not. */%>
+<a class="back" href="/"><%= it.user ? "← All tasks" : "← Sign in" %></a>
+<article class="about">
+  <img class="about-logo" src="/img/logo.png" alt="" width="192" height="192">
+  <h1>Task Sloth</h1>
+  <p class="lead">A shared to-do list for your household. Jot things down fast, sort them later, and see only what you can actually do.</p>
+  <% if (it.user) { %><p><a href="/help">How it works</a></p><% } %>
+  <section class="panel about-credit">
+    <h2>Made by</h2>
+    <p><a href="https://darrickdevelops.com" rel="noopener">Darrick Develops</a></p>
+  </section>
+</article>

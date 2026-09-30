@@ -2,7 +2,7 @@
      opens the account menu. The menu is a native popover: tapping outside or Esc closes it, with no script. */%>
 <% const u = it.user; const household = it.membership?.household.name; %>
 <header class="bar app-header">
-  <h1><a class="brand" href="/">Task Sloth</a></h1>
+  <h1><a class="brand" href="/"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</a></h1>
   <button type="button" class="account-button" popovertarget="account-menu"
           aria-label="Account menu for <%= u.name %><%= household ? `, ${household}` : "" %>">
     <% if (household) { %><span class="household-label"><%= household %></span><% } %>
@@ -19,6 +19,7 @@
   </div>
   <a class="menu-item" href="/settings"><span class="menu-icon" aria-hidden="true">⚙️</span> Settings</a>
   <a class="menu-item" href="/help"><span class="menu-icon" aria-hidden="true">❓</span> How it works</a>
+  <a class="menu-item" href="/about"><span class="menu-icon" aria-hidden="true">ℹ️</span> About</a>
   <button type="button" class="menu-item" aria-haspopup="dialog"
           data-on:click="document.getElementById('account-menu').hidePopover(); document.getElementById('qr-dialog').showModal()">
     <span class="menu-icon" aria-hidden="true">

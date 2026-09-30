@@ -10,6 +10,6 @@
 </div>
 <%/* One line on what this mode does, so the switch explains itself. */%>
 <p class="hint checklist-hint"><%= shopping
-  ? "Sorted by store section, like Produce and Dairy. Start a line with “Bakery:” to choose a section yourself."
-  : "A simple list, in the order you add things. A shopping list sorts items by store section instead." %></p>
+  ? "Sorted by store section, like Produce and Dairy. Start a line with “Bakery:” to choose a section yourself. Drag ⠿ to reorder within a section."
+  : "A simple list, in the order you add things. Drag ⠿ to reorder. A shopping list sorts items by store section instead." %></p>
 </div>

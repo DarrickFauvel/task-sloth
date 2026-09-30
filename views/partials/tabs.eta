@@ -26,6 +26,16 @@
   <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>
   <% if (inMore) { %><h2 class="view-title"><%= it.views[l.view] %></h2><% } %>
   <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
+  <%/* To-do tabs: group by date or by where/how. A plain form: the choice is a cookie (see /list-grouping). */%>
+  <% if (l.canGroup) { %>
+    <form method="post" action="/list-grouping" class="pills grouping" aria-label="Group tasks by">
+      <input type="hidden" name="view" value="<%= l.view %>"><input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
+      <span class="hint">Group by</span>
+      <% [["when", "When"], ["where", "Where / how"]].forEach(([value, label]) => { %>
+        <button name="by" value="<%= value %>" class="pill<%= l.groupBy === value ? ' is-on' : '' %>"<%~ l.groupBy === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>><%= label %></button>
+      <% }) %>
+    </form>
+  <% } %>
   <% if (l.view === "inbox" && l.inboxCount) { %>
     <p><a class="button primary" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>
   <% } %>

@@ -78,8 +78,9 @@ export function decorateTask(t, membership, today) {
 /**
  * Loads the tasks for one tab of the home page and shapes them for views/partials/task-list.eta.
  * `context` (a context id) and `tag` (a tag name) narrow the tab; an unknown context is ignored.
+ * `groupBy` "where" groups the to-do tabs by where/how instead of by date (see groupByWhere).
  */
-export async function taskListView({ userId, membership, view, context: contextId = null, tag = null, today }) {
+export async function taskListView({ userId, membership, view, context: contextId = null, tag = null, groupBy = "when", today }) {
   const householdId = membership.household.id;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
   const filter = {
@@ -101,6 +102,10 @@ export async function taskListView({ userId, membership, view, context: contextI
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tasks }] : [] };
 
+  // Grouping by where/how means nothing once the list is narrowed to one context, so it falls back to dates.
+  const canGroup = !context;
+  if (canGroup && groupBy === "where") return { ...base, canGroup, groupBy, groups: groupByWhere(tasks) };
+
   const weekOut = addDays(today, 7);
   const groups = [
     { label: "Overdue", test: (t) => t.due_date && t.due_date < today },
@@ -111,5 +116,19 @@ export async function taskListView({ userId, membership, view, context: contextI
   ]
     .map(({ label, test }) => ({ label, tasks: tasks.filter(test) }))
     .filter((g) => g.tasks.length);
-  return { ...base, groups };
+  return { ...base, canGroup, groupBy: "when", groups };
+}
+
+/**
+ * One group per where/how (context), A–Z, then "Anywhere" for tasks without one. Tasks keep the
+ * list's date order inside each group. Each group carries its context id so its heading can link to it.
+ */
+export function groupByWhere(tasks) {
+  const groups = new Map();
+  for (const t of tasks) {
+    const key = t.context_id ?? "";
+    if (!groups.has(key)) groups.set(key, { label: t.context_name ?? "Anywhere", contextId: t.context_id ?? null, tasks: [] });
+    groups.get(key).tasks.push(t);
+  }
+  return [...groups.values()].sort((a, b) => !a.contextId - !b.contextId || a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 }

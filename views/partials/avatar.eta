@@ -1,4 +1,5 @@
-<%/* A member's avatar: their Google photo if they have one, otherwise their initial on their color.
+<%/* A member's avatar: the photo they uploaded, else their Google photo, else their initial on their color.
      it.size: "lg" for the bigger one at the top of the account menu. */%>
-<% const u = it.user; const initial = String(u.name ?? "?").trim().charAt(0).toUpperCase() || "?"; %>
-<span class="avatar<%= it.size === 'lg' ? ' is-lg' : '' %>" style="--c: <%= u.color %>" data-member="<%= u.id %>" aria-hidden="true"><% if (u.avatar_url) { %><img src="<%= u.avatar_url %>" alt="" referrerpolicy="no-referrer"><% } else { %><%= initial %><% } %></span>
+<% const u = it.user; const initial = String(u.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+   const photo = u.avatar_photo_at ? `/avatars/${u.id}?v=${encodeURIComponent(u.avatar_photo_at)}` : u.avatar_url; %>
+<span class="avatar<%= it.size === 'lg' ? ' is-lg' : '' %>" style="--c: <%= u.color %>" data-member="<%= u.id %>" aria-hidden="true"><% if (photo) { %><img src="<%= photo %>" alt="" referrerpolicy="no-referrer"><% } else { %><%= initial %><% } %></span>

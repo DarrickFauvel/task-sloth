@@ -1,5 +1,5 @@
 <% layout("/layout", { title: "Create account" }) %>
-<p class="brand-line">Task Sloth</p>
+<p class="brand-line"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</p>
 <section class="panel">
   <h1>Create your account</h1>
   <form method="post" action="/signup" class="stack">

@@ -1,4 +1,5 @@
 <% layout("/layout", { title: "Settings" }) %>
+<script type="module" src="/js/photo-picker.js"></script>
 <%/* Profile, appearance, household and account. Plain forms that post and come back here. */%>
 <% const u = it.user; %>
 <a class="back" href="/">← All tasks</a>
@@ -8,8 +9,19 @@
 <div class="settings">
   <section class="panel">
     <h2><span aria-hidden="true">👤</span> Profile</h2>
-    <form method="post" action="/settings/profile" class="stack">
+    <%/* Your photo. <photo-picker> shrinks the picked image and saves it at once (it needs script); removing
+         it is a plain form. These sit outside the profile form, which only saves name and color. */%>
+    <div class="profile-photo">
       <div class="profile-preview"><%~ include("/partials/avatar", { user: u, size: "lg" }) %></div>
+      <photo-picker action="/settings/photo">
+        <label class="button"><input type="file" accept="image/*" class="visually-hidden"><%= u.avatar_photo_at ? "Change photo" : "Upload a photo" %></label>
+        <p class="hint" role="status" hidden></p>
+      </photo-picker>
+      <% if (u.avatar_photo_at) { %>
+        <form method="post" action="/settings/photo/remove"><button class="button">Remove photo</button></form>
+      <% } %>
+    </div>
+    <form method="post" action="/settings/profile" class="stack">
       <label>Your name
         <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name">
         <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one.</small>
