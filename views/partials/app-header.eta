@@ -2,7 +2,10 @@
      The menu is a native popover: tapping outside or Esc closes it, with no script. */%>
 <% const u = it.user; %>
 <header class="bar app-header">
-  <h1><a class="brand" href="/">Task Sloth</a></h1>
+  <div class="brand-block">
+    <h1><a class="brand" href="/">Task Sloth</a></h1>
+    <% if (it.membership) { %><p class="household-label"><%= it.membership.household.name %></p><% } %>
+  </div>
   <div class="bar-actions">
     <button type="button" class="icon-button" aria-label="Show a QR code to open this app on another phone" aria-haspopup="dialog"
             data-on:click="document.getElementById('qr-dialog').showModal()">
