@@ -116,6 +116,13 @@ button.icon:focus-visible { opacity: 1; }
   background: var(--bg);
 }
 .quick-add input, .quick-add textarea { flex: 1; min-width: 0; }
+.input-wrap { position: relative; display: flex; flex: 1; min-width: 0; }
+.input-wrap input { padding-right: var(--tap); }
+.clear-input {
+  position: absolute; inset: 0 0 0 auto; min-width: var(--tap); padding: 0;
+  border: 0; background: none; color: var(--muted);
+}
+@media (hover: hover) { .clear-input:hover { color: var(--fg); } }
 .quick-add button { flex: none; }
 
 .help-button { flex: none; color: var(--muted); }
