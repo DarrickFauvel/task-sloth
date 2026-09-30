@@ -58,3 +58,12 @@ test("editFormView lists the task's tags and the saved contexts", () => {
   assert.deepEqual(view.contexts, [{ id: "l1", name: "Target" }]);
   assert.equal(editFormView({ tag_names: null }, ctx).tags, "");
 });
+
+test("editInput: picking a task to wait on, nothing, or a new task", () => {
+  assert.equal(editInput({ title: "x", waitingTaskId: "abcdefghijklmnop" }).waitingTaskId, "abcdefghijklmnop");
+  assert.equal(editInput({ title: "x", waitingTaskId: "" }).waitingTaskId, null);
+  const fresh = editInput({ title: "x", waitingTaskId: "new", newBlocker: "  patch the walls sat " });
+  assert.equal(fresh.newBlocker, "patch the walls sat");
+  assert.equal("waitingTaskId" in fresh, false);
+  assert.equal("newBlocker" in editInput({ title: "x" }), false, "forms without the field leave it alone");
+});

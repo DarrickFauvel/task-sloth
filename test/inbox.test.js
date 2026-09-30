@@ -40,7 +40,7 @@ test("sortDecision rejects a missing date or an unknown answer", () => {
 });
 
 test("every sort choice has plain-language help", () => {
-  for (const c of SORT_CHOICES) assert.ok(c.label && c.hint && c.icon, c.value);
+  for (const c of SORT_CHOICES) assert.ok(c.label && c.hint && c.short && c.icon, c.value);
 });
 
 test("sinceLabel", () => {
@@ -108,4 +108,18 @@ test("creating straight onto Waiting sets the date; unknown lists are rejected",
   const id = await createTask(me, { title: "parcel", list: "waiting" });
   assert.ok((await getTask("h1", id)).waiting_since);
   await assert.rejects(createTask(me, { title: "x", list: "later" }), /Unknown list/);
+});
+
+test("quickDates offers today, tomorrow, the weekend, Monday and a week out, without repeats", async () => {
+  const { quickDates } = await import("../src/web/sort-page.js");
+  // 2026-09-30 is a Wednesday.
+  assert.deepEqual(quickDates("2026-09-30"), [
+    { date: "2026-09-30", label: "Today" },
+    { date: "2026-10-01", label: "Tomorrow" },
+    { date: "2026-10-03", label: "Sat" },
+    { date: "2026-10-05", label: "Mon" },
+    { date: "2026-10-07", label: "In a week" },
+  ]);
+  // On a Friday, Saturday is tomorrow: it shows once, as "Tomorrow".
+  assert.deepEqual(quickDates("2026-10-02").map((d) => d.label), ["Today", "Tomorrow", "Mon", "In a week"]);
 });

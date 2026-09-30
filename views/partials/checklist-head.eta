@@ -1,0 +1,15 @@
+<% const { task, done, total } = it; const shopping = task.list_mode === "shopping"; %>
+<%/* The checklist's header, above the add box. Its own part so live updates keep the count current. */%>
+<div id="checklist-head">
+<div class="bar">
+  <h2><%= shopping ? "Shopping list" : "Checklist" %><% if (total) { %> <span class="count"><%= done %>/<%= total %></span><% } %></h2>
+  <form method="post" action="/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>"
+        data-on:submit="@post('/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>')">
+    <button class="link"><%= shopping ? "Switch to checklist" : "Switch to shopping list" %></button>
+  </form>
+</div>
+<%/* One line on what this mode does, so the switch explains itself. */%>
+<p class="hint checklist-hint"><%= shopping
+  ? "Sorted by store section, like Produce and Dairy. Start a line with “Bakery:” to choose a section yourself."
+  : "A simple list, in the order you add things. A shopping list sorts items by store section instead." %></p>
+</div>

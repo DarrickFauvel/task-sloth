@@ -31,7 +31,7 @@ export const NAV = {
 /** One line under the tab explaining what it's for, written for someone who's never seen the app. */
 export const VIEW_HINTS = {
   inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",
-  waiting: "Things that need someone else first: a reply, a delivery, a repair. Check in on them now and then.",
+  waiting: "Things that can't move yet: waiting on someone (a reply, a repair) or on another task to be done first.",
   someday: "Ideas you might get to one day, kept out of the way of today's list.",
 };
 
@@ -67,6 +67,10 @@ export function decorateTask(t, membership, today) {
     dueState: t.due_date && t.status === "open" ? dueState(t.due_date, today) : "",
     repeats: describeRecurrence(parseRule(t.recurrence)),
     tags: tagList(t),
+    // Blocked by another (still open) task: "patch the walls". It shows on every list the task is on.
+    blockedBy: t.waiting_task_id && t.waiting_task_status === "open" ? t.waiting_task_title : "",
+    // Open tasks waiting on this one.
+    blocking: t.blocking_titles ? JSON.parse(t.blocking_titles) : [],
     waitingLabel: t.list === "waiting" && t.status === "open" ? `${t.waiting_on || "someone"} · ${sinceLabel(t.waiting_since ?? today, today)}` : "",
   };
 }
@@ -83,7 +87,7 @@ export async function taskListView({ userId, membership, view, context: contextI
     mine: { status: "open", list: "todo", assigneeId: userId },
     all: { status: "open", list: "todo" },
     grabs: { status: "open", list: "todo", assigneeId: null },
-    waiting: { status: "open", list: "waiting" },
+    waiting: { status: "open", waiting: true },
     someday: { status: "open", list: "someday" },
     done: { status: "done", limit: 50 },
   }[view];

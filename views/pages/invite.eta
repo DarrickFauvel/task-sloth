@@ -1,6 +1,9 @@
 <% layout("/layout", { title: "Join household" }) %>
-<h1>Join <%= it.invite.household_name %></h1>
-<p><%= it.invite.inviter_name %> invited you to share tasks in their household.</p>
-<form method="post" action="/invite/<%= it.invite.token %>">
-  <button>Join household</button>
-</form>
+<p class="brand-line">Task Sloth</p>
+<section class="panel">
+  <h1>Join <%= it.invite.household_name %></h1>
+  <p><%= it.invite.inviter_name %> invited you to share tasks in their household.</p>
+  <form method="post" action="/invite/<%= it.invite.token %>">
+    <button class="button primary">Join household</button>
+  </form>
+</section>

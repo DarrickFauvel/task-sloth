@@ -1,20 +1,27 @@
-<%/* The quick-add cheat sheet, shown under the add box and on the How it works page. */%>
-<dl class="shortcuts">
-  <dt><code>fri</code>, <code>tomorrow</code>, <code>oct 12</code>, <code>in 3 days</code></dt>
-  <dd>When it's due</dd>
-  <dt><code>at 3pm</code>, <code>5:30pm</code></dt>
-  <dd>What time</dd>
-  <dt><code>every tue</code>, <code>daily</code>, <code>every 2 weeks</code></dt>
-  <dd>Repeats</dd>
-  <dt><code>@me</code>, <code>@sam</code>, <code>@anyone</code></dt>
-  <dd>Who does it (a name from your household)</dd>
-  <dt><code>@Target</code>, <code>@phone</code>, <code>@"Home Depot"</code></dt>
-  <dd>Where or how you'll do it (any <code>@word</code> that isn't a person)</dd>
-  <dt><code>+errand</code>, <code>+kids</code></dt>
-  <dd>Tags, to group things your own way</dd>
-  <dt><code>#Birthday</code></dt>
-  <dd>Part of a bigger project</dd>
-  <dt><code>!!</code> or <code>!low</code></dt>
-  <dd>High or low priority</dd>
-</dl>
-<p class="hint">Example: <code>return library books sat @library +kids</code>. Anything with none of these goes to your Inbox to sort later.</p>
+<%/* The quick-add cheat sheet, grouped (see src/web/shortcuts.js). In the home page's drawer (it.insert)
+     each example is a button that adds it to the task being typed; on the How it works page it's plain text.
+     Tokens can include members' names, so they are only ever output with escaping. */%>
+<div class="shortcut-groups">
+  <% it.groups.forEach((g) => { %>
+    <section class="shortcut-group">
+      <h3><span aria-hidden="true"><%= g.icon %></span> <%= g.title %><% if (g.note) { %> <span class="hint">· <%= g.note %></span><% } %></h3>
+      <% g.rows.forEach((r) => { %>
+        <div class="shortcut-row<%= r.label ? '' : ' no-label' %>">
+          <% if (r.label) { %><span class="shortcut-label"><%= r.label %></span><% } %>
+          <span class="tokens">
+            <% r.tokens.forEach((t) => { %>
+              <% if (it.insert) { %><button type="button" class="token" data-token="<%= t %>" data-on:click="<%= it.insertJs %>"><%= t %></button><% } else { %><code class="token"><%= t %></code><% } %>
+            <% }) %>
+          </span>
+        </div>
+      <% }) %>
+    </section>
+  <% }) %>
+</div>
+<% if (it.insert) { %>
+  <p class="hint shortcut-example">Or try a whole one:
+    <button type="button" class="token" data-token="<%= it.example %>" data-on:click="<%= it.insertJs %>"><%= it.example %></button>
+  </p>
+<% } else { %>
+  <p class="hint shortcut-example">Example: <code><%= it.example %></code>. Anything with none of these goes to your Inbox to sort later.</p>
+<% } %>

@@ -13,12 +13,14 @@ import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
-import { assignTask, createTask, deleteTask, getTask, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
-import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
+import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { addItems, autoCategorize, clearChecked, deleteItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
-import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
+import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
@@ -96,7 +98,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req) });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -128,7 +130,7 @@ app.get("/events", requireHousehold, async (req, res) => {
   const renderPage = async (membership) => {
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), eta.render("partials/checklist", checklist)];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, today: today(req) });
     return renderList(list, req.user.id);
@@ -204,15 +206,18 @@ async function resolveNames(householdId, { projectName, contextName, ...input })
   return input;
 }
 
+/** What quick add needs to read shortcuts: today, who "me" is, and the household's names. */
+const quickAddContext = async (req) => ({
+  today: today(req),
+  meId: req.user.id,
+  members: req.membership.members,
+  projects: await listProjects(req.actor.householdId),
+  contexts: await listContexts(req.actor.householdId),
+});
+
 app.post("/tasks", requireHousehold, async (req, res) => {
-  const { household, members } = req.membership;
-  const parsed = parseQuickAdd(String(req.body.quick ?? ""), {
-    today: today(req),
-    meId: req.user.id,
-    members,
-    projects: await listProjects(household.id),
-    contexts: await listContexts(household.id),
-  });
+  const { household } = req.membership;
+  const parsed = parseQuickAdd(String(req.body.quick ?? ""), await quickAddContext(req));
   const view = cleanView(req.body.view);
   const list = quickAddList(parsed, view);
   const id = await createTask(req.actor, { ...(await resolveNames(household.id, parsed)), list });
@@ -224,9 +229,15 @@ app.post("/tasks", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
+  // Finishing a task unblocks whatever was waiting on it; say so.
+  const unblocked = await listBlockedBy(req.actor.householdId, req.params.id);
   const nextId = await setDone(req.actor, req.params.id, true, { today: today(req) });
   const next = nextId && (await getTask(req.actor.householdId, nextId));
-  const flash = next && { message: `Next one due ${relativeLabel(next.due_date, today(req))}` };
+  const messages = [
+    next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
+    unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
+  ].filter(Boolean);
+  const flash = messages.length ? { message: messages.join(" · ") } : undefined;
   await sendTaskList(req, res, { flash });
 });
 
@@ -242,6 +253,17 @@ app.post("/tasks/:id/list/:list", requireHousehold, async (req, res) => {
   await sendTaskList(req, res);
 });
 
+// Rename from the task list. Datastar sends the typed name as the renameText signal; a plain form sends title.
+// Shortcuts in the new name ("… sun @phone") are applied like quick add's, and the flash says what they did.
+app.post("/tasks/:id/rename", requireHousehold, async (req, res) => {
+  const task = await getTask(req.actor.householdId, req.params.id);
+  const { input, summary } = shortcutsInTitle(req.body.title ?? req.body.renameText, task, await quickAddContext(req));
+  await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, input));
+  const moved = input.list === "todo" ? " and moved to To do" : "";
+  const flash = summary ? { message: `Renamed${moved} · ${summary}` } : undefined;
+  await sendTaskList(req, res, { flash, signals: { renaming: "", renameText: "" } });
+});
+
 app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
   await assignTask(req.actor, req.params.id, req.user.id);
   await sendTaskList(req, res);
@@ -250,7 +272,7 @@ app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
   const task = await getTask(req.actor.householdId, req.params.id);
   await deleteTask(req.actor, task.id);
-  await sendTaskList(req, res, { flash: { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` } });
+  await sendTaskList(req, res, { flash: { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` }, signals: { renaming: "" } });
 });
 
 app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
@@ -261,7 +283,7 @@ app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
 // --- Sorting the inbox ----------------------------------------------------------------
 // A plain HTML form, one task at a time: each answer saves and loads the next task.
 
-async function renderSortPage(req, res, { taskId, after, error, status = 200 } = {}) {
+async function renderSortPage(req, res, { taskId, after, error, pick = "", status = 200 } = {}) {
   const { householdId } = req.actor;
   let task = null;
   if (taskId) {
@@ -275,6 +297,9 @@ async function renderSortPage(req, res, { taskId, after, error, status = 200 } =
     left: next.left,
     skipped: Boolean(after) && !task && next.left > 0,
     choices: SORT_CHOICES,
+    needsDetails: NEEDS_DETAILS,
+    pick: NEEDS_DETAILS.includes(pick) ? pick : "",
+    quickDates: quickDates(today(req)),
     members: req.membership.members,
     contexts: await listContexts(householdId),
     userId: req.user.id,
@@ -295,12 +320,15 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
   try {
     decision = sortDecision(req.body);
   } catch (err) {
-    if (err instanceof HttpError && err.status === 400) return renderSortPage(req, res, { taskId: task.id, error: err.message, status: 400 });
+    if (err instanceof HttpError && err.status === 400) return renderSortPage(req, res, { taskId: task.id, error: err.message, pick: req.body.choice, status: 400 });
     throw err;
   }
   if (decision.action === "delete") await deleteTask(req.actor, task.id);
   else {
-    await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, decision.input));
+    // Shortcuts typed into the name fill in whatever the picked answer didn't set.
+    const typed = shortcutsInTitle(req.body.title, task, await quickAddContext(req)).input;
+    const input = withTypedShortcuts(typed, decision.input, req.user.id);
+    await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, input));
     if (decision.action === "done") await setDone(req.actor, task.id, true, { today: today(req) });
   }
   redirect(res, `/sort?after=${encodeURIComponent(task.id)}`);
@@ -308,15 +336,31 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
 
 // --- Help ------------------------------------------------------------------------------
 
-app.get("/help", requireUser, (req, res) => render(res, "pages/help", {}));
+/** The shortcuts cheat sheet, with the signed-in user's housemates as the @person examples. */
+const shortcutsView = (req) => ({
+  groups: shortcutGroups((req.membership?.members ?? []).filter((m) => m.id !== req.user.id).map((m) => m.name)),
+  example: SHORTCUT_EXAMPLE,
+  insertJs: INSERT_TOKEN,
+});
+
+app.get("/help", requireUser, (req, res) =>
+  render(res, "pages/help", { shortcuts: shortcutsView(req), choices: SORT_CHOICES, nav: NAV, views: VIEWS }),
+);
 
 // --- Task page + checklist ------------------------------------------------------------
 
 const renderTaskHead = (req, task, membership = req.membership) =>
   eta.render("partials/task-head", { task: decorateTask(task, membership, today(req)), userId: req.user.id });
 
+/** Open tasks this one could be blocked by: not someone else's private inbox, not a template. */
+const blockerChoices = async (req) =>
+  (await listTasks(req.actor.householdId, { status: "open" })).filter((t) => t.list !== "inbox" || t.creator_id === req.user.id);
+
 const editView = async (req, task) =>
   editFormView(task, {
+    openTasks: await blockerChoices(req),
+    today: today(req),
+    userId: req.user.id,
     members: req.membership.members,
     projects: await listProjects(req.actor.householdId),
     contexts: await listContexts(req.actor.householdId),
@@ -354,17 +398,33 @@ app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
-  await updateTask(req.actor, req.params.id, await resolveNames(req.actor.householdId, editInput(req.body)));
-  await sendTaskHead(req, res, req.params.id, { signals: { editing: false } });
+  const { householdId } = req.actor;
+  const { newBlocker, ...input } = editInput(req.body);
+  let flash;
+  // "Blocked by: ➕ New task…": create the task that has to happen first (shortcuts work, it lands on
+  // To do, in this task's project unless a #project was typed), then block this one on it.
+  if (newBlocker !== undefined) {
+    if (!newBlocker) throw new HttpError(400, "Name the task that has to happen first");
+    const task = await getTask(householdId, req.params.id);
+    const parsed = parseQuickAdd(newBlocker, await quickAddContext(req));
+    const blocker = await resolveNames(householdId, { projectId: task.project_id, ...parsed, list: "todo" });
+    input.waitingTaskId = await createTask(req.actor, blocker);
+    flash = { message: `Added “${blocker.title}”. This one waits on it.` };
+  }
+  await updateTask(req.actor, req.params.id, await resolveNames(householdId, input));
+  await sendTaskHead(req, res, req.params.id, { flash, signals: { editing: false } });
 });
 
+/** The task page's live checklist parts: its header (title, count, list/shopping switch) and the items. */
+const renderChecklist = (checklist) => [eta.render("partials/checklist-head", checklist), eta.render("partials/checklist", checklist)];
+
 /** Datastar: re-render the checklist (and clear any error). Plain form posts: back to the task page. */
-async function sendChecklist(req, res, taskId, { signals } = {}) {
+async function sendChecklist(req, res, taskId, { signals, flash } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
-  const html = eta.render("partials/checklist", await checklistView(req.actor.householdId, taskId));
+  const parts = renderChecklist(await checklistView(req.actor.householdId, taskId));
   await sse(req, res, (stream) => {
-    stream.patchElements(html);
-    stream.patchElements('<div id="flash" role="status"></div>');
+    for (const html of parts) stream.patchElements(html);
+    stream.patchElements(flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>');
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });
 }
@@ -401,7 +461,14 @@ app.post("/items/:id/uncheck", requireHousehold, async (req, res) => {
 });
 
 app.post("/items/:id/delete", requireHousehold, async (req, res) => {
-  await sendChecklist(req, res, await deleteItem(req.actor, req.params.id));
+  await sendChecklist(req, res, await deleteItem(req.actor, req.params.id), { signals: { itemRenaming: "" } });
+});
+
+// Rename an item from its row. Datastar sends the typed name as the itemText signal; a plain form sends text.
+app.post("/items/:id/rename", requireHousehold, async (req, res) => {
+  const { taskId, movedTo } = await renameItem(req.actor, req.params.id, req.body.text ?? req.body.itemText);
+  const flash = movedTo ? { message: `Moved to ${movedTo}` } : undefined;
+  await sendChecklist(req, res, taskId, { flash, signals: { itemRenaming: "", itemText: "" } });
 });
 
 // --- Household ------------------------------------------------------------------------

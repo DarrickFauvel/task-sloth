@@ -1,22 +1,25 @@
 <% layout("/layout", { title: "Sign in" }) %>
-<h1>Task Sloth</h1>
-<form method="post" action="/login" class="stack">
-  <input type="hidden" name="next" value="<%= it.next %>">
-  <% if (it.error) { %><p class="flash is-error" role="alert"><%= it.error %></p><% } %>
-  <label>Username or email
-    <input name="identifier" value="<%= it.identifier ?? '' %>" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
-  </label>
-  <label>Password <input type="password" name="password" required maxlength="200" autocomplete="current-password"></label>
-  <button>Sign in</button>
-</form>
-<p>New here? <a href="/signup?next=<%= encodeURIComponent(it.next) %>">Create an account</a></p>
-<% if (it.google) { %>
-  <p><a class="button" href="/auth/google?next=<%= encodeURIComponent(it.next) %>">Sign in with Google</a></p>
-<% } %>
+<p class="brand-line">Task Sloth</p>
+<section class="panel">
+  <h1>Sign in</h1>
+  <form method="post" action="/login" class="stack">
+    <input type="hidden" name="next" value="<%= it.next %>">
+    <% if (it.error) { %><p class="flash is-error" role="alert"><%= it.error %></p><% } %>
+    <label>Username or email
+      <input name="identifier" value="<%= it.identifier ?? '' %>" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
+    </label>
+    <label>Password <input type="password" name="password" required maxlength="200" autocomplete="current-password"></label>
+    <button class="button primary">Sign in</button>
+  </form>
+  <% if (it.google) { %>
+    <a class="button" href="/auth/google?next=<%= encodeURIComponent(it.next) %>">Sign in with Google</a>
+  <% } %>
+</section>
+<p class="panel-links">New here? <a href="/signup?next=<%= encodeURIComponent(it.next) %>">Create an account</a></p>
 <% if (it.devLogin) { %>
-  <form method="post" action="/auth/dev" class="stack">
+  <form method="post" action="/auth/dev" class="panel dev-login">
     <input type="hidden" name="next" value="<%= it.next %>">
     <label>Dev login as <input name="handle" required placeholder="alex" autocomplete="off"></label>
-    <button>Sign in</button>
+    <button class="button">Sign in</button>
   </form>
 <% } %>

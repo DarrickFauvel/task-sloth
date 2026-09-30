@@ -1,6 +1,6 @@
 import { db, now } from "../db/client.js";
 import { HttpError } from "../lib/http.js";
-import { parseChecklistInput } from "../../public/js/lib/checklist.js";
+import { parseChecklistInput, parseSingleItem } from "../../public/js/lib/checklist.js";
 import { guessCategory } from "../../public/js/lib/groceries.js";
 import { activityStatement } from "./activity.js";
 import { changed } from "./changes.js";
@@ -111,6 +111,33 @@ export async function clearChecked(actor, taskId) {
   await getTask(actor.householdId, taskId);
   await db.run("DELETE FROM checklist_items WHERE task_id = ? AND checked = 1", [taskId]);
   changed(actor.householdId, taskId);
+}
+
+/**
+ * The section a renamed item should be in. A section typed with the new name ("Pets: treats") wins.
+ * A section the app guessed is guessed again from the new name, so "milk" renamed to "bread" moves
+ * from Dairy to Bakery; one that differs from what the old name would have guessed was chosen by
+ * someone, so it stays. (In checklist mode, items with no section keep none until the list becomes
+ * a shopping list, which fills them in.)
+ */
+export function renamedCategory(item, parsed, mode) {
+  if (parsed.category) return parsed.category;
+  const wasGuessed = !item.category || item.category === guessCategory(item.text);
+  if (!wasGuessed) return item.category;
+  if (!item.category && mode !== "shopping") return null;
+  return guessCategory(parsed.text);
+}
+
+/** Renames an item from its row. Returns its task, and the section it moved to on a shopping list (else null). */
+export async function renameItem(actor, itemId, typed) {
+  const item = await getItem(actor, itemId);
+  const parsed = parseSingleItem(typed);
+  if (!parsed) throw new HttpError(400, "Item needs a name");
+  const task = await getTask(actor.householdId, item.task_id);
+  const category = renamedCategory(item, parsed, task.list_mode);
+  await updateItem(actor, itemId, { text: parsed.text, quantity: parsed.quantity, category: category ?? "" });
+  const moved = task.list_mode === "shopping" && (category ?? null) !== (item.category ?? null);
+  return { taskId: item.task_id, movedTo: moved ? category ?? "Other" : null };
 }
 
 /** Switching to shopping mode fills in store sections for uncategorised items. */
