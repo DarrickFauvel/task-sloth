@@ -55,7 +55,7 @@
           </ul>
         </li>
       </ul>
-      <p class="tip">✏️ Tap the pencil on a task to rename it right there. Tap its name to open it and see everything else.</p>
+      <p class="tip">✏️ Tap the pencil on a task to rename it right there. Shortcuts work there too: renaming it to <code>call grandma sun @phone</code> sets the day and where. Tap its name to open it and see everything else.</p>
       <p class="tip">🙋 See something up for grabs? Tap <strong>Claim</strong> to take it.</p>
       <p class="tip">🛒 Out and about? Tap a chip like <strong>@Target</strong> on any task to see everything you can do there.</p>
     </li>

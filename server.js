@@ -19,6 +19,7 @@ import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
@@ -205,15 +206,18 @@ async function resolveNames(householdId, { projectName, contextName, ...input })
   return input;
 }
 
+/** What quick add needs to read shortcuts: today, who "me" is, and the household's names. */
+const quickAddContext = async (req) => ({
+  today: today(req),
+  meId: req.user.id,
+  members: req.membership.members,
+  projects: await listProjects(req.actor.householdId),
+  contexts: await listContexts(req.actor.householdId),
+});
+
 app.post("/tasks", requireHousehold, async (req, res) => {
-  const { household, members } = req.membership;
-  const parsed = parseQuickAdd(String(req.body.quick ?? ""), {
-    today: today(req),
-    meId: req.user.id,
-    members,
-    projects: await listProjects(household.id),
-    contexts: await listContexts(household.id),
-  });
+  const { household } = req.membership;
+  const parsed = parseQuickAdd(String(req.body.quick ?? ""), await quickAddContext(req));
   const view = cleanView(req.body.view);
   const list = quickAddList(parsed, view);
   const id = await createTask(req.actor, { ...(await resolveNames(household.id, parsed)), list });
@@ -244,9 +248,14 @@ app.post("/tasks/:id/list/:list", requireHousehold, async (req, res) => {
 });
 
 // Rename from the task list. Datastar sends the typed name as the renameText signal; a plain form sends title.
+// Shortcuts in the new name ("… sun @phone") are applied like quick add's, and the flash says what they did.
 app.post("/tasks/:id/rename", requireHousehold, async (req, res) => {
-  await updateTask(req.actor, req.params.id, { title: req.body.title ?? req.body.renameText });
-  await sendTaskList(req, res, { signals: { renaming: "", renameText: "" } });
+  const task = await getTask(req.actor.householdId, req.params.id);
+  const { input, summary } = shortcutsInTitle(req.body.title ?? req.body.renameText, task, await quickAddContext(req));
+  await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, input));
+  const moved = input.list === "todo" ? " and moved to To do" : "";
+  const flash = summary ? { message: `Renamed${moved} · ${summary}` } : undefined;
+  await sendTaskList(req, res, { flash, signals: { renaming: "", renameText: "" } });
 });
 
 app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
@@ -310,7 +319,10 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
   }
   if (decision.action === "delete") await deleteTask(req.actor, task.id);
   else {
-    await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, decision.input));
+    // Shortcuts typed into the name fill in whatever the picked answer didn't set.
+    const typed = shortcutsInTitle(req.body.title, task, await quickAddContext(req)).input;
+    const input = withTypedShortcuts(typed, decision.input, req.user.id);
+    await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, input));
     if (decision.action === "done") await setDone(req.actor, task.id, true, { today: today(req) });
   }
   redirect(res, `/sort?after=${encodeURIComponent(task.id)}`);
