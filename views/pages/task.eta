@@ -1,4 +1,5 @@
 <% layout("/layout", { title: it.task.title }) %>
+<script type="module" src="/js/reorder-items.js"></script>
 <% const t = it.task; %>
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them. */%>
@@ -15,6 +16,7 @@
               data-on:keydown="evt.key === 'Enter' && !evt.shiftKey && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
     <button class="button primary">Add</button>
   </form>
-  <div id="flash" role="status"></div>
+  <%~ include("/partials/flash", {}) %>
   <%~ include("/partials/checklist", it.checklist) %>
+  <p id="reorder-status" class="visually-hidden" role="status"></p>
 </div>

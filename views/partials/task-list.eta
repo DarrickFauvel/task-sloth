@@ -13,7 +13,8 @@
     }[it.view] %></p>
   <% } %>
   <% it.groups.forEach((g) => { %>
-    <h3 class="group <%= g.label === 'Overdue' ? 'overdue' : '' %>"><%= g.label %> <span class="count"><%= g.tasks.length %></span></h3>
+    <%/* By date, or by where/how (each place's heading links to just its tasks). */%>
+    <h3 class="group <%= it.groupBy === 'when' && g.label === 'Overdue' ? 'overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %> <span class="count"><%= g.tasks.length %></span></h3>
     <ul class="tasks">
       <% g.tasks.forEach((t) => { %>
         <%~ include("/partials/task-row", { t, view: it.view, context: it.context, tag: it.tag, userId: it.userId }) %>

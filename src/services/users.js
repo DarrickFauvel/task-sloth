@@ -4,6 +4,79 @@ import { HttpError } from "../lib/http.js";
 
 export const getUser = (id) => db.get("SELECT * FROM users WHERE id = ?", [id]);
 
+/** Colors a member can pick for their avatar and the dot beside their tasks. */
+export const MEMBER_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b", "#3a86ff", "#8d6e63", "#7cb342"];
+
+/** Names for the colors, for screen readers and tooltips. */
+export const MEMBER_COLOR_NAMES = {
+  "#6d5dfc": "Purple", "#e0527a": "Pink", "#1f9d8b": "Teal", "#e38b1b": "Orange",
+  "#3a86ff": "Blue", "#8d6e63": "Brown", "#7cb342": "Green",
+};
+
+/** Changes just the member's color (Settings saves it as soon as a swatch is picked). */
+export async function updateColor(userId, color) {
+  if (!MEMBER_COLORS.includes(color)) throw new HttpError(400, "Pick one of the colors");
+  await db.run("UPDATE users SET color = ? WHERE id = ?", [color, userId]);
+}
+
+/** Updates the name housemates see (and type after @) and the member's color. */
+export async function updateProfile(userId, { name, color }) {
+  name = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (!name) throw new HttpError(400, "Your name can't be empty");
+  if (!MEMBER_COLORS.includes(color)) throw new HttpError(400, "Pick one of the colors");
+  await db.run("UPDATE users SET name = ?, color = ? WHERE id = ?", [name, color, userId]);
+}
+
+// --- Avatar photos ---------------------------------------------------------------------------
+
+/** The largest photo we keep. Settings shrinks it to 256×256 in the browser, which is far smaller. */
+export const AVATAR_MAX_BYTES = 512 * 1024;
+
+/** The image type of `bytes` from its first few bytes, or null if it isn't a JPEG, PNG or WebP. */
+export function imageType(bytes) {
+  const b = Buffer.from(bytes ?? []);
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (b.length > 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "image/webp";
+  return null;
+}
+
+/** Saves the member's own photo, replacing any earlier one. */
+export async function setAvatarPhoto(userId, bytes) {
+  const type = imageType(bytes);
+  if (!type) throw new HttpError(400, "That isn't a JPEG, PNG or WebP image");
+  if (bytes.length > AVATAR_MAX_BYTES) throw new HttpError(400, "That photo is too big");
+  const ts = now();
+  await db.batch([
+    {
+      sql: `INSERT INTO avatar_photos (user_id, image, content_type, updated_at) VALUES (?, ?, ?, ?)
+            ON CONFLICT (user_id) DO UPDATE SET image = excluded.image, content_type = excluded.content_type, updated_at = excluded.updated_at`,
+      args: [userId, new Uint8Array(bytes), type, ts],
+    },
+    { sql: "UPDATE users SET avatar_photo_at = ? WHERE id = ?", args: [ts, userId] },
+  ]);
+}
+
+/** Drops the member's own photo; their avatar goes back to their Google picture or initial. */
+export async function removeAvatarPhoto(userId) {
+  await db.batch([
+    { sql: "DELETE FROM avatar_photos WHERE user_id = ?", args: [userId] },
+    { sql: "UPDATE users SET avatar_photo_at = NULL WHERE id = ?", args: [userId] },
+  ]);
+}
+
+/** A member's photo for someone who may see it (themselves or a housemate), or undefined. */
+export async function getAvatarPhoto(viewerId, userId) {
+  const row = await db.get(
+    `SELECT p.image, p.content_type FROM avatar_photos p
+      WHERE p.user_id = ? AND (p.user_id = ? OR EXISTS (
+        SELECT 1 FROM memberships a JOIN memberships b ON a.household_id = b.household_id
+         WHERE a.user_id = ? AND b.user_id = p.user_id))`,
+    [userId, viewerId, viewerId],
+  );
+  return row && { image: Buffer.from(row.image), type: row.content_type };
+}
+
 /** Creates or updates a user from their Google profile and stores their (encrypted) tokens. */
 export async function upsertGoogleUser(profile, tokens) {
   const existing = await db.get("SELECT * FROM users WHERE google_sub = ?", [profile.sub]);

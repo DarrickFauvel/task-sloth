@@ -1,5 +1,5 @@
 <% layout("/layout", { title: "Sign in" }) %>
-<p class="brand-line">Task Sloth</p>
+<p class="brand-line"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</p>
 <section class="panel">
   <h1>Sign in</h1>
   <form method="post" action="/login" class="stack">
@@ -15,7 +15,7 @@
     <a class="button" href="/auth/google?next=<%= encodeURIComponent(it.next) %>">Sign in with Google</a>
   <% } %>
 </section>
-<p class="panel-links">New here? <a href="/signup?next=<%= encodeURIComponent(it.next) %>">Create an account</a></p>
+<p class="panel-links">New here? <a href="/signup?next=<%= encodeURIComponent(it.next) %>">Create an account</a> · <a href="/about">About</a></p>
 <% if (it.devLogin) { %>
   <form method="post" action="/auth/dev" class="panel dev-login">
     <input type="hidden" name="next" value="<%= it.next %>">

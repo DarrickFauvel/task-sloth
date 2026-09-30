@@ -37,8 +37,21 @@
   --tint-strong: color-mix(in srgb, var(--accent) 12%, transparent);
   --tint-line: color-mix(in srgb, var(--accent) 20%, transparent);
 }
+/* Dark follows the device unless someone picked a theme (data-theme on <html>, from the theme cookie). */
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; }
+  :root:not([data-theme="light"]) { --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; }
+:root[data-theme="light"] { color-scheme: light; }
+/* Signed in, the accent follows your color (--you on <html>, from views/layout.eta; Settings changes it
+   live). Its lightness is clamped so every member color passes contrast as link text and behind button
+   text: darker in light mode, lighter in dark. Browsers without relative colors keep the purple. */
+@supports (color: oklch(from red l c h)) {
+  :root[style*="--you"] { --accent: oklch(from var(--you) min(l, 0.53) c h); }
+  @media (prefers-color-scheme: dark) {
+    :root[style*="--you"]:not([data-theme="light"]) { --accent: oklch(from var(--you) max(l, 0.74) c h); }
+  }
+  :root[style*="--you"][data-theme="dark"] { --accent: oklch(from var(--you) max(l, 0.74) c h); }
 }
 
 /* --- Base ------------------------------------------------------------------------------ */
@@ -123,8 +136,21 @@ button.icon:focus-visible { opacity: 1; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
 .bar h1 { margin: 0; font-size: var(--step-2); }
 .brand { color: inherit; text-decoration: none; }
+/* The sloth beside the name, in the header and on the sign-in pages. */
+.brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
+.brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; }
+/* The household's name and your avatar: one button that opens the account menu. A long name is
+   cut short rather than wrapping the header. */
+.app-header { flex-wrap: nowrap; }
+.app-header h1 { flex: none; }
+.account-button {
+  display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 60%;
+  padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: 2rem; background: none;
+}
+.account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .account-button:hover { border-color: var(--line); } }
+.household-label { min-width: 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-actions { display: flex; gap: var(--space-s); align-items: center; }
-.wide-only { display: none; }
 .bar-actions form { margin: 0; }
 .bar-actions a { text-decoration: none; }
 .stack { display: grid; gap: var(--space-s); }
@@ -168,6 +194,9 @@ button.icon:focus-visible { opacity: 1; }
   background: var(--accent); color: var(--bg); font-size: var(--step--2); font-weight: 600; line-height: 1.5;
 }
 .tab-hint { margin: var(--space-2xs) 0 var(--space-xs); }
+/* "Group by  When | Where / how" above a to-do list. */
+.grouping { align-items: center; margin: var(--space-xs) 0 0; font-size: var(--step--1); }
+.grouping .hint { margin-inline-end: var(--space-2xs); }
 
 .bottom-nav {
   position: fixed; inset: auto 0 0; z-index: 2;
@@ -197,6 +226,32 @@ main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom
 #tabs > p > .button { width: 100%; }
 .filter { display: flex; gap: var(--space-xs); align-items: baseline; flex-wrap: wrap; margin: var(--space-xs) 0 0; color: var(--muted); }
 
+/* Toasts: status updates float at the bottom, above the phone's bottom bar, and slide in and out. */
+.toasts {
+  position: fixed; z-index: 3; left: 0; right: 0; bottom: max(var(--space-m), env(safe-area-inset-bottom));
+  display: grid; justify-items: center; padding: 0 var(--space-m); pointer-events: none;
+}
+body:has(.bottom-nav) .toasts { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: var(--space-2xs) var(--space-s); flex-wrap: wrap;
+  width: min(100%, 26rem); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
+  border-radius: var(--radius-lg); background: var(--fg); color: var(--bg); box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.25);
+  font-size: var(--step--1);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@starting-style { .toast { opacity: 0; transform: translateY(1rem); } }
+.toast.is-leaving { opacity: 0; transform: translateY(0.5rem); }
+.toast.is-error { background: var(--danger); color: #fff; }
+.toast-message { flex: 1; min-width: 0; }
+.toast-action {
+  min-height: 2.25rem; padding: 0 var(--space-xs); border: 0; background: none; font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 55%, var(--bg)); text-decoration: none;
+}
+.toast.is-error .toast-action { color: #fff; text-decoration: underline; }
+.toast-close { min-height: 2.25rem; min-width: 2.25rem; padding: 0; border: 0; background: none; color: inherit; opacity: 0.7; font-size: var(--step-1); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* Inline form errors (sign in, sign up, the sort page) keep the old in-place style. */
 .flash:not(:empty) {
   display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-s); align-items: center;
   padding: var(--space-xs) var(--space-s); border-radius: var(--radius); margin: var(--space-xs) 0;
@@ -207,6 +262,7 @@ main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom
 /* --- Task list -------------------------------------------------------------------------- */
 
 .group { font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: var(--space-m) 0 0; }
+.group a { color: inherit; text-decoration: none; }
 .group.overdue { color: var(--danger); }
 .tasks, .items { list-style: none; margin: 0; padding: 0; }
 .task { display: flex; align-items: flex-start; gap: var(--space-s); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line); }
@@ -300,6 +356,12 @@ label.pill span { overflow-wrap: anywhere; }
 .item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .item .rename { padding: 0; }
 .item.is-done .item-text { text-decoration: line-through; color: var(--muted); }
+/* The grip that drags an item within its section. touch-action: none lets a finger drag it instead of
+   scrolling the page (the rest of the row still scrolls). */
+reorder-items { display: block; }
+.drag-handle { cursor: grab; touch-action: none; color: var(--muted); }
+.item.is-dragging { position: relative; z-index: 1; background: var(--bg); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); border-radius: var(--radius); cursor: grabbing; }
+.item.is-dragging .drag-handle { cursor: grabbing; }
 .qty { font-weight: 600; }
 .checklist .actions { margin-top: var(--space-s); font-size: var(--step--1); }
 
@@ -357,9 +419,6 @@ label.pill span, button.pill {
 
 /* --- Household, help ---------------------------------------------------------------------- */
 
-.household { margin-top: var(--space-l); padding-top: var(--space-m); border-top: 1px solid var(--line); }
-.household summary { cursor: pointer; color: var(--muted); padding: var(--space-xs) 0; }
-.household .members, .household #invite { margin-top: var(--space-s); }
 .members { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2xs); }
 .members li { display: flex; align-items: center; gap: var(--space-xs); }
 /* How it works: a hero with a 4-step overview, then the steps as a numbered timeline. */
@@ -412,8 +471,6 @@ label.pill span, button.pill {
 /* --- Bigger screens ------------------------------------------------------------------------ */
 
 @media (min-width: 30rem) {
-  .wide-only { display: inline; }
-  .narrow-only { display: none; }
   .bar-actions { gap: var(--space-m); }
   .row { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
   #invite.stack { max-width: 22rem; }
@@ -532,3 +589,104 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
 }
 .sheet-body > .hint:not(.shortcut-example) { text-align: center; }
 @media (hover: hover) { .token:hover { border-color: var(--accent); } .help-button:hover { color: var(--accent); } }
+
+/* --- Avatar, light/dark, account menu --------------------------------------------------------- */
+
+.avatar {
+  display: inline-grid; place-items: center; flex: none; width: 2rem; height: 2rem; border-radius: 50%; overflow: hidden;
+  background: var(--c, var(--accent)); color: #fff; font-weight: 700; font-size: var(--step--1); line-height: 1;
+}
+/* A new color fades in softly (Settings changes it in place). */
+.avatar { transition: background-color 0.45s ease; }
+label.pill.swatch span { transition: box-shadow 0.25s ease, transform 0.25s ease; }
+label.pill.swatch input:checked + span { transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .avatar, label.pill.swatch span { transition: none; } }
+.avatar.is-lg { width: 2.75rem; height: 2.75rem; font-size: var(--step-1); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* The light/dark item: a moon and "Dark mode" while light, a sun and "Light mode" while dark. */
+.theme-toggle .sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle .sun { display: block; }
+  :root:not([data-theme]) .theme-toggle .moon { display: none; }
+}
+
+/* Account menu: a native popover. A bottom sheet on phones, a dropdown under the avatar on bigger
+   screens; it animates in and out like the other sheets. */
+.menu {
+  position: fixed; inset: auto 0 0; width: 100%; margin: 0; padding: var(--space-s) var(--space-m) max(var(--space-m), env(safe-area-inset-bottom));
+  border: 0; border-radius: 1.25rem 1.25rem 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem rgb(0 0 0 / 0.2);
+  opacity: 0; transform: translateY(100%);
+  transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
+}
+.menu:popover-open { display: grid; gap: var(--space-2xs); opacity: 1; transform: none; }
+@starting-style { .menu:popover-open { opacity: 0; transform: translateY(100%); } }
+.menu::backdrop { background: rgb(0 0 0 / 0); transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
+.menu:popover-open::backdrop { background: rgb(0 0 0 / 0.45); }
+@starting-style { .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); } }
+.menu-icon { display: inline-grid; place-items: center; width: 1.5rem; }
+.menu-head { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); border-bottom: 1px solid var(--line); margin-bottom: var(--space-2xs); }
+.menu-head div { display: grid; min-width: 0; }
+.menu-head .hint { overflow-wrap: anywhere; }
+.menu form { margin: 0; }
+.menu-item {
+  display: flex; align-items: center; gap: var(--space-s); width: 100%; min-height: var(--tap); padding: 0 var(--space-xs);
+  border: 0; border-radius: var(--radius); background: none; color: var(--fg); text-decoration: none; justify-content: flex-start; font: inherit;
+}
+@media (hover: hover) { .menu-item:hover { background: var(--tint); text-decoration: none; } }
+@media (min-width: 30rem) {
+  .menu {
+    inset: 4.25rem max(var(--space-m), calc((100vw - 46rem) / 2 + var(--space-m))) auto auto; width: 16rem;
+    padding: var(--space-xs); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.18); transform: translateY(-0.5rem) scale(0.97); transform-origin: top right;
+  }
+  @starting-style { .menu:popover-open { opacity: 0; transform: translateY(-0.5rem) scale(0.97); } }
+  .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); }
+  .menu-head { padding: var(--space-xs); }
+}
+@media (prefers-reduced-motion: reduce) { .menu, .menu::backdrop { transition-duration: 0.01s; } }
+
+/* --- About ------------------------------------------------------------------------------- */
+
+.about { display: grid; justify-items: center; gap: var(--space-s); max-width: 30rem; margin: var(--space-m) auto 0; text-align: center; }
+.about h1, .about p { margin: 0; }
+.about-logo { width: 8rem; height: 8rem; }
+.about-credit { justify-self: stretch; margin-top: var(--space-s); }
+
+/* --- Settings ----------------------------------------------------------------------------- */
+
+.settings { display: grid; gap: var(--space-s); margin-top: var(--space-s); }
+.settings h2 { font-size: var(--step-1); }
+.settings .members { gap: var(--space-xs); }
+.profile-preview { display: flex; }
+/* Your avatar, then "Upload a photo" (a label styled as a button around a hidden file input) and "Remove photo". */
+.profile-photo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); }
+.profile-photo form { margin: 0; }
+photo-picker { display: contents; }
+photo-picker label.button { cursor: pointer; }
+photo-picker label.button:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+photo-picker [role=status] { flex-basis: 100%; margin: 0; }
+.settings fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.settings legend { padding: 0; margin-bottom: var(--space-2xs); }
+label.pill.swatch span { width: 2.5rem; padding: 0; background: var(--c); border-color: var(--c); }
+label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.inline-field { display: flex; gap: var(--space-xs); }
+.inline-field input { flex: 1; min-width: 0; }
+.panel .inline-field .button.primary { flex: none; width: auto; }
+.panel > p { margin: 0; }
+.account { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2xs) var(--space-s); margin: 0; }
+.account dt { color: var(--muted); }
+.account dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Light/dark switch: toggleTheme() runs it as a view transition. The new theme grows out of the
+   button as a circle with a wide feathered edge (a radial mask whose radius, --theme-r, is animated),
+   so the two themes blend instead of meeting at a hard line. --theme-x/y are set on <html>. */
+@property --theme-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) {
+  --theme-feather: 12rem;
+  mask-image: radial-gradient(circle at var(--theme-x, 50%) var(--theme-y, 0px),
+    #000 max(0px, calc(var(--theme-r) - var(--theme-feather))), transparent var(--theme-r));
+}

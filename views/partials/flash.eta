@@ -1,7 +1,14 @@
-<div id="flash" role="status" class="flash<%= it.error ? ' is-error' : '' %>">
-  <span><%= it.message %></span>
-  <% if (it.link) { %><a href="<%= it.link.href %>"><%= it.link.label %></a><% } %>
-  <% if (it.undo) { %>
-    <button class="link" data-on:click="@post('<%= it.undo %>')">Undo</button>
-  <% } %>
+<%/* Status updates as a toast: floats at the bottom (above the phone's bottom bar), slides in, and leaves
+     on its own (4s, 6s with Undo, 7s for errors) or with ×. `sticky` keeps it until dismissed.
+     Every page has one #flash region; server responses replace it, so a new toast replaces the old one.
+     Rendered with no message it's just the empty region. dismissToast() is in the layout. */%>
+<div id="flash" class="toasts" role="status" aria-live="polite">
+<% if (it.message) { const wait = it.error ? 7000 : it.undo ? 6000 : 4000; %>
+  <div class="toast<%= it.error ? ' is-error' : '' %>"<%~ it.error ? ' role="alert"' : '' %><%~ it.sticky ? '' : ` data-init="setTimeout(() => dismissToast(el), ${wait})"` %>>
+    <span class="toast-message"><%= it.message %></span>
+    <% if (it.link) { %><a class="toast-action" href="<%= it.link.href %>"><%= it.link.label %></a><% } %>
+    <% if (it.undo) { %><button type="button" class="toast-action" data-on:click="@post('<%= it.undo %>')">Undo</button><% } %>
+    <button type="button" class="toast-close" aria-label="Dismiss" data-on:click="dismissToast(el.closest('.toast'))">×</button>
+  </div>
+<% } %>
 </div>

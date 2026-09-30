@@ -1,13 +1,70 @@
 <!doctype html>
-<html lang="en">
+<%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js.
+     it.you is the signed-in member's color: the accent follows it (see --you in app.css). */%>
+<% const you = /^#[0-9a-f]{6}$/i.test(it.you ?? "") ? it.you : null; %>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+  <% if (it.theme) { %>
+    <meta name="theme-color" content="<%= it.theme === 'dark' ? '#171614' : '#fbfaf8' %>">
+  <% } else { %>
+    <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+  <% } %>
   <title><%= it.title ? `${it.title} · Task Sloth` : "Task Sloth" %></title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/css/app.css">
-  <script>document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;</script>
+  <script>
+    document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
+    // Toasts (views/partials/flash.eta): slide out, then leave the page.
+    function dismissToast(toast) {
+      if (!toast || toast.classList.contains("is-leaving")) return;
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 300);
+    }
+    // Light/dark. setTheme("light" | "dark" | null) saves the choice (null = match the device) and, where the
+    // browser supports view transitions and motion is welcome, grows the new theme out of `origin` in a soft
+    // circle (see ::view-transition-new in app.css). Used by the menu's toggle and Settings > Appearance.
+    const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+    const shownTheme = (choice) => choice ?? (darkQuery.matches ? "dark" : "light");
+    function setTheme(choice, origin) {
+      const root = document.documentElement;
+      const next = shownTheme(choice);
+      const apply = () => {
+        if (choice) root.dataset.theme = choice;
+        else delete root.dataset.theme;
+        document.cookie = choice ? `theme=${choice}; path=/; max-age=31536000; samesite=lax` : "theme=; path=/; max-age=0; samesite=lax";
+        document.querySelectorAll("meta[name=theme-color]").forEach((m) => {
+          m.removeAttribute("media");
+          m.content = next === "dark" ? "#171614" : "#fbfaf8";
+        });
+        document.querySelectorAll("[data-theme-choice]").forEach((b) => b.classList.toggle("is-on", b.dataset.themeChoice === (choice ?? "system")));
+      };
+      if (next === shownTheme(root.dataset.theme) || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
+      const box = origin?.getBoundingClientRect();
+      const x = box ? box.left + box.width / 2 : innerWidth / 2;
+      const y = box ? box.top + box.height / 2 : 0;
+      // Far enough to cover the farthest corner, plus the feathered edge (12rem, see app.css).
+      const feather = 12 * parseFloat(getComputedStyle(root).fontSize);
+      const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + feather;
+      root.style.setProperty("--theme-x", `${x}px`);
+      root.style.setProperty("--theme-y", `${y}px`);
+      document.startViewTransition(apply).ready.then(() => {
+        root.animate(
+          { "--theme-r": ["0px", `${radius}px`] },
+          // fill: "forwards" holds the full circle until the browser removes the transition; without it
+          // the radius snaps back to 0 for a frame or two first, and the old theme flashes through.
+          { duration: 700, easing: "cubic-bezier(0.45, 0, 0.25, 1)", fill: "forwards", pseudoElement: "::view-transition-new(root)" },
+        );
+      });
+    }
+    // The menu's light/dark item: switch to whichever isn't showing.
+    function toggleTheme(origin) {
+      setTheme(shownTheme(document.documentElement.dataset.theme) === "dark" ? "light" : "dark", origin);
+    }
+  </script>
   <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js"></script>
 </head>
 <body>

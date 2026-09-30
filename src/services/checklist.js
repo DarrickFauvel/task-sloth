@@ -100,6 +100,29 @@ export async function deleteItem(actor, itemId, { fromGoogle = false } = {}) {
   return item.task_id;
 }
 
+/**
+ * Moves an unchecked item to just before `beforeId` (or to the end with none), within its section:
+ * sections stay automatic, so the item keeps its category and only its place among them changes.
+ * Renumbers the whole list 0, 1, 2… so ties from items added in the same batch can't blur the order.
+ * (New items get Date.now()-based numbers, so they still land at the end.)
+ */
+export async function moveItem(actor, itemId, beforeId) {
+  const item = await getItem(actor, itemId);
+  const task = await getTask(actor.householdId, item.task_id);
+  const items = (await listItems(item.task_id)).filter((i) => i.id !== item.id);
+  let at = items.length;
+  if (beforeId) {
+    at = items.findIndex((i) => i.id === beforeId);
+    const before = items[at];
+    const sameSection = task.list_mode !== "shopping" || (before?.category || "Other") === (item.category || "Other");
+    if (!before || !sameSection || before.checked) throw new HttpError(400, "Can't move that there");
+  }
+  items.splice(at, 0, item);
+  await db.batch(items.map((i, n) => ({ sql: "UPDATE checklist_items SET sort_order = ? WHERE id = ?", args: [n, i.id] })));
+  changed(actor.householdId, item.task_id);
+  return item.task_id;
+}
+
 /** "Reset list": uncheck everything so a weekly shopping list can be reused. */
 export async function uncheckAll(actor, taskId) {
   await getTask(actor.householdId, taskId);

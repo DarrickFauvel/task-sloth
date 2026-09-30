@@ -9,12 +9,12 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
-import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
+import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
-import { addItems, autoCategorize, clearChecked, deleteItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
+import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
@@ -43,7 +43,9 @@ const appQr = {
 };
 
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
-const render = (res, name, data = {}, status = 200) => sendHtml(res, eta.render(name, data), status);
+// Every page gets the saved theme (see the layout); pages can still pass their own data.
+const render = (res, name, data = {}, status = 200) =>
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, you: res.locals.user?.color, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -82,6 +84,7 @@ app.use(async (req, res, next) => {
   req.user = await loadSession(req.cookies);
   req.membership = req.user ? await getHouseholdForUser(req.user.id) : null;
   res.locals.user = req.user;
+  res.locals.theme = ["light", "dark"].includes(req.cookies.theme) ? req.cookies.theme : null;
   res.locals.config = config;
   next();
 });
@@ -92,11 +95,13 @@ const requireUser = (req, res, next) =>
 app.get("/healthz", (req, res) => res.type("text").send("ok"));
 
 const today = (req) => todayIn(req.cookies.tz);
+/** How to-do lists are grouped on this device: by date ("when", the default) or by where/how. */
+const groupBy = (req) => (req.cookies.group === "where" ? "where" : "when");
 const isDatastar = (req) => req.get("datastar-request") === "true";
 
 app.get("/", requireUser, async (req, res) => {
   const list = req.membership
-    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
+    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), today: today(req) })
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req) });
 });
@@ -132,7 +137,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist)];
     }
-    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, today: today(req) });
+    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
     return renderList(list, req.user.id);
   };
 
@@ -147,7 +152,7 @@ app.get("/events", requireHousehold, async (req, res) => {
         parts = await renderPage(membership);
       } catch (err) {
         if (!isNotFound(err)) throw err;
-        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true }));
+        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true, sticky: true }));
         return res.end();
       }
       if (!closed) for (const html of parts) stream.patchElements(html);
@@ -189,9 +194,9 @@ async function sendTaskList(req, res, { flash, signals } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, today: today(req) });
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
   const parts = renderList(list, req.user.id);
-  const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
+  const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
     stream.patchElements(flashHtml);
@@ -343,6 +348,8 @@ const shortcutsView = (req) => ({
   insertJs: INSERT_TOKEN,
 });
 
+app.get("/about", (req, res) => render(res, "pages/about", {}));
+
 app.get("/help", requireUser, (req, res) =>
   render(res, "pages/help", { shortcuts: shortcutsView(req), choices: SORT_CHOICES, nav: NAV, views: VIEWS }),
 );
@@ -377,7 +384,7 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
 async function sendTaskHead(req, res, taskId, { flash, signals } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
   const html = renderTaskHead(req, await getTask(req.actor.householdId, taskId));
-  const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
+  const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     stream.patchElements(html);
     stream.patchElements(flashHtml);
@@ -424,7 +431,7 @@ async function sendChecklist(req, res, taskId, { signals, flash } = {}) {
   const parts = renderChecklist(await checklistView(req.actor.householdId, taskId));
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
-    stream.patchElements(flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>');
+    stream.patchElements(eta.render("partials/flash", flash ?? {}));
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });
 }
@@ -464,11 +471,111 @@ app.post("/items/:id/delete", requireHousehold, async (req, res) => {
   await sendChecklist(req, res, await deleteItem(req.actor, req.params.id), { signals: { itemRenaming: "" } });
 });
 
+// Drag (or arrow keys on the grip) to reorder within a section; see public/js/reorder-items.js.
+// The page has already moved the row, so this just saves it; the live update tells everyone else.
+app.post("/items/:id/move", requireHousehold, async (req, res) => {
+  const taskId = await moveItem(req.actor, req.params.id, String(req.body.before ?? "") || null);
+  await sendChecklist(req, res, taskId);
+});
+
 // Rename an item from its row. Datastar sends the typed name as the itemText signal; a plain form sends text.
 app.post("/items/:id/rename", requireHousehold, async (req, res) => {
   const { taskId, movedTo } = await renameItem(req.actor, req.params.id, req.body.text ?? req.body.itemText);
   const flash = movedTo ? { message: `Moved to ${movedTo}` } : undefined;
   await sendChecklist(req, res, taskId, { flash, signals: { itemRenaming: "", itemText: "" } });
+});
+
+// --- Settings -------------------------------------------------------------------------
+
+const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
+  render(res, "pages/settings", {
+    user: req.user, // loaded fresh each request, so a just-saved name shows
+    membership: req.membership,
+    colors: MEMBER_COLORS,
+    colorNames: MEMBER_COLOR_NAMES,
+    saved,
+    error,
+  }, status);
+
+app.get("/settings", requireUser, (req, res) =>
+  renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
+);
+
+app.post("/settings/profile", requireUser, async (req, res) => {
+  try {
+    await updateProfile(req.user.id, { name: req.body.name, color: req.body.color });
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 400) return renderSettings(req, res, { error: err.message, status: 400 });
+    throw err;
+  }
+  // Housemates' open pages show the new name and color.
+  if (req.membership) changed(req.membership.household.id);
+  redirect(res, "/settings?saved=profile");
+});
+
+// Picking a swatch saves the color at once (the page has already recolored your avatars).
+app.post("/settings/color", requireUser, async (req, res) => {
+  await updateColor(req.user.id, req.body.color);
+  if (req.membership) changed(req.membership.household.id);
+  if (!isDatastar(req)) return redirect(res, "/settings?saved=profile");
+  await sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: "Color saved" })));
+});
+
+// Your own photo. Settings shrinks the picked image to 256×256 in the browser and posts the bytes as the
+// whole body (image/jpeg), so no multipart parser is needed. Errors come back as text for the form to show.
+app.post("/settings/photo", requireUser, express.raw({ type: "image/*", limit: AVATAR_MAX_BYTES }), async (req, res) => {
+  try {
+    await setAvatarPhoto(req.user.id, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 400) return res.status(400).type("text").send(err.message);
+    throw err;
+  }
+  if (req.membership) changed(req.membership.household.id);
+  res.sendStatus(204);
+});
+
+app.post("/settings/photo/remove", requireUser, async (req, res) => {
+  await removeAvatarPhoto(req.user.id);
+  if (req.membership) changed(req.membership.household.id);
+  redirect(res, "/settings?saved=photo-removed");
+});
+
+// A member's photo, for them and their housemates only. The URL carries ?v=<when it was saved>, so a
+// new photo gets a new URL and each one can be cached for good.
+app.get("/avatars/:id", requireUser, async (req, res) => {
+  const photo = await getAvatarPhoto(req.user.id, req.params.id);
+  if (!photo) return res.sendStatus(404);
+  res.set({ "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+  res.type(photo.type).send(photo.image);
+});
+
+// Only the household's owner (whoever set it up) can rename it; renameHousehold checks.
+app.post("/settings/household", requireUser, async (req, res) => {
+  let householdId;
+  try {
+    householdId = await renameHousehold(req.user.id, req.body.name);
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return renderSettings(req, res, { error: err.message, status: err.status });
+    throw err;
+  }
+  changed(householdId);
+  redirect(res, "/settings?saved=household");
+});
+
+// Group Mine / Everyone / Up for grabs by date or by where/how, remembered on this device like the theme.
+app.post("/list-grouping", requireUser, (req, res) => {
+  const by = req.body.by === "where" ? "where" : "when";
+  res.append("Set-Cookie", by === "where" ? "group=where; Path=/; Max-Age=31536000; SameSite=Lax" : "group=; Path=/; Max-Age=0; SameSite=Lax");
+  redirect(res, `/?${listQueryString(cleanListQuery(req.body))}`);
+});
+
+// Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.
+app.post("/settings/theme", requireUser, (req, res) => {
+  const theme = String(req.body.theme ?? "");
+  res.append("Set-Cookie", ["light", "dark"].includes(theme)
+    ? `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
+    : "theme=; Path=/; Max-Age=0; SameSite=Lax");
+  redirect(res, "/settings?saved=theme");
 });
 
 // --- Household ------------------------------------------------------------------------
