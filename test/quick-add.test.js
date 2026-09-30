@@ -8,6 +8,7 @@ const ctx = {
   meId: "u-me",
   members: [{ id: "u-me", name: "Darrick" }, { id: "u-sam", name: "Samantha" }],
   projects: [{ id: "p-shop", name: "Weekly shop" }, { id: "p-bday", name: "Birthday" }],
+  contexts: [{ id: "l-target", name: "Target" }, { id: "l-sams", name: "Sam's Club" }],
 };
 const parse = (input) => parseQuickAdd(input, ctx);
 
@@ -28,9 +29,6 @@ test("the examples from the module header", () => {
 test("@assignee", () => {
   assert.equal(parse("x @SAM").assigneeId, "u-sam", "case-insensitive prefix match");
   assert.equal(parse("x @anyone").assigneeId, null, "up for grabs");
-  const unknown = parse("x @bob");
-  assert.equal("assigneeId" in unknown, false);
-  assert.equal(unknown.title, "x");
   assert.equal(parse("email bob@example.com").title, "email bob@example.com", "@ inside a word is not a mention");
 });
 
@@ -111,4 +109,42 @@ test("words that merely start with a month name are not dates", () => {
   assert.equal(r.dueDate, undefined);
   assert.equal(r.title, "decorate 5 rooms");
   assert.equal(parse("junk 3 bags").dueDate, undefined);
+});
+
+test("@context: a saved context, or a new one when it isn't a person", () => {
+  assert.deepEqual(parse("printer ink @target"), { title: "printer ink", contextId: "l-target" });
+  assert.deepEqual(parse("x @bob"), { title: "x", contextName: "bob" }, "unknown words become contexts");
+  assert.equal(parse("x @home-depot").contextName, "home depot");
+  assert.equal(parse('x @"trader joe\'s"').contextName, "trader joe's");
+  assert.equal(parse('x @"Sam\'s Club"').contextId, "l-sams");
+  assert.equal(parse("email bob@example.com").contextName, undefined);
+});
+
+test("@ picks a person over a context, except a saved context beats a partial name", () => {
+  assert.equal(parse("x @sam").assigneeId, "u-sam", "start of a member's name");
+  assert.equal(parse("x @samantha").assigneeId, "u-sam");
+  const both = parse("x @Target @sam");
+  assert.equal(both.contextId, "l-target");
+  assert.equal(both.assigneeId, "u-sam");
+  assert.equal(parse("x @me @Target").assigneeId, "u-me");
+  // A saved context named like the start of a member's name wins over that member.
+  const ctx2 = { ...ctx, contexts: [{ id: "l-dar", name: "Dar" }] };
+  assert.deepEqual(parseQuickAdd("x @dar", ctx2), { title: "x", contextId: "l-dar" });
+});
+
+test("only the first person and the first context count", () => {
+  const r = parse("x @sam @me @Target @Costco");
+  assert.equal(r.assigneeId, "u-sam");
+  assert.equal(r.contextId, "l-target");
+  assert.equal(r.title, "x");
+});
+
+test("+tags", () => {
+  assert.deepEqual(parse("batteries +errand +Quick_Win @Target"), {
+    title: "batteries", contextId: "l-target", tags: ["errand", "quick-win"],
+  });
+  assert.deepEqual(parse("x +errand +ERRAND").tags, ["errand"]);
+  assert.equal(parse("call mom +1").tags, undefined, "tags start with a letter");
+  assert.equal(parse("c++ homework").title, "c++ homework");
+  assert.equal(parse("a+b").tags, undefined);
 });

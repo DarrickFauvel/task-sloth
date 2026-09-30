@@ -6,6 +6,8 @@ export const NOTES_MARKER = "\n\n— via Task Sloth —";
 export function taskToGoogle(task, { appUrl }) {
   const footer = [task.project_name && `Project: ${task.project_emoji ?? ""} ${task.project_name}`.replace(/\s+/g, " "),
     task.due_time && `Time: ${task.due_time}`,
+    task.context_name && `Context: ${task.context_name}`,
+    task.tag_names && `Tags: ${task.tag_names.split(" ").sort().map((t) => `+${t}`).join(" ")}`,
     task.item_count > 0 && `Checklist: ${task.item_done}/${task.item_count}`,
     `Open: ${appUrl}/tasks/${task.id}`]
     .filter(Boolean)

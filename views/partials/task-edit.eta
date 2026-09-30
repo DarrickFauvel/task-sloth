@@ -39,6 +39,17 @@
         <% }) %>
       </select>
     </label>
+    <div class="row">
+      <label>Where / how
+        <input name="context" value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone">
+      </label>
+      <label>Tags
+        <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand quick-win">
+      </label>
+    </div>
+    <datalist id="contexts">
+      <% f.contexts.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %>
+    </datalist>
     <label>Notes <textarea name="notes" rows="3" maxlength="10000"><%= t.notes %></textarea></label>
     <div class="actions">
       <button>Save</button>

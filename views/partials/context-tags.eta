@@ -1,0 +1,4 @@
+<%/* A task's context and tags; each links to the list of open tasks with that context or tag. */%>
+<% const t = it.t; %>
+<% if (t.context_id) { %><a class="chip context" href="/?view=all&context=<%= t.context_id %>" title="All open tasks for @<%= t.context_name %>">@<%= t.context_name %></a><% } %>
+<% t.tags.forEach((tag) => { %><a class="chip tag" href="/?view=all&tag=<%= encodeURIComponent(tag) %>">+<%= tag %></a><% }) %>
