@@ -1,18 +1,19 @@
 <% layout("/layout", { title: it.task.title }) %>
 <% const t = it.task; %>
-<p><a href="/">← All tasks</a></p>
+<a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them. */%>
 <div data-signals="{items: '', editing: <%= it.form ? 'true' : 'false' %>}"
      data-init="@get('/events?task=<%= t.id %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>
 
+  <%~ include("/partials/checklist-head", it.checklist) %>
   <%/* Outside #checklist so a live re-render doesn't wipe what's being typed. Enter adds; Shift+Enter is a new line. */%>
   <form id="add-items" class="quick-add" method="post" action="/tasks/<%= t.id %>/items" data-on:submit="@post('/tasks/<%= t.id %>/items')">
     <textarea name="items" data-bind:items rows="1" required maxlength="5000" aria-label="Add items"
               placeholder="Add items… e.g. “milk, eggs, 2x bread” or paste a list"
               data-on:keydown="evt.key === 'Enter' && !evt.shiftKey && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
-    <button>Add</button>
+    <button class="button primary">Add</button>
   </form>
   <div id="flash" role="status"></div>
   <%~ include("/partials/checklist", it.checklist) %>

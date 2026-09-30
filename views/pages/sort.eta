@@ -1,15 +1,15 @@
 <% layout("/layout", { title: "Sort my inbox" }) %>
 <% if (!it.task) { %>
-  <p><a href="/?view=inbox">← Inbox</a></p>
-  <section class="sort-done">
+  <a class="back" href="/?view=inbox">← Inbox</a>
+  <section class="empty-state">
     <% if (it.skipped) { %>
-      <p class="sort-done-icon" aria-hidden="true">👍</p>
+      <p class="empty-icon" aria-hidden="true">👍</p>
       <h1>That's the lot</h1>
       <p>You skipped <%= it.left %>. <%= it.left === 1 ? "It's" : "They're" %> still in your inbox for later.</p>
       <a class="button primary" href="/sort">Go through the skipped ones</a>
       <a href="/">Back to my tasks</a>
     <% } else { %>
-      <p class="sort-done-icon" aria-hidden="true">🎉</p>
+      <p class="empty-icon" aria-hidden="true">🎉</p>
       <h1>All sorted</h1>
       <p>Your inbox is empty. Everything is where it belongs.</p>
       <a class="button primary" href="/">Back to my tasks</a>
@@ -20,9 +20,9 @@
        Waiting on) open a small follow-up step in place of the tiles; the others save straight away.
        It's one plain form: every answer is a submit button, and Datastar only adds the follow-up steps. */%>
   <nav class="sort-top">
-    <a href="/?view=inbox">← Inbox</a>
+    <a class="back" href="/?view=inbox">← Inbox</a>
     <span class="sort-left">📥 <%= it.left %> left to sort</span>
-    <a href="/sort?after=<%= t.id %>">Skip</a>
+    <a class="back" href="/sort?after=<%= t.id %>">Skip</a>
   </nav>
   <form class="sort" method="post" action="/sort/<%= t.id %>" data-signals="{pick: '<%= it.pick %>', when: ''}">
     <%/* Disabled default button: Enter in a field never picks an answer by accident. */%>

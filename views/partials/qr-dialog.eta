@@ -1,4 +1,4 @@
-<%/* Opened from the QR button in the home header. Tapping the backdrop, Esc, or Done closes it. */%>
+<%/* Opened from the QR button in the home header. Tapping the backdrop, Esc, or Close closes it. */%>
 <dialog id="qr-dialog" class="sheet" aria-labelledby="qr-title" closedby="any"
         data-on:click="evt.target === el && el.close()">
   <div class="sheet-body">
@@ -6,6 +6,6 @@
     <p class="hint">Point the phone's camera at this code.</p>
     <div class="qr" role="img" aria-label="QR code for <%= it.url %>"><%~ it.svg %></div>
     <p class="qr-url"><%= it.url %></p>
-    <form method="dialog"><button class="button primary" autofocus>Done</button></form>
+    <form method="dialog"><button class="button" autofocus>Close</button></form>
   </div>
 </dialog>

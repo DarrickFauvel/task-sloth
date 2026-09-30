@@ -19,7 +19,7 @@
   <div class="actions">
     <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">
       <input type="hidden" name="back" value="task">
-      <button><%= done ? "Reopen" : "Mark done" %></button>
+      <button class="button<%= done ? '' : ' primary' %>"><%= done ? "Reopen" : "Mark done" %></button>
     </form>
     <a class="button" href="/tasks/<%= t.id %>/edit" data-show="!$editing" data-on:click__prevent="@get('/tasks/<%= t.id %>/edit')">Edit</a>
   </div>

@@ -50,7 +50,7 @@
           <circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
         </svg>
       </button>
-      <button>Add</button>
+      <button class="button primary">Add</button>
     </form>
     <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
     <div id="flash" role="status"></div>
@@ -69,12 +69,12 @@
     </div>
   </details>
 <% } else { %>
-  <section class="stack">
+  <section class="panel">
     <h2>Welcome, <%= it.user.name %></h2>
     <p>Start a household, or ask someone in yours for an invite link.</p>
     <form method="post" action="/household" class="stack">
       <label>Household name <input name="name" required maxlength="80" placeholder="Our home" autocomplete="off"></label>
-      <button>Create household</button>
+      <button class="button primary">Create household</button>
     </form>
   </section>
 <% } %>

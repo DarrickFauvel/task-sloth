@@ -130,7 +130,7 @@ app.get("/events", requireHousehold, async (req, res) => {
   const renderPage = async (membership) => {
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), eta.render("partials/checklist", checklist)];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, today: today(req) });
     return renderList(list, req.user.id);
@@ -391,12 +391,15 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
   await sendTaskHead(req, res, req.params.id, { signals: { editing: false } });
 });
 
+/** The task page's live checklist parts: its header (title, count, list/shopping switch) and the items. */
+const renderChecklist = (checklist) => [eta.render("partials/checklist-head", checklist), eta.render("partials/checklist", checklist)];
+
 /** Datastar: re-render the checklist (and clear any error). Plain form posts: back to the task page. */
 async function sendChecklist(req, res, taskId, { signals } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
-  const html = eta.render("partials/checklist", await checklistView(req.actor.householdId, taskId));
+  const parts = renderChecklist(await checklistView(req.actor.householdId, taskId));
   await sse(req, res, (stream) => {
-    stream.patchElements(html);
+    for (const html of parts) stream.patchElements(html);
     stream.patchElements('<div id="flash" role="status"></div>');
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });

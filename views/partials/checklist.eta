@@ -1,12 +1,5 @@
 <% const { task, groups, done, total } = it; const shopping = task.list_mode === "shopping"; %>
 <section id="checklist" class="checklist">
-  <div class="bar">
-    <h2><%= shopping ? "Shopping list" : "Checklist" %><% if (total) { %> <span class="count"><%= done %>/<%= total %></span><% } %></h2>
-    <form method="post" action="/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>"
-          data-on:submit="@post('/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>')">
-      <button class="link"><%= shopping ? "Switch to checklist" : "Switch to shopping list" %></button>
-    </form>
-  </div>
   <% if (!total) { %>
     <p class="empty">No items yet. Add some above.</p>
   <% } %>

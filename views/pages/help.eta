@@ -1,7 +1,7 @@
 <% layout("/layout", { title: "How it works" }) %>
 <%/* A visual guide built from the app's own pieces (the sort answers, the list names and icons),
      so it stays in step with the real screens. */%>
-<p><a href="/">← All tasks</a></p>
+<a class="back" href="/">← All tasks</a>
 <article class="help">
   <header class="help-hero">
     <h1>How Task Sloth works</h1>
