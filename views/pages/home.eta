@@ -3,7 +3,7 @@
   <h1>Task Sloth</h1>
   <div class="bar-actions">
     <a href="/help">How it works</a>
-    <form method="post" action="/logout"><button>Sign out</button></form>
+    <form method="post" action="/logout"><button class="link">Sign out</button></form>
   </div>
 </header>
 <% if (it.membership) { %>
@@ -16,7 +16,7 @@
       <input type="hidden" name="context" value="<%= l.context ?? '' %>">
       <input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
       <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
-             placeholder="Add a task… e.g. “ink @Target fri”">
+             placeholder="Add a task…">
       <button>Add</button>
     </form>
     <details class="shortcuts-help">

@@ -89,7 +89,7 @@ export async function taskListView({ userId, membership, view, context: contextI
     { label: "Today", test: (t) => t.due_date === today },
     { label: "This week", test: (t) => t.due_date && t.due_date > today && t.due_date <= weekOut },
     { label: "Later", test: (t) => t.due_date && t.due_date > weekOut },
-    { label: "Someday", test: (t) => !t.due_date },
+    { label: "No date", test: (t) => !t.due_date },
   ]
     .map(({ label, test }) => ({ label, tasks: tasks.filter(test) }))
     .filter((g) => g.tasks.length);
