@@ -11,7 +11,7 @@ import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
 import { createPasswordUser, MEMBER_COLORS, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
-import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
+import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
@@ -486,7 +486,7 @@ const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
   }, status);
 
 app.get("/settings", requireUser, (req, res) =>
-  renderSettings(req, res, { saved: { profile: "Profile saved", theme: "Appearance saved" }[req.query.saved] }),
+  renderSettings(req, res, { saved: { profile: "Profile saved", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -499,6 +499,19 @@ app.post("/settings/profile", requireUser, async (req, res) => {
   // Housemates' open pages show the new name and color.
   if (req.membership) changed(req.membership.household.id);
   redirect(res, "/settings?saved=profile");
+});
+
+// Only the household's owner (whoever set it up) can rename it; renameHousehold checks.
+app.post("/settings/household", requireUser, async (req, res) => {
+  let householdId;
+  try {
+    householdId = await renameHousehold(req.user.id, req.body.name);
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return renderSettings(req, res, { error: err.message, status: err.status });
+    throw err;
+  }
+  changed(householdId);
+  redirect(res, "/settings?saved=household");
 });
 
 // Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.

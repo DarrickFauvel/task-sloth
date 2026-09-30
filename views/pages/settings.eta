@@ -35,12 +35,26 @@
     <p class="hint">The ☀️/🌙 button at the top switches too.</p>
   </section>
 
-  <% if (it.membership) { const m = it.membership; %>
+  <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>
     <section class="panel">
-      <h2><span aria-hidden="true">🏠</span> <%= m.household.name %></h2>
+      <h2><span aria-hidden="true">🏠</span> Household</h2>
+      <%/* Only the person who set up the household can rename it. */%>
+      <% if (m.ownerId === u.id) { %>
+        <form method="post" action="/settings/household" class="household-name">
+          <label>Name
+            <span class="inline-field">
+              <input name="name" value="<%= m.household.name %>" required maxlength="80" autocomplete="off">
+              <button class="button primary">Save</button>
+            </span>
+          </label>
+        </form>
+      <% } else { %>
+        <p><strong><%= m.household.name %></strong></p>
+        <p class="hint">Only <%= owner?.name ?? "the person who set it up" %> can rename the household.</p>
+      <% } %>
       <ul class="members">
         <% m.members.forEach((p) => { %>
-          <li><%~ include("/partials/avatar", { user: p }) %> <%= p.name %><%= p.id === u.id ? " (you)" : "" %></li>
+          <li><%~ include("/partials/avatar", { user: p }) %> <%= p.name %><%= p.id === u.id ? " (you)" : "" %><% if (p.id === m.ownerId) { %> <span class="hint">· set it up</span><% } %></li>
         <% }) %>
       </ul>
       <div id="invite">

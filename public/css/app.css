@@ -595,6 +595,10 @@ code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
 .settings legend { padding: 0; margin-bottom: var(--space-2xs); }
 label.pill.swatch span { width: 2.5rem; padding: 0; background: var(--c); border-color: var(--c); }
 label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.inline-field { display: flex; gap: var(--space-xs); }
+.inline-field input { flex: 1; min-width: 0; }
+.panel .inline-field .button.primary { flex: none; width: auto; }
+.panel > p { margin: 0; }
 .account { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2xs) var(--space-s); margin: 0; }
 .account dt { color: var(--muted); }
 .account dd { margin: 0; overflow-wrap: anywhere; }

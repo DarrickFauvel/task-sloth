@@ -1,8 +1,8 @@
 import { db, newId, now } from "../db/client.js";
 import { randomToken } from "../lib/crypto.js";
 import { HttpError } from "../lib/http.js";
+import { MEMBER_COLORS } from "./users.js";
 
-const MEMBER_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b"];
 
 export async function getHouseholdForUser(userId) {
   const household = await db.get(
@@ -17,7 +17,9 @@ export async function getHouseholdForUser(userId) {
       WHERE m.household_id = ? ORDER BY m.joined_at`,
     [household.id],
   );
-  return { household, members };
+  // Nobody can leave a household, so the earliest member is the one who created it: its owner,
+  // who alone can rename it.
+  return { household, members, ownerId: members[0]?.id ?? null };
 }
 
 export async function createHousehold(userId, name) {
@@ -32,9 +34,15 @@ export async function createHousehold(userId, name) {
   return id;
 }
 
-export async function renameHousehold(householdId, name) {
-  if (!name.trim()) throw new HttpError(400, "Name can't be empty");
-  await db.run("UPDATE households SET name = ? WHERE id = ?", [name.trim().slice(0, 80), householdId]);
+/** Renames the household. Only its owner (see getHouseholdForUser) may. */
+export async function renameHousehold(userId, name) {
+  const membership = await getHouseholdForUser(userId);
+  if (!membership) throw new HttpError(400, "You're not in a household");
+  if (membership.ownerId !== userId) throw new HttpError(403, "Only the person who set up the household can rename it");
+  name = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!name) throw new HttpError(400, "The household needs a name");
+  await db.run("UPDATE households SET name = ? WHERE id = ?", [name, membership.household.id]);
+  return membership.household.id;
 }
 
 export async function createInvite(householdId, userId) {
