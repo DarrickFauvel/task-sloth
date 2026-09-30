@@ -1,5 +1,6 @@
 <% layout("/layout", { title: it.task.title }) %>
 <script type="module" src="/js/reorder-items.js"></script>
+<% if (it.photos.enabled) { %><script type="module" src="/js/task-photo.js"></script><% } %>
 <% const t = it.task; %>
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them. */%>
@@ -7,6 +8,20 @@
      data-init="@get('/events?task=<%= t.id %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>
+
+  <% if (it.photos.enabled) { %>
+    <%/* "Take photo" opens the camera on a phone (capture); "Choose" picks from the library, several at once.
+         <task-photo> shrinks each one and uploads it; the live update then shows it in #task-photos. */%>
+    <div class="bar photos-bar">
+      <h2>Photos</h2>
+      <task-photo action="/tasks/<%= t.id %>/photos" class="photo-buttons">
+        <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden">📷 Take photo</label>
+        <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
+        <p class="hint" role="status" hidden></p>
+      </task-photo>
+    </div>
+    <%~ include("/partials/task-photos", it.photos) %>
+  <% } %>
 
   <%~ include("/partials/checklist-head", it.checklist) %>
   <%/* Outside #checklist so a live re-render doesn't wipe what's being typed. Enter adds; Shift+Enter is a new line. */%>
@@ -20,3 +35,4 @@
   <%~ include("/partials/checklist", it.checklist) %>
   <p id="reorder-status" class="visually-hidden" role="status"></p>
 </div>
+<% if (it.photos.enabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>

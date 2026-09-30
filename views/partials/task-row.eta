@@ -18,6 +18,10 @@
       <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
       <%~ include("/partials/context-tags", { t }) %>
       <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
+      <% if (Number(t.photo_count)) { /* opens the photo viewer; without script, the task page */ %>
+        <a class="photo-count" href="/tasks/<%= t.id %>#task-photos" data-photos="/tasks/<%= t.id %>/photos"
+           aria-label="See <%= t.photo_count %> photo<%= Number(t.photo_count) === 1 ? '' : 's' %>" title="See photos">📷 <%= t.photo_count %></a>
+      <% } %>
       <% if (Number(t.comment_count)) { %><span title="Comments">💬 <%= t.comment_count %></span><% } %>
       <% if (it.view === "inbox") { %>
         <a href="/sort?task=<%= t.id %>">Sort</a>

@@ -2,7 +2,7 @@ import express from "express";
 import QRCode from "qrcode";
 import { Eta } from "eta";
 import { fileURLToPath } from "node:url";
-import { config, googleConfigured } from "./src/config.js";
+import { config, googleConfigured, photosConfigured } from "./src/config.js";
 import { initDb } from "./src/db/client.js";
 import { migrate } from "./src/db/migrate.js";
 import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http.js";
@@ -20,6 +20,9 @@ import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
+import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
+import { addPhoto, getPhoto, PHOTO_MAX_BYTES, removePhoto } from "./src/services/photos.js";
+import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
@@ -105,7 +108,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req) });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured() });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -144,7 +147,7 @@ app.get("/events", requireHousehold, async (req, res) => {
   const renderPage = async (membership) => {
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist)];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
     scheduleDrop(list.refreshAt);
@@ -403,8 +406,59 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const checklist = await checklistView(req.actor.householdId, req.params.id);
   const task = decorateTask(checklist.task, req.membership, today(req));
   const form = editing ? await editView(req, checklist.task) : null;
-  render(res, "pages/task", { task, checklist, form, userId: req.user.id });
+  const photos = await taskPhotosView(req.actor.householdId, task.id);
+  render(res, "pages/task", { task, checklist, form, photos, userId: req.user.id });
 }
+
+const renderPhotos = async (householdId, taskId) => eta.render("partials/task-photos", await taskPhotosView(householdId, taskId));
+
+// A photo for a task. The task page shrinks it in the browser and posts the bytes as the whole body
+// (image/jpeg), like /settings/photo; the server uploads it to Cloudinary. Errors come back as text.
+app.post("/tasks/:id/photos", requireHousehold, express.raw({ type: "image/*", limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  try {
+    await addPhoto(req.actor, req.params.id, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return res.status(err.status).type("text").send(err.message);
+    throw err;
+  }
+  res.sendStatus(204);
+});
+
+// A task's photos, for the photo viewer a task row's 📷 count opens.
+app.get("/tasks/:id/photos", requireHousehold, async (req, res) => {
+  await getTask(req.actor.householdId, req.params.id);
+  const { photos } = await taskPhotosView(req.actor.householdId, req.params.id);
+  res.json({ photos: photos.map(({ full }) => ({ full })) });
+});
+
+// A task photo, for its household only. Photos are private on Cloudinary, so the app fetches one on a signed
+// URL (passing Accept along so f_auto picks a format this browser takes) and relays it. A photo never
+// changes, so the browser may keep it for good; "private" keeps shared caches from storing it.
+app.get("/photos/:id/:size", requireHousehold, async (req, res) => {
+  const transform = PHOTO_SIZES[req.params.size];
+  if (!transform) return res.sendStatus(404);
+  const photo = await getPhoto(req.actor.householdId, req.params.id).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
+  if (!photo) return res.sendStatus(404);
+  const upstream = await fetch(signedImageUrl(photo.public_id, transform), { headers: { Accept: req.get("accept") ?? "image/*" } });
+  if (!upstream.ok) {
+    console.error("couldn't fetch photo from Cloudinary", photo.public_id, upstream.status, upstream.headers.get("x-cld-error"));
+    return res.sendStatus(502);
+  }
+  res.set({
+    "Cache-Control": "private, max-age=31536000, immutable",
+    "Content-Type": upstream.headers.get("content-type") ?? "image/jpeg",
+    "X-Content-Type-Options": "nosniff",
+    Vary: "Accept",
+  });
+  res.send(Buffer.from(await upstream.arrayBuffer()));
+});
+
+app.post("/photos/:id/delete", requireHousehold, async (req, res) => {
+  const taskId = await removePhoto(req.actor, req.params.id);
+  if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
+  const html = await renderPhotos(req.actor.householdId, taskId);
+  await sse(req, res, (stream) => stream.patchElements(html));
+});
 
 /** Datastar: re-render the task details (plus an optional flash, and closing the edit form). Plain posts: back to the task page. */
 async function sendTaskHead(req, res, taskId, { flash, signals } = {}) {
@@ -735,6 +789,7 @@ app.use((err, req, res, next) => {
 const server = app.listen(config.port, () => {
   console.log(`task-sloth listening on ${config.baseUrl}`);
   if (!googleConfigured()) console.log("Google sign-in/sync disabled (GOOGLE_CLIENT_ID/SECRET not set)");
+  if (!photosConfigured()) console.log("Task photos disabled (CLOUDINARY_URL not set)");
   sync?.syncNow().catch((err) => console.error("sync failed", err));
 });
 

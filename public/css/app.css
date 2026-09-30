@@ -349,6 +349,18 @@ button.link.danger { color: var(--danger); }
 label.pill span { overflow-wrap: anywhere; }
 
 #checklist-head { margin-top: var(--space-m); }
+
+/* Photos: take or choose above, square thumbnails below; each has a small × to delete it. */
+.photos-bar { margin-top: var(--space-m); flex-wrap: wrap; gap: var(--space-xs); }
+.photos-bar h2 { font-size: var(--step-1); margin: 0; }
+.photo-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.photo-buttons [role=status] { flex-basis: 100%; margin: 0; }
+.photo-grid { list-style: none; margin: var(--space-xs) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: var(--space-xs); }
+.photo-grid li { position: relative; }
+.photo-grid a { display: block; }
+.photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; background: var(--line); }
+.photo-grid form { position: absolute; top: 0.25rem; right: 0.25rem; margin: 0; }
+button.icon.photo-delete { display: grid; place-items: center; min-width: 2rem; min-height: 2rem; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 1; }
 #checklist-head h2 { font-size: var(--step-1); margin: 0; }
 .checklist-hint { margin: var(--space-2xs) 0 0; }
 #add-items { position: static; margin: var(--space-xs) 0; padding: 0; }
@@ -548,6 +560,62 @@ dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0.45); }
 .qr { width: min(16rem, 70vw); aspect-ratio: 1; margin: var(--space-s) 0 0; padding: var(--space-xs); border-radius: var(--radius); background: #fff; }
 .qr svg { display: block; width: 100%; height: 100%; }
 .qr-url { margin: 0; font-size: var(--step--1); color: var(--muted); overflow-wrap: anywhere; }
+
+/* --- Photo viewer ------------------------------------------------------------------------- */
+
+/* Full screen and dark. It fades in while the photo zooms up from a little smaller; closing reverses it.
+   Changing photo slides the new one in from the side it came from (see /js/photo-viewer.js). */
+dialog.photo-viewer {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  background: rgb(0 0 0 / 0.92); color: #fff; overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.25s ease, overlay 0.3s allow-discrete, display 0.3s allow-discrete;
+}
+dialog.photo-viewer[open] { opacity: 1; }
+@starting-style { dialog.photo-viewer[open] { opacity: 0; } }
+dialog.photo-viewer::backdrop { background: transparent; }
+
+.viewer-stage {
+  position: absolute; inset: 0; margin: 0; display: grid; place-items: center;
+  padding: max(3.5rem, env(safe-area-inset-top)) var(--space-s) max(3.5rem, env(safe-area-inset-bottom));
+  touch-action: pan-y pinch-zoom; /* sideways drags are ours (swipe); pinching still zooms */
+}
+.viewer-stage img {
+  max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 0.5rem; user-select: none;
+  transform: scale(0.94); transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+dialog.photo-viewer[open] .viewer-stage img { transform: none; }
+@starting-style { dialog.photo-viewer[open] .viewer-stage img { transform: scale(0.94); } }
+.viewer-stage img.fade-in { animation: viewer-fade 0.25s ease; }
+.viewer-stage img.from-right { animation: viewer-from-right 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.viewer-stage img.from-left { animation: viewer-from-left 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes viewer-fade { from { opacity: 0; } }
+@keyframes viewer-from-right { from { opacity: 0; translate: 3rem 0; } }
+@keyframes viewer-from-left { from { opacity: 0; translate: -3rem 0; } }
+
+.viewer-button {
+  position: absolute; display: grid; place-items: center; width: var(--tap); height: var(--tap); padding: 0;
+  border: 0; border-radius: 50%; background: rgb(255 255 255 / 0.14); color: #fff;
+}
+@media (hover: hover) { .viewer-button:hover { background: rgb(255 255 255 / 0.28); } }
+.viewer-close { top: max(var(--space-s), env(safe-area-inset-top)); right: var(--space-s); }
+.viewer-prev, .viewer-next { top: 50%; translate: 0 -50%; }
+.viewer-prev { left: var(--space-s); }
+.viewer-next { right: var(--space-s); }
+.photo-viewer.is-single .viewer-prev, .photo-viewer.is-single .viewer-next { display: none; }
+.viewer-count {
+  position: absolute; left: 0; right: 0; bottom: max(var(--space-s), env(safe-area-inset-bottom)); margin: 0;
+  text-align: center; font-size: var(--step--1); color: rgb(255 255 255 / 0.8); pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.photo-viewer, .viewer-stage img { transition: none; }
+  .viewer-stage img.fade-in, .viewer-stage img.from-right, .viewer-stage img.from-left { animation: none; }
+}
+
+/* The 📷 count on a task row opens the viewer. */
+a.photo-count { color: inherit; text-decoration: none; }
+@media (hover: hover) { a.photo-count:hover { color: var(--accent); } }
 
 /* Nothing behind the dialog scrolls while it's open. */
 html:has(dialog[open]) { overflow: hidden; }
