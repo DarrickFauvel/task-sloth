@@ -44,6 +44,7 @@
     <%~ include("/partials/flash", {}) %>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>
   </div>
+  <% if (it.photosEnabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>
 
 <% } else { %>
   <section class="panel">

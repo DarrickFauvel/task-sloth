@@ -18,9 +18,22 @@ export const config = {
     syncIntervalMs: Number(env.GOOGLE_SYNC_INTERVAL_SECONDS ?? 120) * 1000,
     listTitle: env.GOOGLE_TASK_LIST_TITLE ?? "Task Sloth",
   },
+  // Task photos: CLOUDINARY_URL is cloudinary://<api key>:<api secret>@<cloud name>, as Cloudinary's dashboard shows it.
+  cloudinary: parseCloudinaryUrl(env.CLOUDINARY_URL),
 };
 
+function parseCloudinaryUrl(value) {
+  try {
+    const u = new URL(value);
+    if (u.protocol !== "cloudinary:" || !u.username || !u.password || !u.hostname) return null;
+    return { cloudName: u.hostname, apiKey: decodeURIComponent(u.username), apiSecret: decodeURIComponent(u.password) };
+  } catch {
+    return null;
+  }
+}
+
 export const googleConfigured = () => Boolean(config.google.clientId && config.google.clientSecret);
+export const photosConfigured = () => Boolean(config.cloudinary);
 
 if (config.isProduction && config.sessionSecret.startsWith("dev-only")) {
   throw new Error("SESSION_SECRET must be set in production");

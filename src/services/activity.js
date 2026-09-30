@@ -49,6 +49,7 @@ export function describeActivity(a, { membersById, meId }) {
     case "deleted": return `${actor} deleted`;
     case "restored": return `${actor} restored`;
     case "commented": return `${actor} commented on`;
+    case "photo": return `${actor} added a photo to`;
     case "checklist": return `${actor} added ${d.count} item${d.count === 1 ? "" : "s"} to`;
     case "recurred": return `Next occurrence scheduled for`;
     case "unblocked": return `Ready to go:`;

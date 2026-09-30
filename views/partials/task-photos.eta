@@ -1,0 +1,19 @@
+<%/* A task's photos: square thumbnails that open the photo viewer (the full photo, without script). Re-rendered live; the picker that adds
+     them sits outside (in pages/task), so an upload in progress isn't wiped by a re-render. */%>
+<section id="task-photos" class="task-photos">
+  <% if (it.photos.length) { %>
+    <ul class="photo-grid">
+      <% it.photos.forEach((p, i) => { %>
+        <li>
+          <a href="<%= p.full %>" data-photos="" data-index="<%= i %>" aria-label="Open photo <%= i + 1 %>"><img src="<%= p.thumb %>" alt="Photo <%= i + 1 %>" width="160" height="160" loading="lazy"></a>
+          <form method="post" action="/photos/<%= p.id %>/delete"
+                data-on:submit="confirm('Delete this photo?') && @post('/photos/<%= p.id %>/delete')">
+            <button class="icon photo-delete" aria-label="Delete photo <%= i + 1 %>" title="Delete photo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>
