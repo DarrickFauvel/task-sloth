@@ -17,6 +17,7 @@
       <span class="hint"><%= household ?? "No household yet" %><%= u.username ? ` · @${u.username}` : "" %></span>
     </div>
   </div>
+  <% if (household) { %><a class="menu-item" href="/activity"><span class="menu-icon" aria-hidden="true">🕘</span> Activity</a><% } %>
   <a class="menu-item" href="/settings"><span class="menu-icon" aria-hidden="true">⚙️</span> Settings</a>
   <a class="menu-item" href="/help"><span class="menu-icon" aria-hidden="true">❓</span> How it works</a>
   <a class="menu-item" href="/about"><span class="menu-icon" aria-hidden="true">ℹ️</span> About</a>
