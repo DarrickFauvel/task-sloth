@@ -16,13 +16,18 @@ export async function logActivity(...args) {
   await db.run(sql, values);
 }
 
-export async function listActivity(householdId, { taskId, limit = 50 } = {}) {
+/** Newest first. `since` (an ISO time) leaves out anything older. */
+export async function listActivity(householdId, { taskId, since, limit = 50 } = {}) {
+  const where = ["a.household_id = ?"];
+  const args = [householdId];
+  if (taskId) (where.push("a.task_id = ?"), args.push(taskId));
+  if (since) (where.push("a.created_at >= ?"), args.push(since));
   const rows = await db.all(
     `SELECT a.*, t.title AS task_title, t.deleted_at AS task_deleted_at
        FROM activity a LEFT JOIN tasks t ON t.id = a.task_id
-      WHERE a.household_id = ? ${taskId ? "AND a.task_id = ?" : ""}
+      WHERE ${where.join(" AND ")}
       ORDER BY a.created_at DESC LIMIT ?`,
-    taskId ? [householdId, taskId, limit] : [householdId, limit],
+    [...args, limit],
   );
   return rows.map((r) => ({ ...r, detail: r.detail ? JSON.parse(r.detail) : {} }));
 }
@@ -46,6 +51,7 @@ export function describeActivity(a, { membersById, meId }) {
     case "commented": return `${actor} commented on`;
     case "checklist": return `${actor} added ${d.count} item${d.count === 1 ? "" : "s"} to`;
     case "recurred": return `Next occurrence scheduled for`;
+    case "unblocked": return `Ready to go:`;
     case "snoozed": return `${actor} snoozed`;
     default: return `${actor} ${a.verb}`;
   }
