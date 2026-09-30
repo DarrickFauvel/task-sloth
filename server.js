@@ -1,4 +1,5 @@
 import express from "express";
+import QRCode from "qrcode";
 import { Eta } from "eta";
 import { fileURLToPath } from "node:url";
 import { config, googleConfigured } from "./src/config.js";
@@ -12,11 +13,12 @@ import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
-import { assignTask, createTask, deleteTask, getTask, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { assignTask, createTask, deleteTask, getTask, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
-import { cleanListQuery, decorateTask, listQueryString, taskListView, VIEWS } from "./src/web/task-list.js";
+import { cleanListQuery, cleanView, decorateTask, listQueryString, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
+import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
@@ -29,6 +31,14 @@ const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
 initDb(config.db);
 await migrate();
+
+// The home page's QR code: the app's root URL, drawn once at startup as an inline SVG.
+// Dark on white whatever the theme, since phone cameras read that most reliably.
+const appUrl = config.baseUrl.replace(/\/+$/, "");
+const appQr = {
+  url: appUrl,
+  svg: await QRCode.toString(appUrl, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#1d1b19", light: "#ffffff" } }),
+};
 
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
 const render = (res, name, data = {}, status = 200) => sendHtml(res, eta.render(name, data), status);
@@ -86,7 +96,7 @@ app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), today: today(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString });
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, listQueryString, qr: appQr });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -121,7 +131,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       return [renderTaskHead(req, checklist.task, membership), eta.render("partials/checklist", checklist)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, today: today(req) });
-    return [eta.render("partials/task-list", { ...list, userId: req.user.id })];
+    return renderList(list, req.user.id);
   };
 
   await sse(req, res, async (stream) => {
@@ -166,16 +176,22 @@ app.get("/events", requireHousehold, async (req, res) => {
   });
 });
 
+/** The home page's live parts: the tabs (for the inbox count) and the task list. */
+const renderList = (list, userId) => [
+  eta.render("partials/tabs", { list, views: VIEWS, listQueryString }),
+  eta.render("partials/task-list", { ...list, userId }),
+];
+
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
 async function sendTaskList(req, res, { flash, signals } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
   const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, today: today(req) });
-  const html = eta.render("partials/task-list", { ...list, userId: req.user.id });
+  const parts = renderList(list, req.user.id);
   const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
   await sse(req, res, (stream) => {
-    stream.patchElements(html);
+    for (const html of parts) stream.patchElements(html);
     stream.patchElements(flashHtml);
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });
@@ -197,8 +213,14 @@ app.post("/tasks", requireHousehold, async (req, res) => {
     projects: await listProjects(household.id),
     contexts: await listContexts(household.id),
   });
-  await createTask(req.actor, await resolveNames(household.id, parsed));
-  await sendTaskList(req, res, { signals: { quick: "" } });
+  const view = cleanView(req.body.view);
+  const list = quickAddList(parsed, view);
+  const id = await createTask(req.actor, { ...(await resolveNames(household.id, parsed)), list });
+  const flash =
+    list === "inbox" && view !== "inbox"
+      ? { message: "Added to your Inbox.", link: { href: `/sort?task=${id}`, label: "Sort it now" } }
+      : undefined;
+  await sendTaskList(req, res, { flash, signals: { quick: "" } });
 });
 
 app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
@@ -210,6 +232,13 @@ app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
 
 app.post("/tasks/:id/reopen", requireHousehold, async (req, res) => {
   await setDone(req.actor, req.params.id, false);
+  await sendTaskList(req, res);
+});
+
+// Move a task to another list ("To do →" on the Waiting and Maybe-later tabs).
+app.post("/tasks/:id/list/:list", requireHousehold, async (req, res) => {
+  if (!LISTS.includes(req.params.list)) throw new HttpError(404, "Unknown list");
+  await updateTask(req.actor, req.params.id, { list: req.params.list });
   await sendTaskList(req, res);
 });
 
@@ -228,6 +257,58 @@ app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
   await restoreTask(req.actor, req.params.id);
   await sendTaskList(req, res);
 });
+
+// --- Sorting the inbox ----------------------------------------------------------------
+// A plain HTML form, one task at a time: each answer saves and loads the next task.
+
+async function renderSortPage(req, res, { taskId, after, error, status = 200 } = {}) {
+  const { householdId } = req.actor;
+  let task = null;
+  if (taskId) {
+    task = await getTask(householdId, taskId).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
+    if (task && (task.list !== "inbox" || task.creator_id !== req.user.id || task.status !== "open")) task = null;
+  }
+  const next = await nextToSort(householdId, req.user.id, task ? null : after);
+  task ??= next.task;
+  render(res, "pages/sort", {
+    task: task && decorateTask(task, req.membership, today(req)),
+    left: next.left,
+    skipped: Boolean(after) && !task && next.left > 0,
+    choices: SORT_CHOICES,
+    members: req.membership.members,
+    contexts: await listContexts(householdId),
+    userId: req.user.id,
+    error,
+  }, status);
+}
+
+const queryString = (v) => (typeof v === "string" && v ? v : null);
+
+app.get("/sort", requireHousehold, (req, res) =>
+  renderSortPage(req, res, { taskId: queryString(req.query.task), after: queryString(req.query.after) }),
+);
+
+app.post("/sort/:id", requireHousehold, async (req, res) => {
+  const task = await getTask(req.actor.householdId, req.params.id);
+  if (task.creator_id !== req.user.id) throw new HttpError(403, "That's someone else's inbox");
+  let decision;
+  try {
+    decision = sortDecision(req.body);
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 400) return renderSortPage(req, res, { taskId: task.id, error: err.message, status: 400 });
+    throw err;
+  }
+  if (decision.action === "delete") await deleteTask(req.actor, task.id);
+  else {
+    await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, decision.input));
+    if (decision.action === "done") await setDone(req.actor, task.id, true, { today: today(req) });
+  }
+  redirect(res, `/sort?after=${encodeURIComponent(task.id)}`);
+});
+
+// --- Help ------------------------------------------------------------------------------
+
+app.get("/help", requireUser, (req, res) => render(res, "pages/help", {}));
 
 // --- Task page + checklist ------------------------------------------------------------
 

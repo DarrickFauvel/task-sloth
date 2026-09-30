@@ -9,6 +9,13 @@ const REPEAT_PRESETS = [
   { unit: "month", every: 1 },
 ];
 
+const LIST_OPTIONS = [
+  { value: "inbox", label: "Inbox (not sorted yet)" },
+  { value: "todo", label: "To do" },
+  { value: "waiting", label: "Waiting on someone" },
+  { value: "someday", label: "Maybe later" },
+];
+
 /** Shapes views/partials/task-edit.eta: the task plus the choices for each select. */
 export function editFormView(task, { members, projects, contexts = [] }) {
   const current = parseRule(task.recurrence);
@@ -22,7 +29,7 @@ export function editFormView(task, { members, projects, contexts = [] }) {
     repeats.push({ value: currentRepeat, label: describeRecurrence(current) });
   }
   const tags = task.tag_names ? task.tag_names.split(" ").sort().join(" ") : "";
-  return { task, members, projects, contexts, repeats, currentRepeat, tags };
+  return { task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS };
 }
 
 /**
@@ -41,5 +48,6 @@ export function editInput(body) {
     recurrence: body.recurrence || null,
     contextName: String(body.context ?? "").replace(/\s+/g, " ").trim(),
     tags: parseTagList(body.tags),
+    ...(body.list ? { list: body.list, waitingOn: body.waitingOn ?? "" } : {}),
   };
 }

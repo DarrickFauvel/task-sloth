@@ -1,0 +1,20 @@
+<%/* The quick-add cheat sheet, shown under the add box and on the How it works page. */%>
+<dl class="shortcuts">
+  <dt><code>fri</code>, <code>tomorrow</code>, <code>oct 12</code>, <code>in 3 days</code></dt>
+  <dd>When it's due</dd>
+  <dt><code>at 3pm</code>, <code>5:30pm</code></dt>
+  <dd>What time</dd>
+  <dt><code>every tue</code>, <code>daily</code>, <code>every 2 weeks</code></dt>
+  <dd>Repeats</dd>
+  <dt><code>@me</code>, <code>@sam</code>, <code>@anyone</code></dt>
+  <dd>Who does it (a name from your household)</dd>
+  <dt><code>@Target</code>, <code>@phone</code>, <code>@"Home Depot"</code></dt>
+  <dd>Where or how you'll do it (any <code>@word</code> that isn't a person)</dd>
+  <dt><code>+errand</code>, <code>+kids</code></dt>
+  <dd>Tags, to group things your own way</dd>
+  <dt><code>#Birthday</code></dt>
+  <dd>Part of a bigger project</dd>
+  <dt><code>!!</code> or <code>!low</code></dt>
+  <dd>High or low priority</dd>
+</dl>
+<p class="hint">Example: <code>return library books sat @library +kids</code>. Anything with none of these goes to your Inbox to sort later.</p>

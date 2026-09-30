@@ -1,15 +1,35 @@
-import { listTasks, tagList } from "../services/tasks.js";
+import { inboxCount, listTasks, tagList } from "../services/tasks.js";
 import { getContext } from "../services/contexts.js";
 import { cleanTagName } from "../services/tags.js";
-import { addDays, dueState, relativeLabel } from "../../public/js/lib/dates.js";
+import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 
 export const VIEWS = {
+  inbox: "Inbox",
   mine: "Mine",
   all: "Everyone",
   grabs: "Up for grabs",
+  waiting: "Waiting on",
+  someday: "Maybe later",
   done: "Done",
 };
+
+/** One line under the tab explaining what it's for, written for someone who's never seen the app. */
+export const VIEW_HINTS = {
+  inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",
+  waiting: "Things that need someone else first: a reply, a delivery, a repair. Check in on them now and then.",
+  someday: "Ideas you might get to one day, kept out of the way of today's list.",
+};
+
+/**
+ * Which list a quick-add goes on. Adding from the Waiting or Maybe-later tab puts it there;
+ * otherwise a bare title goes to the inbox, and anything with a detail skips it.
+ */
+export function quickAddList(parsed, view) {
+  if (view === "waiting" || view === "someday") return view;
+  const details = ["dueDate", "assigneeId", "projectId", "projectName", "contextId", "contextName", "tags", "recurrence"];
+  return details.some((k) => k in parsed) ? "todo" : "inbox";
+}
 
 export const cleanView = (view) => (view in VIEWS ? view : "mine");
 
@@ -33,6 +53,7 @@ export function decorateTask(t, membership, today) {
     dueState: t.due_date && t.status === "open" ? dueState(t.due_date, today) : "",
     repeats: describeRecurrence(parseRule(t.recurrence)),
     tags: tagList(t),
+    waitingLabel: t.list === "waiting" && t.status === "open" ? `${t.waiting_on || "someone"} · ${sinceLabel(t.waiting_since ?? today, today)}` : "",
   };
 }
 
@@ -44,9 +65,12 @@ export async function taskListView({ userId, membership, view, context: contextI
   const householdId = membership.household.id;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
   const filter = {
-    mine: { status: "open", assigneeId: userId },
-    all: { status: "open" },
-    grabs: { status: "open", assigneeId: null },
+    inbox: { status: "open", list: "inbox", creatorId: userId },
+    mine: { status: "open", list: "todo", assigneeId: userId },
+    all: { status: "open", list: "todo" },
+    grabs: { status: "open", list: "todo", assigneeId: null },
+    waiting: { status: "open", list: "waiting" },
+    someday: { status: "open", list: "someday" },
     done: { status: "done", limit: 50 },
   }[view];
   const tasks = (await listTasks(householdId, { ...filter, contextId: context?.id, tag: tag ?? undefined })).map((t) =>
@@ -54,8 +78,10 @@ export async function taskListView({ userId, membership, view, context: contextI
   );
   const query = { view, context: context?.id ?? null, tag };
   const filterLabel = [context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
+  const base = { ...query, filterLabel, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
 
-  if (view === "done") return { ...query, filterLabel, groups: tasks.length ? [{ label: "Recently done", tasks }] : [] };
+  const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
+  if (single) return { ...base, groups: tasks.length ? [{ label: single, tasks }] : [] };
 
   const weekOut = addDays(today, 7);
   const groups = [
@@ -63,9 +89,9 @@ export async function taskListView({ userId, membership, view, context: contextI
     { label: "Today", test: (t) => t.due_date === today },
     { label: "This week", test: (t) => t.due_date && t.due_date > today && t.due_date <= weekOut },
     { label: "Later", test: (t) => t.due_date && t.due_date > weekOut },
-    { label: "Someday", test: (t) => !t.due_date },
+    { label: "No date", test: (t) => !t.due_date },
   ]
     .map(({ label, test }) => ({ label, tasks: tasks.filter(test) }))
     .filter((g) => g.tasks.length);
-  return { ...query, filterLabel, groups };
+  return { ...base, groups };
 }

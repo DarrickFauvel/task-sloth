@@ -1,0 +1,16 @@
+<%/* Re-rendered with the list on every change, so the Inbox count stays current. */%>
+<% const l = it.list; %>
+<div id="tabs">
+  <nav class="tabs">
+    <% Object.entries(it.views).forEach(([key, label]) => { %>
+      <a href="/?<%= it.listQueryString({ ...l, view: key }) %>"<%~ key === l.view ? ' aria-current="page"' : '' %>><%= label %><% if (key === "inbox" && l.inboxCount) { %> <span class="badge"><%= l.inboxCount %></span><% } %></a>
+    <% }) %>
+  </nav>
+  <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
+  <% if (l.view === "inbox" && l.inboxCount) { %>
+    <p><a class="button primary" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>
+  <% } %>
+  <% if (l.filterLabel) { %>
+    <p class="filter">Only <strong><%= l.filterLabel %></strong> <a href="/?view=<%= l.view %>">Show all</a></p>
+  <% } %>
+</div>

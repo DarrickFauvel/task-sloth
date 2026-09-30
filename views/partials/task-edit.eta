@@ -4,6 +4,18 @@
   <form class="edit stack" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})">
     <label>Title <input name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off"></label>
     <div class="row">
+      <label>List
+        <select name="list">
+          <% f.lists.forEach((o) => { %>
+            <option value="<%= o.value %>"<%~ o.value === t.list ? " selected" : "" %>><%= o.label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Waiting on <span class="hint">(if waiting)</span>
+        <input name="waitingOn" value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
+      </label>
+    </div>
+    <div class="row">
       <label>Due <input type="date" name="dueDate" value="<%= t.due_date ?? '' %>"></label>
       <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
     </div>
