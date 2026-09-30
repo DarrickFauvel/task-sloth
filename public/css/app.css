@@ -296,6 +296,7 @@ button.link.danger { color: var(--danger); }
 .rename-button { font-size: inherit; }
 .chip { color: inherit; text-decoration: none; }
 .chip.tag { color: var(--accent); }
+.chip.project { color: var(--c); }
 
 /* --- Task page -------------------------------------------------------------------------- */
 

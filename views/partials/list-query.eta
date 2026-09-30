@@ -1,2 +1,2 @@
 <%/* The list filter a row's forms post back, so plain (non-Datastar) posts return to the same list. */%>
-<input type="hidden" name="context" value="<%= it.context ?? '' %>"><input type="hidden" name="tag" value="<%= it.tag ?? '' %>">
+<input type="hidden" name="project" value="<%= it.project ?? '' %>"><input type="hidden" name="context" value="<%= it.context ?? '' %>"><input type="hidden" name="tag" value="<%= it.tag ?? '' %>">

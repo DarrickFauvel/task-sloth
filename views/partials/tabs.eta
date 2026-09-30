@@ -29,7 +29,7 @@
   <%/* To-do tabs: group by date or by where/how. A plain form: the choice is a cookie (see /list-grouping). */%>
   <% if (l.canGroup) { %>
     <form method="post" action="/list-grouping" class="pills grouping" aria-label="Group tasks by">
-      <input type="hidden" name="view" value="<%= l.view %>"><input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
+      <input type="hidden" name="view" value="<%= l.view %>"><input type="hidden" name="project" value="<%= l.project ?? '' %>"><input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
       <span class="hint">Group by</span>
       <% [["when", "When"], ["where", "Where / how"]].forEach(([value, label]) => { %>
         <button name="by" value="<%= value %>" class="pill<%= l.groupBy === value ? ' is-on' : '' %>"<%~ l.groupBy === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>><%= label %></button>
