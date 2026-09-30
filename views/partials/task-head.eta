@@ -5,6 +5,9 @@
     <% if (done) { %><span>Done</span><% } %>
     <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
     <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
+    <% if (!done && t.list === "inbox") { %><span>📥 In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
+    <% if (t.waitingLabel) { %><span>⏳ Waiting on <%= t.waitingLabel %></span><% } %>
+    <% if (!done && t.list === "someday") { %><span>💭 Maybe later</span><% } %>
     <% if (t.priority < 0) { %><span>Low priority</span><% } %>
     <% if (t.project_name) { %><span class="project" style="--c: <%= t.project_color %>"><%= t.project_emoji %> <%= t.project_name %></span><% } %>
     <%~ include("/partials/context-tags", { t }) %>

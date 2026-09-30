@@ -1,0 +1,33 @@
+<% layout("/layout", { title: "How it works" }) %>
+<p><a href="/">← All tasks</a></p>
+<article class="help">
+  <h1>How Task Sloth works</h1>
+  <p>The idea is simple: get things out of your head quickly, then put each one where it belongs, so the list you look at is only what you can actually do.</p>
+
+  <h2>1. Jot it down</h2>
+  <p>Type anything into the box at the top and press Add. You don't have to decide anything yet. If you only type a few words, it goes to your <strong>Inbox</strong>, which only you can see.</p>
+
+  <h2>2. Sort your inbox</h2>
+  <p>When you have a minute, tap <strong>Sort my inbox</strong>. It shows one thing at a time and asks what it is:</p>
+  <ul>
+    <li><strong>✅ Do it now</strong>: if it takes two minutes or less, just do it. It's faster than keeping track of it.</li>
+    <li><strong>📋 To do</strong>: something to do soon. You can say where or how (at Target, on the phone) and who.</li>
+    <li><strong>📅 On a date</strong>: it has to happen on a certain day.</li>
+    <li><strong>⏳ Waiting on someone</strong>: someone else has to do something first, like a reply or a repair.</li>
+    <li><strong>💭 Maybe later</strong>: not now, but you don't want to forget it.</li>
+    <li><strong>🗑 Delete</strong>: not needed after all.</li>
+  </ul>
+
+  <h2>3. Do things</h2>
+  <p><strong>Mine</strong> shows what's yours, sorted by when it's due. <strong>Everyone</strong> shows the whole household, and <strong>Up for grabs</strong> shows things nobody has taken yet. Tap <strong>Claim</strong> to take one.</p>
+  <p>Out and about? Tap a chip like <strong>@Target</strong> on any task to see everything you can do there.</p>
+
+  <h2>4. Check in now and then</h2>
+  <p>Look at <strong>Waiting on</strong> to see if you need to nudge anyone, and at <strong>Maybe later</strong> to see if something's ready. Tap <strong>Ready to do →</strong> to move it to your list.</p>
+
+  <h2 id="shortcuts">Shortcuts you can type</h2>
+  <p>You never need these, but they save taps:</p>
+  <%~ include("/partials/shortcuts") %>
+
+  <p class="hint">This way of working comes from a method called <em>Getting Things Done</em> by David Allen. You don't need to know it to use the app.</p>
+</article>

@@ -59,6 +59,14 @@ export function relativeLabel(ymd, today) {
   return ymd.slice(0, 4) === today.slice(0, 4) ? label : `${label}, ${ymd.slice(0, 4)}`;
 }
 
+/** How long since a past date: "since today", "1 day", "5 days", "3 weeks". */
+export function sinceLabel(ymd, today) {
+  const days = Math.max(0, daysBetween(ymd, today));
+  if (days === 0) return "since today";
+  if (days < 14) return `${days} day${days === 1 ? "" : "s"}`;
+  return `${Math.floor(days / 7)} weeks`;
+}
+
 /** "overdue" | "today" | "soon" (within 3 days) | "later" — used for styling. */
 export function dueState(ymd, today) {
   const diff = daysBetween(today, ymd);

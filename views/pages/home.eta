@@ -1,7 +1,10 @@
 <% layout("/layout") %>
 <header class="bar">
   <h1>Task Sloth</h1>
-  <form method="post" action="/logout"><button>Sign out</button></form>
+  <div class="bar-actions">
+    <a href="/help">How it works</a>
+    <form method="post" action="/logout"><button>Sign out</button></form>
+  </div>
 </header>
 <% if (it.membership) { %>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
@@ -13,17 +16,14 @@
       <input type="hidden" name="context" value="<%= l.context ?? '' %>">
       <input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
       <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
-             placeholder="Add a task… e.g. “ink @Target +errand fri”">
+             placeholder="Add a task… e.g. “ink @Target fri”">
       <button>Add</button>
     </form>
-    <nav class="tabs">
-      <% Object.entries(it.views).forEach(([key, label]) => { %>
-        <a href="/?<%= it.listQueryString({ ...l, view: key }) %>"<%~ key === l.view ? ' aria-current="page"' : '' %>><%= label %></a>
-      <% }) %>
-    </nav>
-    <% if (l.filterLabel) { %>
-      <p class="filter">Only <strong><%= l.filterLabel %></strong> <a href="/?view=<%= l.view %>">Show all</a></p>
-    <% } %>
+    <details class="shortcuts-help">
+      <summary>Shortcuts you can type</summary>
+      <%~ include("/partials/shortcuts") %>
+    </details>
+    <%~ include("/partials/tabs", { list: l, views: it.views, listQueryString: it.listQueryString }) %>
     <div id="flash" role="status"></div>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>
   </div>

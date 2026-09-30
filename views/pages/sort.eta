@@ -1,0 +1,67 @@
+<% layout("/layout", { title: "Sort my inbox" }) %>
+<p><a href="/?view=inbox">← Inbox</a></p>
+<% if (!it.task) { %>
+  <section class="sort-done">
+    <% if (it.skipped) { %>
+      <h1>That's the lot</h1>
+      <p>You skipped <%= it.left %> — they're still in your inbox.</p>
+      <p><a class="button" href="/sort">Go through the skipped ones</a> <a href="/">Back to my tasks</a></p>
+    <% } else { %>
+      <h1>All sorted 🎉</h1>
+      <p>Your inbox is empty. Everything is where it belongs.</p>
+      <p><a class="button" href="/">Back to my tasks</a></p>
+    <% } %>
+  </section>
+<% } else { const t = it.task; %>
+  <h1 class="sort-title">What is this?</h1>
+  <p class="hint"><%= it.left %> in your inbox. Pick one answer and the next one comes up.</p>
+  <% if (it.error) { %><div class="flash is-error" role="alert"><span><%= it.error %></span></div><% } %>
+  <form class="sort" method="post" action="/sort/<%= t.id %>">
+    <label>Task <span class="hint">(fix the wording if you like)</span>
+      <input name="title" value="<%= t.title %>" maxlength="300" autocomplete="off">
+    </label>
+    <% if (t.notes) { %><p class="notes"><%= t.notes %></p><% } %>
+
+    <%/* Each choice is a submit button; the fields beside it are only used by that choice.
+         This disabled first button is the form's default, so pressing Enter in a field does nothing
+         (otherwise Enter would pick "Do it now" and tick the task off). */%>
+    <button type="submit" disabled hidden aria-hidden="true"></button>
+    <% const c = Object.fromEntries(it.choices.map((x) => [x.value, x])); %>
+    <% const choice = (x) => `<button name="choice" value="${x.value}"><span aria-hidden="true">${x.icon}</span> ${x.label}</button>`; %>
+    <div class="choice">
+      <%~ choice(c.now) %><p class="hint"><%= c.now.hint %></p>
+    </div>
+    <div class="choice">
+      <%~ choice(c.todo) %><p class="hint"><%= c.todo.hint %></p>
+      <div class="row">
+        <label>Where / how <input name="context" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone"></label>
+        <label>Who
+          <select name="assigneeId">
+            <% it.members.forEach((m) => { %>
+              <option value="<%= m.id %>"<%~ m.id === it.userId ? " selected" : "" %>><%= m.id === it.userId ? "Me" : m.name %></option>
+            <% }) %>
+            <option value="">Anyone (up for grabs)</option>
+          </select>
+        </label>
+      </div>
+      <datalist id="contexts">
+        <% it.contexts.forEach((x) => { %><option value="<%= x.name %>"></option><% }) %>
+      </datalist>
+    </div>
+    <div class="choice">
+      <%~ choice(c.date) %><p class="hint"><%= c.date.hint %></p>
+      <label>Date <input type="date" name="dueDate"></label>
+    </div>
+    <div class="choice">
+      <%~ choice(c.waiting) %><p class="hint"><%= c.waiting.hint %></p>
+      <label>Waiting on <input name="waitingOn" maxlength="200" autocomplete="off" placeholder="e.g. the plumber, a reply from Mom"></label>
+    </div>
+    <div class="choice">
+      <%~ choice(c.someday) %><p class="hint"><%= c.someday.hint %></p>
+    </div>
+    <div class="choice">
+      <%~ choice(c.delete) %><p class="hint"><%= c.delete.hint %></p>
+    </div>
+  </form>
+  <p class="actions"><a href="/sort?after=<%= t.id %>">Skip for now</a> · <a href="/tasks/<%= t.id %>">Open the full task</a></p>
+<% } %>

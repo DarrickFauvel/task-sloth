@@ -8,6 +8,12 @@ import { cleanTagName, ensureTags } from "./tags.js";
 
 /** @typedef {{ id: string, householdId: string }} Actor  The signed-in user plus their household. */
 
+/**
+ * The lists a task can be on. The inbox is personal (its tasks show only to whoever added them);
+ * the others are shared by the household.
+ */
+export const LISTS = ["inbox", "todo", "waiting", "someday"];
+
 const TASK_SELECT = `
   SELECT t.*,
          p.name AS project_name, p.emoji AS project_emoji, p.color AS project_color,
@@ -22,7 +28,7 @@ const OPEN_ORDER = "ORDER BY t.due_date IS NULL, t.due_date, t.priority DESC, t.
 
 /**
  * @param {string} householdId
- * @param {{ assigneeId?: string | null, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
+ * @param {{ assigneeId?: string | null, creatorId?: string, list?: string, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
  *   assigneeId: undefined = anyone, null = unassigned ("up for grabs")
  */
 export async function listTasks(householdId, filter = {}) {
@@ -30,6 +36,8 @@ export async function listTasks(householdId, filter = {}) {
   const args = [householdId, filter.templates ? 1 : 0];
   if (filter.assigneeId === null) where.push("t.assignee_id IS NULL");
   else if (filter.assigneeId !== undefined) (where.push("t.assignee_id = ?"), args.push(filter.assigneeId));
+  if (filter.creatorId) (where.push("t.creator_id = ?"), args.push(filter.creatorId));
+  if (filter.list) (where.push("t.list = ?"), args.push(filter.list));
   if (filter.projectId) (where.push("t.project_id = ?"), args.push(filter.projectId));
   if (filter.contextId) (where.push("t.context_id = ?"), args.push(filter.contextId));
   if (filter.tag) {
@@ -38,7 +46,11 @@ export async function listTasks(householdId, filter = {}) {
   }
   if (filter.status) (where.push("t.status = ?"), args.push(filter.status));
   if (filter.dueOnOrBefore) (where.push("t.due_date <= ?"), args.push(filter.dueOnOrBefore));
-  const order = filter.status === "done" ? "ORDER BY t.completed_at DESC" : OPEN_ORDER;
+  const order =
+    filter.status === "done" ? "ORDER BY t.completed_at DESC"
+    : filter.list === "inbox" ? "ORDER BY t.created_at, t.id"
+    : filter.list === "waiting" ? "ORDER BY t.waiting_since, t.created_at"
+    : OPEN_ORDER;
   args.push(filter.limit ?? 500);
   return db.all(`${TASK_SELECT} WHERE ${where.join(" AND ")} ${order} LIMIT ?`, args);
 }
@@ -97,16 +109,23 @@ function cleanFields(input) {
     const rule = parseRule(input.recurrence);
     out.recurrence = rule ? JSON.stringify(rule) : null;
   }
+  if ("list" in input) {
+    if (!LISTS.includes(input.list)) throw new HttpError(400, "Unknown list");
+    out.list = input.list;
+  }
+  if ("waitingOn" in input) out.waiting_on = String(input.waitingOn ?? "").trim().slice(0, 200) || null;
   if ("listMode" in input) out.list_mode = input.listMode === "shopping" ? "shopping" : "checklist";
   return out;
 }
 
 /**
  * @param {Actor} actor
- * @param {object} input  title, notes, dueDate, dueTime, priority, projectId, contextId, tags (names), assigneeId (undefined = actor), recurrence, listMode
+ * @param {object} input  title, notes, dueDate, dueTime, priority, projectId, contextId, tags (names), assigneeId (undefined = actor),
+ *   recurrence, listMode, list (default "todo"), waitingOn
  */
 export async function createTask(actor, input, { isTemplate = false, fromGoogle = false, items = [] } = {}) {
   const fields = cleanFields({ assigneeId: actor.id, ...input });
+  if (fields.list === "waiting") fields.waiting_since = now().slice(0, 10);
   await assertMember(actor.householdId, fields.assignee_id);
   await assertProject(actor.householdId, fields.project_id);
   await assertContext(actor.householdId, fields.context_id);
@@ -152,6 +171,9 @@ export async function updateTask(actor, id, input, { fromGoogle = false } = {}) 
   if ("assignee_id" in fields) await assertMember(actor.householdId, fields.assignee_id);
   if ("project_id" in fields) await assertProject(actor.householdId, fields.project_id);
   if ("context_id" in fields) await assertContext(actor.householdId, fields.context_id);
+  // Moving onto the waiting list starts the clock; moving off it forgets who it was waiting on.
+  if (fields.list === "waiting" && task.list !== "waiting") fields.waiting_since = now().slice(0, 10);
+  if (fields.list && fields.list !== "waiting") Object.assign(fields, { waiting_on: null, waiting_since: null });
   const diff = Object.fromEntries(Object.entries(fields).filter(([k, v]) => task[k] !== v));
   const tags = Array.isArray(input.tags) ? [...new Set(input.tags.map(cleanTagName).filter(Boolean))].sort() : null;
   const tagsChanged = tags !== null && tags.join(" ") !== tagList(task).join(" ");
@@ -297,6 +319,30 @@ export async function listDeleted(householdId) {
     `${TASK_SELECT} WHERE t.household_id = ? AND t.deleted_at IS NOT NULL AND t.is_template = 0 AND t.deleted_at > ? ORDER BY t.deleted_at DESC LIMIT 30`,
     [householdId, new Date(Date.now() - 30 * 86_400_000).toISOString()],
   );
+}
+
+/** How many tasks are waiting in this person's inbox. */
+export async function inboxCount(householdId, userId) {
+  const row = await db.get(
+    "SELECT COUNT(*) AS n FROM tasks WHERE household_id = ? AND creator_id = ? AND list = 'inbox' AND status = 'open' AND deleted_at IS NULL AND is_template = 0",
+    [householdId, userId],
+  );
+  return Number(row.n);
+}
+
+/**
+ * The next inbox task to sort: the oldest, or the oldest added after `afterId` (so "Skip" moves on).
+ * @returns {Promise<{ task: object | null, left: number }>}  `left` counts the whole inbox, skipped ones included
+ */
+export async function nextToSort(householdId, userId, afterId = null) {
+  const after = afterId ? await db.get("SELECT created_at, id FROM tasks WHERE id = ? AND household_id = ?", [afterId, householdId]) : null;
+  const task = await db.get(
+    `${TASK_SELECT} WHERE t.household_id = ? AND t.creator_id = ? AND t.list = 'inbox' AND t.status = 'open'
+        AND t.deleted_at IS NULL AND t.is_template = 0 ${after ? "AND (t.created_at, t.id) > (?, ?)" : ""}
+      ORDER BY t.created_at, t.id LIMIT 1`,
+    after ? [householdId, userId, after.created_at, after.id] : [householdId, userId],
+  );
+  return { task: task ?? null, left: await inboxCount(householdId, userId) };
 }
 
 /** Open work per member for the "who's carrying what" glance: due within a week or undated. */
