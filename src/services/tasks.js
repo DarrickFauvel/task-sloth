@@ -21,14 +21,18 @@ const TASK_SELECT = `
          (SELECT group_concat(g.name, ' ') FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id) AS tag_names,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id) AS item_count,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id AND c.checked = 1) AS item_done,
-         (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id) AS comment_count
-    FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contexts cx ON cx.id = t.context_id`;
+         (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id) AS comment_count,
+         wt.title AS waiting_task_title, wt.status AS waiting_task_status,
+         (SELECT json_group_array(b.title) FROM tasks b
+           WHERE b.waiting_task_id = t.id AND b.status = 'open' AND b.deleted_at IS NULL) AS blocking_titles
+    FROM tasks t LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN contexts cx ON cx.id = t.context_id
+         LEFT JOIN tasks wt ON wt.id = t.waiting_task_id AND wt.deleted_at IS NULL`;
 
 const OPEN_ORDER = "ORDER BY t.due_date IS NULL, t.due_date, t.priority DESC, t.due_time IS NULL, t.due_time, t.sort_order, t.created_at";
 
 /**
  * @param {string} householdId
- * @param {{ assigneeId?: string | null, creatorId?: string, list?: string, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
+ * @param {{ assigneeId?: string | null, creatorId?: string, list?: string, waiting?: boolean, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
  *   assigneeId: undefined = anyone, null = unassigned ("up for grabs")
  */
 export async function listTasks(householdId, filter = {}) {
@@ -38,6 +42,8 @@ export async function listTasks(householdId, filter = {}) {
   else if (filter.assigneeId !== undefined) (where.push("t.assignee_id = ?"), args.push(filter.assigneeId));
   if (filter.creatorId) (where.push("t.creator_id = ?"), args.push(filter.creatorId));
   if (filter.list) (where.push("t.list = ?"), args.push(filter.list));
+  // "Waiting" means anything that can't move: on the Waiting list, or blocked by another task.
+  if (filter.waiting) where.push("(t.list = 'waiting' OR t.waiting_task_id IS NOT NULL)");
   if (filter.projectId) (where.push("t.project_id = ?"), args.push(filter.projectId));
   if (filter.contextId) (where.push("t.context_id = ?"), args.push(filter.contextId));
   if (filter.tag) {
@@ -49,7 +55,7 @@ export async function listTasks(householdId, filter = {}) {
   const order =
     filter.status === "done" ? "ORDER BY t.completed_at DESC"
     : filter.list === "inbox" ? "ORDER BY t.created_at, t.id"
-    : filter.list === "waiting" ? "ORDER BY t.waiting_since, t.created_at"
+    : filter.list === "waiting" || filter.waiting ? "ORDER BY t.waiting_since IS NULL, t.waiting_since, t.created_at"
     : OPEN_ORDER;
   args.push(filter.limit ?? 500);
   return db.all(`${TASK_SELECT} WHERE ${where.join(" AND ")} ${order} LIMIT ?`, args);
@@ -77,6 +83,47 @@ async function assertContext(householdId, contextId) {
   if (!contextId) return;
   const c = await db.get("SELECT 1 FROM contexts WHERE id = ? AND household_id = ?", [contextId, householdId]);
   if (!c) throw new HttpError(400, "Unknown context");
+}
+
+/**
+ * Checks that `blockerId` can block `taskId`: an open task in the same household, not the task
+ * itself, and not already (directly or through a chain) waiting on `taskId`.
+ */
+async function assertBlocker(householdId, taskId, blockerId) {
+  if (!blockerId) return;
+  if (blockerId === taskId) throw new HttpError(400, "A task can't wait on itself");
+  const blocker = await db.get(
+    "SELECT status FROM tasks WHERE id = ? AND household_id = ? AND deleted_at IS NULL AND is_template = 0",
+    [blockerId, householdId],
+  );
+  if (!blocker) throw new HttpError(400, "Unknown task");
+  if (blocker.status !== "open") throw new HttpError(400, "That task is already done");
+  if (!taskId) return;
+  // Follow the chain from the blocker; reaching this task would make them wait on each other.
+  for (let id = blockerId, hops = 0; id && hops < 100; hops++) {
+    if (id === taskId) throw new HttpError(400, "They'd be waiting on each other");
+    id = (await db.get("SELECT waiting_task_id FROM tasks WHERE id = ?", [id]))?.waiting_task_id;
+  }
+}
+
+/** Open tasks blocked by this one, which it holds up until it's done. */
+export const listBlockedBy = (householdId, taskId) =>
+  db.all(
+    "SELECT id, title FROM tasks WHERE household_id = ? AND waiting_task_id = ? AND status = 'open' AND deleted_at IS NULL ORDER BY created_at",
+    [householdId, taskId],
+  );
+
+/** Statements that unblock everything this task was holding up (it was finished or deleted). */
+async function releaseStatements(actor, taskId, actorId) {
+  const blocked = await listBlockedBy(actor.householdId, taskId);
+  const ts = now();
+  return {
+    ids: blocked.map((b) => b.id),
+    statements: blocked.flatMap((b) => [
+      { sql: "UPDATE tasks SET waiting_task_id = NULL, updated_at = ? WHERE id = ?", args: [ts, b.id] },
+      activityStatement(actor.householdId, actorId, b.id, "unblocked", { by: taskId }),
+    ]),
+  };
 }
 
 /** The task's tag names, sorted: "errand quick-win" -> ["errand", "quick-win"]. */
@@ -113,6 +160,7 @@ function cleanFields(input) {
     if (!LISTS.includes(input.list)) throw new HttpError(400, "Unknown list");
     out.list = input.list;
   }
+  if ("waitingTaskId" in input) out.waiting_task_id = input.waitingTaskId || null;
   if ("waitingOn" in input) out.waiting_on = String(input.waitingOn ?? "").trim().slice(0, 200) || null;
   if ("listMode" in input) out.list_mode = input.listMode === "shopping" ? "shopping" : "checklist";
   return out;
@@ -129,6 +177,7 @@ export async function createTask(actor, input, { isTemplate = false, fromGoogle 
   await assertMember(actor.householdId, fields.assignee_id);
   await assertProject(actor.householdId, fields.project_id);
   await assertContext(actor.householdId, fields.context_id);
+  await assertBlocker(actor.householdId, null, fields.waiting_task_id);
   const tagIds = await ensureTags(actor.householdId, input.tags ?? []);
   const id = newId();
   const ts = now();
@@ -171,6 +220,7 @@ export async function updateTask(actor, id, input, { fromGoogle = false } = {}) 
   if ("assignee_id" in fields) await assertMember(actor.householdId, fields.assignee_id);
   if ("project_id" in fields) await assertProject(actor.householdId, fields.project_id);
   if ("context_id" in fields) await assertContext(actor.householdId, fields.context_id);
+  if (fields.waiting_task_id) await assertBlocker(actor.householdId, id, fields.waiting_task_id);
   // Moving onto the waiting list starts the clock; moving off it forgets who it was waiting on.
   if (fields.list === "waiting" && task.list !== "waiting") fields.waiting_since = now().slice(0, 10);
   if (fields.list && fields.list !== "waiting") Object.assign(fields, { waiting_on: null, waiting_since: null });
@@ -211,15 +261,17 @@ export async function setDone(actor, id, done, { today, fromGoogle = false } = {
   if ((task.status === "done") === done) return null;
   const ts = now();
   const actorId = fromGoogle ? null : actor.id;
+  const released = done ? await releaseStatements(actor, id, actorId) : { ids: [], statements: [] };
   const statements = [
     {
       sql: "UPDATE tasks SET status = ?, completed_at = ?, completed_by = ?, updated_at = ? WHERE id = ?",
       args: done ? ["done", ts, actorId, ts, id] : ["open", null, null, ts, id],
     },
     activityStatement(actor.householdId, actorId, id, done ? "completed" : "reopened"),
+    ...released.statements,
   ];
   await db.batch(statements);
-  changed(actor.householdId, id, { fromGoogle });
+  for (const taskId of [id, ...released.ids]) changed(actor.householdId, taskId, { fromGoogle });
 
   const rule = parseRule(task.recurrence);
   if (done && rule && !task.next_task_id) {
@@ -267,11 +319,14 @@ export async function snoozeTask(actor, id, days, today) {
 export async function deleteTask(actor, id, { fromGoogle = false } = {}) {
   await getTask(actor.householdId, id);
   const ts = now();
+  // Deleting a task also unblocks whatever was waiting on it.
+  const released = await releaseStatements(actor, id, fromGoogle ? null : actor.id);
   await db.batch([
     { sql: "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?", args: [ts, ts, id] },
     activityStatement(actor.householdId, fromGoogle ? null : actor.id, id, "deleted"),
+    ...released.statements,
   ]);
-  changed(actor.householdId, id, { fromGoogle });
+  for (const taskId of [id, ...released.ids]) changed(actor.householdId, taskId, { fromGoogle });
 }
 
 export async function restoreTask(actor, id) {

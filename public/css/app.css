@@ -216,6 +216,10 @@ main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom
 .task-title { overflow-wrap: anywhere; }
 a.task-title { color: inherit; text-decoration: none; }
 .task.is-done .task-title { text-decoration: line-through; color: var(--muted); }
+/* Blocked by another task: still on the list, but visibly not ready yet. */
+.task.is-blocked .task-title { color: var(--muted); }
+.blocked { color: var(--fg); }
+.holding-up { margin: var(--space-xs) 0 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1); }
 .task.is-high .task-title::before { content: "! "; color: var(--danger); font-weight: 600; }
 .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-s); font-size: var(--step--1); color: var(--muted); align-items: center; }
 /* Links in the meta line (Claim, Sort, chips) get a taller hit area without looking any bigger. */

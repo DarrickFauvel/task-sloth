@@ -69,6 +69,16 @@
       <label class="waiting-field">Waiting on who or what?
         <input name="waitingOn" value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
       </label>
+      <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
+      <label>Blocked by another task
+        <select name="waitingTaskId">
+          <option value="">Nothing, ready when you are</option>
+          <% f.blockers.forEach((b) => { %>
+            <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
+          <% }) %>
+        </select>
+        <span class="hint">It'll show ⏳ until that task is done, then it's ready to go.</span>
+      </label>
     </section>
 
     <section class="edit-group">

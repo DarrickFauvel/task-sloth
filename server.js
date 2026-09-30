@@ -13,7 +13,7 @@ import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
-import { assignTask, createTask, deleteTask, getTask, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
@@ -229,9 +229,15 @@ app.post("/tasks", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
+  // Finishing a task unblocks whatever was waiting on it; say so.
+  const unblocked = await listBlockedBy(req.actor.householdId, req.params.id);
   const nextId = await setDone(req.actor, req.params.id, true, { today: today(req) });
   const next = nextId && (await getTask(req.actor.householdId, nextId));
-  const flash = next && { message: `Next one due ${relativeLabel(next.due_date, today(req))}` };
+  const messages = [
+    next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
+    unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
+  ].filter(Boolean);
+  const flash = messages.length ? { message: messages.join(" · ") } : undefined;
   await sendTaskList(req, res, { flash });
 });
 
@@ -346,8 +352,13 @@ app.get("/help", requireUser, (req, res) =>
 const renderTaskHead = (req, task, membership = req.membership) =>
   eta.render("partials/task-head", { task: decorateTask(task, membership, today(req)), userId: req.user.id });
 
+/** Open tasks this one could be blocked by: not someone else's private inbox, not a template. */
+const blockerChoices = async (req) =>
+  (await listTasks(req.actor.householdId, { status: "open" })).filter((t) => t.list !== "inbox" || t.creator_id === req.user.id);
+
 const editView = async (req, task) =>
   editFormView(task, {
+    openTasks: await blockerChoices(req),
     today: today(req),
     userId: req.user.id,
     members: req.membership.members,

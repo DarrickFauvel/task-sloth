@@ -63,6 +63,7 @@
     <li class="step" id="check-in">
       <h2>Check in now and then</h2>
       <p>Once in a while, look at <strong>Waiting on</strong> to see if you need to nudge anyone, and at <strong>Maybe later</strong> to see if something's ready. Tap <strong>Ready to do →</strong> to move it onto your list.</p>
+      <p class="tip">⏳ Something that can't start until another task is done, like painting after patching the walls? Open it, tap <strong>Edit</strong>, and choose the other task under <strong>Blocked by another task</strong>. It stays on your list, marked ⏳, and is ready to go as soon as that task is ticked off.</p>
     </li>
   </ol>
 

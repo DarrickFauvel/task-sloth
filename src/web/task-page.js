@@ -19,9 +19,10 @@ const LIST_OPTIONS = [
 
 /**
  * Shapes views/partials/task-edit.eta: the task plus the choices for each group of chips.
- * `today` gives the quick-date chips; `userId` lets the Who chips say "Me".
+ * `today` gives the quick-date chips; `userId` lets the Who chips say "Me"; `openTasks` are the
+ * tasks it could be blocked by (this one and its own dependents are left out by the caller's list).
  */
-export function editFormView(task, { members, projects, contexts = [], today = null, userId = null }) {
+export function editFormView(task, { members, projects, contexts = [], today = null, userId = null, openTasks = [] }) {
   const current = parseRule(task.recurrence);
   const currentRepeat = current ? JSON.stringify(current) : "";
   const repeats = REPEAT_PRESETS.map((rule) => ({
@@ -35,6 +36,7 @@ export function editFormView(task, { members, projects, contexts = [], today = n
   const tags = task.tag_names ? task.tag_names.split(" ").sort().join(" ") : "";
   return {
     task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS, userId,
+    blockers: openTasks.filter((o) => o.id !== task.id).map((o) => ({ id: o.id, title: o.title })),
     quickDates: today ? quickDates(today) : [],
     priorities: [{ value: 1, label: "High" }, { value: 0, label: "Normal" }, { value: -1, label: "Low" }],
   };
@@ -57,5 +59,6 @@ export function editInput(body) {
     contextName: String(body.context ?? "").replace(/\s+/g, " ").trim(),
     tags: parseTagList(body.tags),
     ...(body.list ? { list: body.list, waitingOn: body.waitingOn ?? "" } : {}),
+    ...("waitingTaskId" in body ? { waitingTaskId: body.waitingTaskId || null } : {}),
   };
 }
