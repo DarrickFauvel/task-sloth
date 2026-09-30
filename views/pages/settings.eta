@@ -3,7 +3,7 @@
 <% const u = it.user; %>
 <a class="back" href="/">← All tasks</a>
 <h1>Settings</h1>
-<% if (it.saved || it.error) { %><%~ include("/partials/flash", { message: it.saved ?? it.error, error: Boolean(it.error) }) %><% } else { %><div id="flash" role="status"></div><% } %>
+<%~ include("/partials/flash", { message: it.saved ?? it.error, error: Boolean(it.error) }) %>
 
 <div class="settings">
   <section class="panel">

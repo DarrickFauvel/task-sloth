@@ -14,6 +14,12 @@
   <link rel="stylesheet" href="/css/app.css">
   <script>
     document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
+    // Toasts (views/partials/flash.eta): slide out, then leave the page.
+    function dismissToast(toast) {
+      if (!toast || toast.classList.contains("is-leaving")) return;
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 300);
+    }
     // The light/dark button: flip whatever is showing now, and remember it for next time. Where the
     // browser supports view transitions (and motion is welcome), the new theme grows out of the button.
     function toggleTheme(button) {

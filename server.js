@@ -150,7 +150,7 @@ app.get("/events", requireHousehold, async (req, res) => {
         parts = await renderPage(membership);
       } catch (err) {
         if (!isNotFound(err)) throw err;
-        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true }));
+        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true, sticky: true }));
         return res.end();
       }
       if (!closed) for (const html of parts) stream.patchElements(html);
@@ -194,7 +194,7 @@ async function sendTaskList(req, res, { flash, signals } = {}) {
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
   const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, today: today(req) });
   const parts = renderList(list, req.user.id);
-  const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
+  const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
     stream.patchElements(flashHtml);
@@ -380,7 +380,7 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
 async function sendTaskHead(req, res, taskId, { flash, signals } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
   const html = renderTaskHead(req, await getTask(req.actor.householdId, taskId));
-  const flashHtml = flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>';
+  const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     stream.patchElements(html);
     stream.patchElements(flashHtml);
@@ -427,7 +427,7 @@ async function sendChecklist(req, res, taskId, { signals, flash } = {}) {
   const parts = renderChecklist(await checklistView(req.actor.householdId, taskId));
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
-    stream.patchElements(flash ? eta.render("partials/flash", flash) : '<div id="flash" role="status"></div>');
+    stream.patchElements(eta.render("partials/flash", flash ?? {}));
     if (signals) stream.patchSignals(JSON.stringify(signals));
   });
 }

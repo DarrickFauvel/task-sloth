@@ -15,6 +15,6 @@
               data-on:keydown="evt.key === 'Enter' && !evt.shiftKey && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
     <button class="button primary">Add</button>
   </form>
-  <div id="flash" role="status"></div>
+  <%~ include("/partials/flash", {}) %>
   <%~ include("/partials/checklist", it.checklist) %>
 </div>

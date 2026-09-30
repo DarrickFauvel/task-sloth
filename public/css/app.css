@@ -210,6 +210,32 @@ main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom
 #tabs > p > .button { width: 100%; }
 .filter { display: flex; gap: var(--space-xs); align-items: baseline; flex-wrap: wrap; margin: var(--space-xs) 0 0; color: var(--muted); }
 
+/* Toasts: status updates float at the bottom, above the phone's bottom bar, and slide in and out. */
+.toasts {
+  position: fixed; z-index: 3; left: 0; right: 0; bottom: max(var(--space-m), env(safe-area-inset-bottom));
+  display: grid; justify-items: center; padding: 0 var(--space-m); pointer-events: none;
+}
+body:has(.bottom-nav) .toasts { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: var(--space-2xs) var(--space-s); flex-wrap: wrap;
+  width: min(100%, 26rem); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
+  border-radius: var(--radius-lg); background: var(--fg); color: var(--bg); box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.25);
+  font-size: var(--step--1);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@starting-style { .toast { opacity: 0; transform: translateY(1rem); } }
+.toast.is-leaving { opacity: 0; transform: translateY(0.5rem); }
+.toast.is-error { background: var(--danger); color: #fff; }
+.toast-message { flex: 1; min-width: 0; }
+.toast-action {
+  min-height: 2.25rem; padding: 0 var(--space-xs); border: 0; background: none; font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 55%, var(--bg)); text-decoration: none;
+}
+.toast.is-error .toast-action { color: #fff; text-decoration: underline; }
+.toast-close { min-height: 2.25rem; min-width: 2.25rem; padding: 0; border: 0; background: none; color: inherit; opacity: 0.7; font-size: var(--step-1); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* Inline form errors (sign in, sign up, the sort page) keep the old in-place style. */
 .flash:not(:empty) {
   display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-s); align-items: center;
   padding: var(--space-xs) var(--space-s); border-radius: var(--radius); margin: var(--space-xs) 0;

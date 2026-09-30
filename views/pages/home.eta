@@ -40,7 +40,7 @@
       <button class="button primary">Add</button>
     </form>
     <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
-    <div id="flash" role="status"></div>
+    <%~ include("/partials/flash", {}) %>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>
   </div>
 
