@@ -14,6 +14,20 @@ export const VIEWS = {
   done: "Done",
 };
 
+/**
+ * Phone navigation: the bottom bar holds the first three views plus "More", which opens a sheet
+ * with the rest, each described in a few words. (Desktop shows every view as a tab.)
+ */
+export const NAV = {
+  bar: ["inbox", "mine", "all"],
+  more: [
+    { view: "grabs", blurb: "Things nobody has taken yet" },
+    { view: "waiting", blurb: "Needs someone else first" },
+    { view: "someday", blurb: "Ideas for one day" },
+    { view: "done", blurb: "Recently finished" },
+  ],
+};
+
 /** One line under the tab explaining what it's for, written for someone who's never seen the app. */
 export const VIEW_HINTS = {
   inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",

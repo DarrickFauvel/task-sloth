@@ -1,11 +1,30 @@
-<%/* Re-rendered with the list on every change, so the Inbox count stays current. */%>
-<% const l = it.list; %>
+<%/* Re-rendered with the list on every change, so the Inbox count stays current.
+     Desktop shows every view as a tab; phones get the bottom bar (see partials/more-views for "More"). */%>
+<% const l = it.list; const href = (view) => `/?${it.listQueryString({ ...l, view })}`; %>
+<% const current = (view) => (view === l.view ? ' aria-current="page"' : ""); %>
+<% const badge = () => (l.inboxCount ? `<span class="badge">${l.inboxCount}</span>` : ""); %>
+<% const inMore = it.nav.more.some((m) => m.view === l.view); %>
 <div id="tabs">
-  <nav class="tabs">
+  <nav class="tabs" aria-label="Lists">
     <% Object.entries(it.views).forEach(([key, label]) => { %>
-      <a href="/?<%= it.listQueryString({ ...l, view: key }) %>"<%~ key === l.view ? ' aria-current="page"' : '' %>><%= label %><% if (key === "inbox" && l.inboxCount) { %> <span class="badge"><%= l.inboxCount %></span><% } %></a>
+      <a href="<%= href(key) %>"<%~ current(key) %>><%= label %><% if (key === "inbox") { %> <%~ badge() %><% } %></a>
     <% }) %>
   </nav>
+  <nav class="bottom-nav" aria-label="Lists">
+    <% it.nav.bar.forEach((key) => { %>
+      <a href="<%= href(key) %>"<%~ current(key) %>>
+        <span class="nav-icon"><%~ include("/partials/nav-icon", { name: key }) %><% if (key === "inbox") { %><%~ badge() %><% } %></span>
+        <span><%= key === "all" ? "Everyone" : it.views[key] %></span>
+      </a>
+    <% }) %>
+    <button type="button" aria-haspopup="dialog"<%~ inMore ? ' aria-current="page"' : "" %>
+            data-on:click="document.getElementById('more-views').showModal()">
+      <span class="nav-icon"><%~ include("/partials/nav-icon", { name: "more" }) %></span>
+      <span>More</span>
+    </button>
+  </nav>
+  <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>
+  <% if (inMore) { %><h2 class="view-title"><%= it.views[l.view] %></h2><% } %>
   <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
   <% if (l.view === "inbox" && l.inboxCount) { %>
     <p><a class="button primary" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>

@@ -1,0 +1,20 @@
+<%/* The phone bar's "More" sheet: the views that don't fit in the bar, each with a few words on what it's for.
+     It sits outside #tabs so a live update can't close it while it's open. */%>
+<% const l = it.list; %>
+<dialog id="more-views" class="sheet" aria-labelledby="more-views-title" closedby="any"
+        data-on:click="evt.target === el && el.close()">
+  <div class="sheet-body">
+    <h2 id="more-views-title">More lists</h2>
+    <ul class="more-list">
+      <% it.nav.more.forEach(({ view, blurb }) => { %>
+        <li>
+          <a href="/?<%= it.listQueryString({ ...l, view }) %>"<%~ view === l.view ? ' aria-current="page"' : "" %>>
+            <strong><%= it.views[view] %></strong>
+            <span class="hint"><%= blurb %></span>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+    <form method="dialog"><button class="button">Close</button></form>
+  </div>
+</dialog>

@@ -15,6 +15,7 @@
 </header>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
+  <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
   <% const l = it.list; %>
   <div data-signals="{view: '<%= l.view %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: ''}"
@@ -31,7 +32,7 @@
       <summary>Shortcuts you can type</summary>
       <%~ include("/partials/shortcuts") %>
     </details>
-    <%~ include("/partials/tabs", { list: l, views: it.views, listQueryString: it.listQueryString }) %>
+    <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
     <div id="flash" role="status"></div>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>
   </div>
