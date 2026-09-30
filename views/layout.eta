@@ -32,11 +32,16 @@
       const box = button?.getBoundingClientRect();
       const x = box ? box.left + box.width / 2 : innerWidth / 2;
       const y = box ? box.top + box.height / 2 : 0;
-      const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-      document.startViewTransition(apply).ready.then(() => {
+      // Far enough to cover the farthest corner, plus the feathered edge (12rem, see app.css).
+      const feather = 12 * parseFloat(getComputedStyle(root).fontSize);
+      const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + feather;
+      root.style.setProperty("--theme-x", `${x}px`);
+      root.style.setProperty("--theme-y", `${y}px`);
+      const transition = document.startViewTransition(apply);
+      transition.ready.then(() => {
         root.animate(
-          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-          { duration: 500, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)", pseudoElement: "::view-transition-new(root)" },
+          { "--theme-r": ["0px", `${radius}px`] },
+          { duration: 700, easing: "cubic-bezier(0.45, 0, 0.25, 1)", pseudoElement: "::view-transition-new(root)" },
         );
       });
     }
