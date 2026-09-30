@@ -1,11 +1,14 @@
 // The photo viewer (views/partials/photo-viewer.eta). Tapping a link with data-photos opens it:
-//   data-photos="<url>"  a JSON list of the task's photos, [{ full }] (a task row's 📷 count), or
+//   data-photos="<url>"  a JSON list of the task's photos, [{ full, tiny }] (a task row's thumbnail stack), or
 //   data-photos=""        the photos are the page's own [data-photos] links, in order (task page thumbnails).
-// data-index says which photo to start on. Arrows, the arrow keys and swiping move between photos;
-// ×, Esc and tapping outside the photo close it. The opening and each change of photo are animated in CSS.
+// data-index says which photo to start on: on the tapped element inside the link (one thumbnail of a
+// row's stack), else on the link itself. Arrows, the arrow keys, swiping and the thumbnail strip along the
+// bottom move between photos; ×, Esc and tapping outside the photo close it. The opening and each change of
+// photo are animated in CSS.
 const dialog = document.getElementById("photo-viewer");
 const img = dialog.querySelector("img");
 const count = dialog.querySelector(".viewer-count");
+const strip = dialog.querySelector(".viewer-strip");
 let photos = [];
 let index = 0;
 
@@ -14,8 +17,11 @@ document.addEventListener("click", async (e) => {
   if (!link || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
   e.preventDefault();
   const source = link.dataset.photos;
-  const start = Number(link.dataset.index ?? 0);
-  if (!source) return open([...document.querySelectorAll("a[data-photos='']")].map((a) => ({ full: a.href })), start);
+  const start = Number(e.target.closest("[data-index]")?.dataset.index ?? 0);
+  if (!source) {
+    const links = [...document.querySelectorAll("a[data-photos='']")];
+    return open(links.map((a) => ({ full: a.href, tiny: a.querySelector("img")?.src ?? a.href })), start);
+  }
   const res = await fetch(source, { headers: { Accept: "application/json" } }).catch(() => null);
   const list = res?.ok ? (await res.json()).photos : null;
   if (list?.length) open(list, start);
@@ -25,8 +31,28 @@ document.addEventListener("click", async (e) => {
 function open(list, start) {
   photos = list;
   dialog.classList.toggle("is-single", photos.length === 1);
+  strip.replaceChildren(
+    ...photos.map((p, i) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.go = i;
+      button.setAttribute("aria-label", `Photo ${i + 1}`);
+      const thumb = document.createElement("img");
+      thumb.src = p.tiny;
+      thumb.alt = "";
+      button.append(thumb);
+      return button;
+    }),
+  );
   show(start, 0);
   dialog.showModal();
+  markStrip("instant");
+}
+
+/** Highlights the current photo's thumbnail and scrolls the strip to center it. */
+function markStrip(behavior = "smooth") {
+  for (const b of strip.children) b.toggleAttribute("aria-current", Number(b.dataset.go) === index);
+  strip.children[index]?.scrollIntoView({ behavior, block: "nearest", inline: "center" });
 }
 
 /** Shows photo `i` (wrapping around); `direction` (-1, 0 or 1) picks which way it slides in. */
@@ -39,6 +65,7 @@ function show(i, direction) {
   img.classList.remove("from-left", "from-right", "fade-in");
   void img.offsetWidth;
   img.classList.add(direction < 0 ? "from-left" : direction > 0 ? "from-right" : "fade-in");
+  if (dialog.open) markStrip();
   // Fetch the neighbours now so moving to them is instant.
   for (const n of [index + 1, index - 1]) if (photos.length > 1) new Image().src = photos[(n + photos.length) % photos.length].full;
 }
@@ -49,6 +76,8 @@ let swiped = false; // a swipe ends in a click, which mustn't also close the vie
 
 dialog.addEventListener("click", (e) => {
   if (swiped) return void (swiped = false);
+  const go = e.target.closest("[data-go]")?.dataset.go;
+  if (go !== undefined) return void (Number(go) !== index && show(Number(go), Math.sign(Number(go) - index)));
   const action = e.target.closest("[data-viewer]")?.dataset.viewer;
   if (action === "close") dialog.close();
   else if (action === "prev") step(-1);
@@ -66,8 +95,9 @@ dialog.addEventListener("keydown", (e) => {
 let startX = null;
 let startY = null;
 dialog.addEventListener("pointerdown", (e) => {
-  [startX, startY] = [e.clientX, e.clientY];
   swiped = false;
+  // Dragging the strip scrolls it; it doesn't change photo.
+  [startX, startY] = e.target.closest(".viewer-strip") ? [null, null] : [e.clientX, e.clientY];
 });
 dialog.addEventListener("pointerup", (e) => {
   if (startX === null) return;
