@@ -1,13 +1,46 @@
 <!doctype html>
-<html lang="en">
+<%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js. */%>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+  <% if (it.theme) { %>
+    <meta name="theme-color" content="<%= it.theme === 'dark' ? '#171614' : '#fbfaf8' %>">
+  <% } else { %>
+    <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+  <% } %>
   <title><%= it.title ? `${it.title} · Task Sloth` : "Task Sloth" %></title>
   <link rel="stylesheet" href="/css/app.css">
-  <script>document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;</script>
+  <script>
+    document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
+    // The light/dark button: flip whatever is showing now, and remember it for next time. Where the
+    // browser supports view transitions (and motion is welcome), the new theme grows out of the button.
+    function toggleTheme(button) {
+      const root = document.documentElement;
+      const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      const next = dark ? "light" : "dark";
+      const apply = () => {
+        root.dataset.theme = next;
+        document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax`;
+        document.querySelectorAll("meta[name=theme-color]").forEach((m) => {
+          m.removeAttribute("media");
+          m.content = next === "dark" ? "#171614" : "#fbfaf8";
+        });
+      };
+      if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
+      const box = button?.getBoundingClientRect();
+      const x = box ? box.left + box.width / 2 : innerWidth / 2;
+      const y = box ? box.top + box.height / 2 : 0;
+      const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+      document.startViewTransition(apply).ready.then(() => {
+        root.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          { duration: 500, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)", pseudoElement: "::view-transition-new(root)" },
+        );
+      });
+    }
+  </script>
   <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js"></script>
 </head>
 <body>

@@ -1,0 +1,61 @@
+<% layout("/layout", { title: "Settings" }) %>
+<%/* Profile, appearance, household and account. Plain forms that post and come back here. */%>
+<% const u = it.user; %>
+<a class="back" href="/">← All tasks</a>
+<h1>Settings</h1>
+<% if (it.saved) { %><div class="flash" role="status"><span><%= it.saved %></span></div><% } %>
+<% if (it.error) { %><div class="flash is-error" role="alert"><span><%= it.error %></span></div><% } %>
+
+<div class="settings">
+  <section class="panel">
+    <h2><span aria-hidden="true">👤</span> Profile</h2>
+    <form method="post" action="/settings/profile" class="stack">
+      <div class="profile-preview"><%~ include("/partials/avatar", { user: u, size: "lg" }) %></div>
+      <label>Your name
+        <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name">
+        <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one.</small>
+      </label>
+      <fieldset class="pills swatches">
+        <legend>Your color</legend>
+        <% it.colors.forEach((c) => { %>
+          <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" aria-label="<%= c %>"></span></label>
+        <% }) %>
+      </fieldset>
+      <button class="button primary">Save profile</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2><span aria-hidden="true">🌓</span> Appearance</h2>
+    <form method="post" action="/settings/theme" class="pills" aria-label="Theme">
+      <% [["system", "Match my device"], ["light", "Light"], ["dark", "Dark"]].forEach(([value, label]) => { %>
+        <button name="theme" value="<%= value %>" class="pill<%= (it.theme ?? 'system') === value ? ' is-on' : '' %>"><%= label %></button>
+      <% }) %>
+    </form>
+    <p class="hint">The ☀️/🌙 button at the top switches too.</p>
+  </section>
+
+  <% if (it.membership) { const m = it.membership; %>
+    <section class="panel">
+      <h2><span aria-hidden="true">🏠</span> <%= m.household.name %></h2>
+      <ul class="members">
+        <% m.members.forEach((p) => { %>
+          <li><%~ include("/partials/avatar", { user: p }) %> <%= p.name %><%= p.id === u.id ? " (you)" : "" %></li>
+        <% }) %>
+      </ul>
+      <div id="invite">
+        <button class="button" data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="panel">
+    <h2><span aria-hidden="true">🔑</span> Account</h2>
+    <dl class="account">
+      <% if (u.username) { %><dt>Username</dt><dd>@<%= u.username %></dd><% } %>
+      <dt>Email</dt><dd><%= u.email %></dd>
+    </dl>
+    <p class="hint">Changing your password isn't available yet.</p>
+    <form method="post" action="/logout"><button class="button">Sign out</button></form>
+  </section>
+</div>

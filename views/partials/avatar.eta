@@ -1,0 +1,4 @@
+<%/* A member's avatar: their Google photo if they have one, otherwise their initial on their color.
+     it.size: "lg" for the bigger one at the top of the account menu. */%>
+<% const u = it.user; const initial = String(u.name ?? "?").trim().charAt(0).toUpperCase() || "?"; %>
+<span class="avatar<%= it.size === 'lg' ? ' is-lg' : '' %>" style="--c: <%= u.color %>" aria-hidden="true"><% if (u.avatar_url) { %><img src="<%= u.avatar_url %>" alt="" referrerpolicy="no-referrer"><% } else { %><%= initial %><% } %></span>

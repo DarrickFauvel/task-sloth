@@ -1,18 +1,5 @@
 <% layout("/layout") %>
-<header class="bar">
-  <h1><a class="brand" href="/">Task Sloth</a></h1>
-  <div class="bar-actions">
-    <button type="button" class="icon-button" aria-label="Show a QR code to open this app on another phone" aria-haspopup="dialog"
-            data-on:click="document.getElementById('qr-dialog').showModal()">
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-        <path d="M14 14h3v3M21 14v.01M14 21h3M21 18v3M17 21h.01"/>
-      </svg>
-    </button>
-    <a href="/help"><span class="narrow-only">Help</span><span class="wide-only">How it works</span></a>
-    <form method="post" action="/logout"><button class="link">Sign out</button></form>
-  </div>
-</header>
+<%~ include("/partials/app-header", { user: it.user, membership: it.membership }) %>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
@@ -57,17 +44,6 @@
     <%~ include("/partials/task-list", { ...l, userId: it.user.id }) %>
   </div>
 
-  <details class="household">
-    <summary><%= it.membership.household.name %> · <%= it.membership.members.length %> member<%= it.membership.members.length === 1 ? "" : "s" %></summary>
-    <ul class="members">
-      <% it.membership.members.forEach((m) => { %>
-        <li><span class="dot" style="background: <%= m.color %>"></span><%= m.name %><%= m.id === it.user.id ? " (you)" : "" %></li>
-      <% }) %>
-    </ul>
-    <div id="invite">
-      <button data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
-    </div>
-  </details>
 <% } else { %>
   <section class="panel">
     <h2>Welcome, <%= it.user.name %></h2>

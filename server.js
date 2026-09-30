@@ -9,7 +9,7 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { createPasswordUser, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { createPasswordUser, MEMBER_COLORS, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
@@ -43,7 +43,9 @@ const appQr = {
 };
 
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
-const render = (res, name, data = {}, status = 200) => sendHtml(res, eta.render(name, data), status);
+// Every page gets the saved theme (see the layout); pages can still pass their own data.
+const render = (res, name, data = {}, status = 200) =>
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -82,6 +84,7 @@ app.use(async (req, res, next) => {
   req.user = await loadSession(req.cookies);
   req.membership = req.user ? await getHouseholdForUser(req.user.id) : null;
   res.locals.user = req.user;
+  res.locals.theme = ["light", "dark"].includes(req.cookies.theme) ? req.cookies.theme : null;
   res.locals.config = config;
   next();
 });
@@ -469,6 +472,42 @@ app.post("/items/:id/rename", requireHousehold, async (req, res) => {
   const { taskId, movedTo } = await renameItem(req.actor, req.params.id, req.body.text ?? req.body.itemText);
   const flash = movedTo ? { message: `Moved to ${movedTo}` } : undefined;
   await sendChecklist(req, res, taskId, { flash, signals: { itemRenaming: "", itemText: "" } });
+});
+
+// --- Settings -------------------------------------------------------------------------
+
+const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
+  render(res, "pages/settings", {
+    user: req.user, // loaded fresh each request, so a just-saved name shows
+    membership: req.membership,
+    colors: MEMBER_COLORS,
+    saved,
+    error,
+  }, status);
+
+app.get("/settings", requireUser, (req, res) =>
+  renderSettings(req, res, { saved: { profile: "Profile saved", theme: "Appearance saved" }[req.query.saved] }),
+);
+
+app.post("/settings/profile", requireUser, async (req, res) => {
+  try {
+    await updateProfile(req.user.id, { name: req.body.name, color: req.body.color });
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 400) return renderSettings(req, res, { error: err.message, status: 400 });
+    throw err;
+  }
+  // Housemates' open pages show the new name and color.
+  if (req.membership) changed(req.membership.household.id);
+  redirect(res, "/settings?saved=profile");
+});
+
+// Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.
+app.post("/settings/theme", requireUser, (req, res) => {
+  const theme = String(req.body.theme ?? "");
+  res.append("Set-Cookie", ["light", "dark"].includes(theme)
+    ? `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
+    : "theme=; Path=/; Max-Age=0; SameSite=Lax");
+  redirect(res, "/settings?saved=theme");
 });
 
 // --- Household ------------------------------------------------------------------------

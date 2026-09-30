@@ -4,6 +4,17 @@ import { HttpError } from "../lib/http.js";
 
 export const getUser = (id) => db.get("SELECT * FROM users WHERE id = ?", [id]);
 
+/** Colors a member can pick for their avatar and the dot beside their tasks. */
+export const MEMBER_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b", "#3a86ff", "#8d6e63", "#7cb342"];
+
+/** Updates the name housemates see (and type after @) and the member's color. */
+export async function updateProfile(userId, { name, color }) {
+  name = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (!name) throw new HttpError(400, "Your name can't be empty");
+  if (!MEMBER_COLORS.includes(color)) throw new HttpError(400, "Pick one of the colors");
+  await db.run("UPDATE users SET name = ?, color = ? WHERE id = ?", [name, color, userId]);
+}
+
 /** Creates or updates a user from their Google profile and stores their (encrypted) tokens. */
 export async function upsertGoogleUser(profile, tokens) {
   const existing = await db.get("SELECT * FROM users WHERE google_sub = ?", [profile.sub]);
