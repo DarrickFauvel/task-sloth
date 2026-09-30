@@ -10,6 +10,9 @@ const REPEAT_PRESETS = [
   { unit: "month", every: 1 },
 ];
 
+/** The "Blocked by" choice that means "a new task, named in the field below" (task ids are 16 characters, so it can't clash). */
+export const NEW_BLOCKER = "new";
+
 const LIST_OPTIONS = [
   { value: "inbox", label: "Inbox" },
   { value: "todo", label: "To do" },
@@ -59,6 +62,11 @@ export function editInput(body) {
     contextName: String(body.context ?? "").replace(/\s+/g, " ").trim(),
     tags: parseTagList(body.tags),
     ...(body.list ? { list: body.list, waitingOn: body.waitingOn ?? "" } : {}),
-    ...("waitingTaskId" in body ? { waitingTaskId: body.waitingTaskId || null } : {}),
+    // "➕ New task…" sends newBlocker (the name as typed) instead; the route creates it and blocks on it.
+    ...("waitingTaskId" in body
+      ? body.waitingTaskId === NEW_BLOCKER
+        ? { newBlocker: String(body.newBlocker ?? "").trim() }
+        : { waitingTaskId: body.waitingTaskId || null }
+      : {}),
   };
 }

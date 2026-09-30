@@ -398,8 +398,21 @@ app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
-  await updateTask(req.actor, req.params.id, await resolveNames(req.actor.householdId, editInput(req.body)));
-  await sendTaskHead(req, res, req.params.id, { signals: { editing: false } });
+  const { householdId } = req.actor;
+  const { newBlocker, ...input } = editInput(req.body);
+  let flash;
+  // "Blocked by: ➕ New task…": create the task that has to happen first (shortcuts work, it lands on
+  // To do, in this task's project unless a #project was typed), then block this one on it.
+  if (newBlocker !== undefined) {
+    if (!newBlocker) throw new HttpError(400, "Name the task that has to happen first");
+    const task = await getTask(householdId, req.params.id);
+    const parsed = parseQuickAdd(newBlocker, await quickAddContext(req));
+    const blocker = await resolveNames(householdId, { projectId: task.project_id, ...parsed, list: "todo" });
+    input.waitingTaskId = await createTask(req.actor, blocker);
+    flash = { message: `Added “${blocker.title}”. This one waits on it.` };
+  }
+  await updateTask(req.actor, req.params.id, await resolveNames(householdId, input));
+  await sendTaskHead(req, res, req.params.id, { flash, signals: { editing: false } });
 });
 
 /** The task page's live checklist parts: its header (title, count, list/shopping switch) and the items. */
