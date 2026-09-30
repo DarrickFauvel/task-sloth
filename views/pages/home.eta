@@ -21,7 +21,7 @@
           data-on:click="evt.target === el && el.close()">
     <div class="sheet-body">
       <h2 id="shortcuts-title">Shortcuts you can type</h2>
-      <p class="hint">Tap one to add it to your task, or type it yourself anywhere in the text.</p>
+      <p class="hint">Tap one to add it to your task, or type it yourself.</p>
       <%~ include("/partials/shortcuts", { ...it.shortcuts, insert: true }) %>
       <form method="dialog"><button class="button">Close</button></form>
     </div>

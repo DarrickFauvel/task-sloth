@@ -19,7 +19,7 @@ import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
-import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutRows } from "./src/web/shortcuts.js";
+import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
@@ -311,7 +311,7 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
 
 /** The shortcuts cheat sheet, with the signed-in user's housemates as the @person examples. */
 const shortcutsView = (req) => ({
-  rows: shortcutRows((req.membership?.members ?? []).filter((m) => m.id !== req.user.id).map((m) => m.name)),
+  groups: shortcutGroups((req.membership?.members ?? []).filter((m) => m.id !== req.user.id).map((m) => m.name)),
   example: SHORTCUT_EXAMPLE,
   insertJs: INSERT_TOKEN,
 });

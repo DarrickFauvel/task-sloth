@@ -1,9 +1,11 @@
 /**
- * The quick-add cheat sheet (views/partials/shortcuts.eta). `people` are the other household
- * members' names, so the @person example is someone real rather than a made-up "@sam".
+ * The quick-add cheat sheet (views/partials/shortcuts.eta), grouped by the questions you ask
+ * yourself when adding a task, most common first. `people` are the other household members'
+ * names, so the @person example is someone real rather than a made-up "@sam".
  * @param {string[]} people
+ * @returns {{ icon: string, title: string, note?: string, rows: { label?: string, tokens: string[] }[] }[]}
  */
-export function shortcutRows(people = []) {
+export function shortcutGroups(people = []) {
   // The leading run of characters an @name can use (see public/js/lib/quick-add.js): "Mary Ann" -> "@mary".
   const handles = people
     .map((n) => String(n).trim().toLowerCase().match(/^[\p{L}\p{N}_.'-]+/u)?.[0])
@@ -11,14 +13,24 @@ export function shortcutRows(people = []) {
     .slice(0, 2)
     .map((h) => `@${h}`);
   return [
-    { tokens: ["fri", "tomorrow", "oct 12", "in 3 days"], what: "When it's due" },
-    { tokens: ["at 3pm", "5:30pm"], what: "What time" },
-    { tokens: ["every tue", "daily", "every 2 weeks"], what: "Repeats" },
-    { tokens: ["@me", ...(handles.length ? handles : ["@sam"]), "@anyone"], what: "Who does it (a name from your household)" },
-    { tokens: ["@Target", "@phone", '@"Home Depot"'], what: "Where or how you'll do it (any @word that isn't a person)" },
-    { tokens: ["+errand", "+kids"], what: "Tags, to group things your own way" },
-    { tokens: ["#Birthday"], what: "Part of a bigger project" },
-    { tokens: ["!!", "!low"], what: "High or low priority" },
+    {
+      icon: "📅", title: "When",
+      rows: [
+        { label: "Day", tokens: ["today", "tomorrow", "fri", "oct 12"] },
+        { label: "Time", tokens: ["at 3pm", "5:30pm"] },
+        { label: "Repeats", tokens: ["daily", "every tue", "every 2 weeks"] },
+      ],
+    },
+    { icon: "👤", title: "Who", rows: [{ tokens: ["@me", ...(handles.length ? handles : ["@sam"]), "@anyone"] }] },
+    { icon: "📍", title: "Where / how", note: "any other @word", rows: [{ tokens: ["@Target", "@phone", '@"Home Depot"'] }] },
+    {
+      icon: "🏷️", title: "Group it",
+      rows: [
+        { label: "Tag", tokens: ["+errand", "+kids"] },
+        { label: "Project", tokens: ["#Birthday"] },
+      ],
+    },
+    { icon: "❗", title: "Priority", note: "!! is high, !low is low", rows: [{ tokens: ["!!", "!low"] }] },
   ];
 }
 

@@ -1,30 +1,27 @@
-<%/* The quick-add cheat sheet (rows from src/web/shortcuts.js). In the home page's drawer (it.insert)
+<%/* The quick-add cheat sheet, grouped (see src/web/shortcuts.js). In the home page's drawer (it.insert)
      each example is a button that adds it to the task being typed; on the How it works page it's plain text.
      Tokens can include members' names, so they are only ever output with escaping. */%>
-<% if (it.insert) { %>
-  <%/* The drawer: what it's for first, then the examples to tap. */%>
-  <div class="shortcut-picker">
-    <% it.rows.forEach((r) => { %>
-      <div class="shortcut-row">
-        <p><%= r.what %></p>
-        <div class="tokens">
-          <% r.tokens.forEach((t) => { %><button type="button" class="token" data-token="<%= t %>" data-on:click="<%= it.insertJs %>"><%= t %></button><% }) %>
+<div class="shortcut-groups">
+  <% it.groups.forEach((g) => { %>
+    <section class="shortcut-group">
+      <h3><span aria-hidden="true"><%= g.icon %></span> <%= g.title %><% if (g.note) { %> <span class="hint">· <%= g.note %></span><% } %></h3>
+      <% g.rows.forEach((r) => { %>
+        <div class="shortcut-row<%= r.label ? '' : ' no-label' %>">
+          <% if (r.label) { %><span class="shortcut-label"><%= r.label %></span><% } %>
+          <span class="tokens">
+            <% r.tokens.forEach((t) => { %>
+              <% if (it.insert) { %><button type="button" class="token" data-token="<%= t %>" data-on:click="<%= it.insertJs %>"><%= t %></button><% } else { %><code class="token"><%= t %></code><% } %>
+            <% }) %>
+          </span>
         </div>
-      </div>
-    <% }) %>
-  </div>
-<% } else { %>
-  <dl class="shortcuts">
-    <% it.rows.forEach((r) => { %>
-      <dt><% r.tokens.forEach((t, i) => { %><%= i ? ", " : "" %><code><%= t %></code><% }) %></dt>
-      <dd><%= r.what %></dd>
-    <% }) %>
-  </dl>
-<% } %>
+      <% }) %>
+    </section>
+  <% }) %>
+</div>
 <% if (it.insert) { %>
-  <p class="hint">Or try a whole one:
+  <p class="hint shortcut-example">Or try a whole one:
     <button type="button" class="token" data-token="<%= it.example %>" data-on:click="<%= it.insertJs %>"><%= it.example %></button>
   </p>
 <% } else { %>
-  <p class="hint">Example: <code><%= it.example %></code>. Anything with none of these goes to your Inbox to sort later.</p>
+  <p class="hint shortcut-example">Example: <code><%= it.example %></code>. Anything with none of these goes to your Inbox to sort later.</p>
 <% } %>
