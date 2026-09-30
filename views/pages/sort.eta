@@ -1,67 +1,99 @@
 <% layout("/layout", { title: "Sort my inbox" }) %>
-<p><a href="/?view=inbox">← Inbox</a></p>
 <% if (!it.task) { %>
+  <p><a href="/?view=inbox">← Inbox</a></p>
   <section class="sort-done">
     <% if (it.skipped) { %>
+      <p class="sort-done-icon" aria-hidden="true">👍</p>
       <h1>That's the lot</h1>
-      <p>You skipped <%= it.left %> — they're still in your inbox.</p>
-      <p><a class="button" href="/sort">Go through the skipped ones</a> <a href="/">Back to my tasks</a></p>
+      <p>You skipped <%= it.left %>. <%= it.left === 1 ? "It's" : "They're" %> still in your inbox for later.</p>
+      <a class="button primary" href="/sort">Go through the skipped ones</a>
+      <a href="/">Back to my tasks</a>
     <% } else { %>
-      <h1>All sorted 🎉</h1>
+      <p class="sort-done-icon" aria-hidden="true">🎉</p>
+      <h1>All sorted</h1>
       <p>Your inbox is empty. Everything is where it belongs.</p>
-      <p><a class="button" href="/">Back to my tasks</a></p>
+      <a class="button primary" href="/">Back to my tasks</a>
     <% } %>
   </section>
-<% } else { const t = it.task; %>
-  <h1 class="sort-title">What is this?</h1>
-  <p class="hint"><%= it.left %> in your inbox. Pick one answer and the next one comes up.</p>
-  <% if (it.error) { %><div class="flash is-error" role="alert"><span><%= it.error %></span></div><% } %>
-  <form class="sort" method="post" action="/sort/<%= t.id %>">
-    <label>Task <span class="hint">(fix the wording if you like)</span>
-      <input name="title" value="<%= t.title %>" maxlength="300" autocomplete="off">
-    </label>
-    <% if (t.notes) { %><p class="notes"><%= t.notes %></p><% } %>
-
-    <%/* Each choice is a submit button; the fields beside it are only used by that choice.
-         This disabled first button is the form's default, so pressing Enter in a field does nothing
-         (otherwise Enter would pick "Do it now" and tick the task off). */%>
+<% } else { const t = it.task; const c = Object.fromEntries(it.choices.map((x) => [x.value, x])); %>
+  <%/* One question at a time: the task, then six answers. The three that need a detail (To do, On a date,
+       Waiting on) open a small follow-up step in place of the tiles; the others save straight away.
+       It's one plain form: every answer is a submit button, and Datastar only adds the follow-up steps. */%>
+  <nav class="sort-top">
+    <a href="/?view=inbox">← Inbox</a>
+    <span class="sort-left">📥 <%= it.left %> left to sort</span>
+    <a href="/sort?after=<%= t.id %>">Skip</a>
+  </nav>
+  <form class="sort" method="post" action="/sort/<%= t.id %>" data-signals="{pick: '<%= it.pick %>', when: ''}">
+    <%/* Disabled default button: Enter in a field never picks an answer by accident. */%>
     <button type="submit" disabled hidden aria-hidden="true"></button>
-    <% const c = Object.fromEntries(it.choices.map((x) => [x.value, x])); %>
-    <% const choice = (x) => `<button name="choice" value="${x.value}"><span aria-hidden="true">${x.icon}</span> ${x.label}</button>`; %>
-    <div class="choice">
-      <%~ choice(c.now) %><p class="hint"><%= c.now.hint %></p>
-    </div>
-    <div class="choice">
-      <%~ choice(c.todo) %><p class="hint"><%= c.todo.hint %></p>
-      <div class="row">
-        <label>Where / how <input name="context" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone"></label>
-        <label>Who
-          <select name="assigneeId">
-            <% it.members.forEach((m) => { %>
-              <option value="<%= m.id %>"<%~ m.id === it.userId ? " selected" : "" %>><%= m.id === it.userId ? "Me" : m.name %></option>
-            <% }) %>
-            <option value="">Anyone (up for grabs)</option>
-          </select>
-        </label>
+
+    <section class="sort-card">
+      <label for="sort-title" class="hint">Your task · tap to change the wording</label>
+      <input id="sort-title" class="sort-card-title" name="title" value="<%= t.title %>" maxlength="300" autocomplete="off">
+      <% if (t.notes) { %><p class="notes"><%= t.notes %></p><% } %>
+    </section>
+
+    <% if (it.error) { %><div class="flash is-error" role="alert"><span><%= it.error %></span></div><% } %>
+
+    <div data-show="$pick === ''"<%~ it.pick ? ' style="display: none"' : '' %>>
+      <h1 class="sort-question">What is this?</h1>
+      <div class="sort-tiles">
+        <% it.choices.forEach((x) => { const later = it.needsDetails.includes(x.value); %>
+          <button name="choice" value="<%= x.value %>" class="sort-tile<%= x.value === 'delete' ? ' is-delete' : '' %>"
+                  <%~ later ? `data-on:click__prevent="$pick = '${x.value}'"` : '' %>>
+            <span class="tile-icon" aria-hidden="true"><%= x.icon %></span>
+            <strong><%= x.label %></strong>
+            <span class="hint"><%= x.short %></span>
+          </button>
+        <% }) %>
       </div>
+    </div>
+
+    <%/* Follow-up steps. Enter in a field saves that step (requestSubmit with its button). */%>
+    <section class="sort-step" data-show="$pick === 'todo'"<%~ it.pick === 'todo' ? '' : ' style="display: none"' %>>
+      <h2><span aria-hidden="true"><%= c.todo.icon %></span> <%= c.todo.label %></h2>
+      <p class="hint">Both optional.</p>
+      <label>Where / how
+        <input name="context" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone"
+               data-on:keydown="evt.key === 'Enter' && (evt.preventDefault(), el.form.requestSubmit(document.getElementById('save-todo')))">
+      </label>
       <datalist id="contexts">
         <% it.contexts.forEach((x) => { %><option value="<%= x.name %>"></option><% }) %>
       </datalist>
-    </div>
-    <div class="choice">
-      <%~ choice(c.date) %><p class="hint"><%= c.date.hint %></p>
-      <label>Date <input type="date" name="dueDate"></label>
-    </div>
-    <div class="choice">
-      <%~ choice(c.waiting) %><p class="hint"><%= c.waiting.hint %></p>
-      <label>Waiting on <input name="waitingOn" maxlength="200" autocomplete="off" placeholder="e.g. the plumber, a reply from Mom"></label>
-    </div>
-    <div class="choice">
-      <%~ choice(c.someday) %><p class="hint"><%= c.someday.hint %></p>
-    </div>
-    <div class="choice">
-      <%~ choice(c.delete) %><p class="hint"><%= c.delete.hint %></p>
-    </div>
+      <fieldset class="who">
+        <legend>Who</legend>
+        <% it.members.forEach((m) => { %>
+          <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>"<%~ m.id === it.userId ? " checked" : "" %>><span><%= m.id === it.userId ? "Me" : m.name %></span></label>
+        <% }) %>
+        <label class="pill"><input type="radio" name="assigneeId" value=""><span>Anyone</span></label>
+      </fieldset>
+      <button id="save-todo" name="choice" value="todo" class="button primary">Add to To do</button>
+      <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
+    </section>
+
+    <section class="sort-step" data-show="$pick === 'date'"<%~ it.pick === 'date' ? '' : ' style="display: none"' %>>
+      <h2><span aria-hidden="true"><%= c.date.icon %></span> <%= c.date.label %></h2>
+      <div class="pills" role="group" aria-label="Quick dates">
+        <% it.quickDates.forEach((d) => { %>
+          <button type="button" class="pill" data-class:is-on="$when === '<%= d.date %>'" data-on:click="$when = '<%= d.date %>'"><%= d.label %></button>
+        <% }) %>
+      </div>
+      <label>Or pick a date <input type="date" name="dueDate" data-bind:when></label>
+      <button id="save-date" name="choice" value="date" class="button primary" data-attr:disabled="!$when">Schedule it</button>
+      <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
+    </section>
+
+    <section class="sort-step" data-show="$pick === 'waiting'"<%~ it.pick === 'waiting' ? '' : ' style="display: none"' %>
+             data-effect="$pick === 'waiting' && setTimeout(() => document.getElementById('waiting-on').focus())">
+      <h2><span aria-hidden="true"><%= c.waiting.icon %></span> <%= c.waiting.label %></h2>
+      <label>Who or what?
+        <input id="waiting-on" name="waitingOn" maxlength="200" autocomplete="off" placeholder="e.g. the plumber, a reply from Mom"
+               data-on:keydown="evt.key === 'Enter' && (evt.preventDefault(), el.form.requestSubmit(document.getElementById('save-waiting')))">
+      </label>
+      <button id="save-waiting" name="choice" value="waiting" class="button primary">Put on Waiting</button>
+      <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
+    </section>
   </form>
-  <p class="actions"><a href="/sort?after=<%= t.id %>">Skip for now</a> · <a href="/tasks/<%= t.id %>">Open the full task</a></p>
+  <p class="sort-footer"><a href="/tasks/<%= t.id %>">Open the full task</a></p>
 <% } %>

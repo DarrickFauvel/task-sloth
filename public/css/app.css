@@ -225,11 +225,59 @@ a.task-title { color: inherit; text-decoration: none; }
 
 /* --- Sort page -------------------------------------------------------------------------- */
 
-.sort-title { margin: var(--space-xs) 0 0; }
-.sort { display: grid; gap: var(--space-s); }
-.choice { display: grid; gap: var(--space-xs); padding: var(--space-s); border: 1px solid var(--line); border-radius: var(--radius); }
-.choice > button { width: 100%; justify-content: flex-start; font-weight: 600; }
-.choice .hint { margin: 0; }
+/* One question at a time: the task in a card, "What is this?" as tiles, then a small follow-up
+   step for the answers that need a detail. */
+.sort-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-s); font-size: var(--step--1); }
+.sort-top a { padding: var(--space-xs) 0; }
+.sort-left { color: var(--muted); }
+.sort { display: grid; gap: var(--space-m); margin-top: var(--space-s); }
+
+.sort-card {
+  display: grid; gap: var(--space-2xs); padding: var(--space-m); border-radius: calc(var(--radius) * 1.5);
+  background: color-mix(in srgb, var(--accent) 8%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.sort-card label { font-size: var(--step--2); }
+.sort-card-title {
+  min-height: 0; padding: 0.1rem 0; border: 0; border-bottom: 1px dashed transparent; border-radius: 0;
+  font-size: var(--step-2); font-weight: 650; line-height: 1.25; background: none;
+}
+.sort-card-title:focus { outline: none; border-bottom-color: var(--accent); }
+.sort-card .notes { margin: 0; font-size: var(--step--1); }
+
+.sort-question { margin: 0 0 var(--space-s); font-size: var(--step-2); }
+.sort-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-xs); }
+.sort-tile {
+  display: grid; justify-content: stretch; justify-items: start; align-content: start; gap: 0.15rem; min-height: 6.5rem;
+  padding: var(--space-s); text-align: left; border-radius: var(--radius); background: var(--bg);
+}
+.sort-tile strong { line-height: 1.25; }
+.sort-tile .hint { font-size: var(--step--2); line-height: 1.35; }
+.sort-tile.is-delete strong { color: var(--danger); }
+@media (hover: hover) { .sort-tile:hover { border-color: var(--accent); } }
+
+.sort-step { display: grid; gap: var(--space-s); padding: var(--space-m); border: 1px solid var(--line); border-radius: calc(var(--radius) * 1.5); }
+.sort-step h2 { margin: 0; font-size: var(--step-1); }
+.sort-step .hint { margin: -0.4rem 0 0; }
+.sort-step > .link { justify-self: start; }
+.sort-step .button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Pill chips: radio buttons for Who, buttons for the quick dates. */
+.pills, fieldset.who { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+fieldset.who { margin: 0; padding: 0; border: 0; }
+fieldset.who legend { padding: 0; margin-bottom: var(--space-2xs); }
+label.pill { position: relative; display: inline-flex; }
+.pill input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+label.pill span, button.pill {
+  display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-s);
+  border: 1px solid var(--line); border-radius: 2rem; cursor: pointer; background: none;
+}
+.pill input:checked + span, button.pill.is-on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.sort-footer { text-align: center; font-size: var(--step--1); margin-top: var(--space-m); }
+.sort-done { display: grid; justify-items: center; gap: var(--space-s); text-align: center; padding: var(--space-l) 0; }
+.sort-done h1 { margin: 0; }
+.sort-done-icon { font-size: 3rem; margin: 0; line-height: 1; }
 
 /* --- Household, help ---------------------------------------------------------------------- */
 
@@ -296,7 +344,7 @@ a.task-title { color: inherit; text-decoration: none; }
   #tabs > p > .button { width: auto; }
   .choice-tiles { grid-template-columns: repeat(3, 1fr); }
   .help-footer .button { width: auto; min-width: 12rem; }
-  .choice > button { width: auto; justify-self: start; }
+  .sort-tiles { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (min-width: 48rem) {

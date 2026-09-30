@@ -18,7 +18,7 @@ import { addItems, autoCategorize, clearChecked, deleteItem, setItemChecked, unc
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
-import { SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
@@ -262,7 +262,7 @@ app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
 // --- Sorting the inbox ----------------------------------------------------------------
 // A plain HTML form, one task at a time: each answer saves and loads the next task.
 
-async function renderSortPage(req, res, { taskId, after, error, status = 200 } = {}) {
+async function renderSortPage(req, res, { taskId, after, error, pick = "", status = 200 } = {}) {
   const { householdId } = req.actor;
   let task = null;
   if (taskId) {
@@ -276,6 +276,9 @@ async function renderSortPage(req, res, { taskId, after, error, status = 200 } =
     left: next.left,
     skipped: Boolean(after) && !task && next.left > 0,
     choices: SORT_CHOICES,
+    needsDetails: NEEDS_DETAILS,
+    pick: NEEDS_DETAILS.includes(pick) ? pick : "",
+    quickDates: quickDates(today(req)),
     members: req.membership.members,
     contexts: await listContexts(householdId),
     userId: req.user.id,
@@ -296,7 +299,7 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
   try {
     decision = sortDecision(req.body);
   } catch (err) {
-    if (err instanceof HttpError && err.status === 400) return renderSortPage(req, res, { taskId: task.id, error: err.message, status: 400 });
+    if (err instanceof HttpError && err.status === 400) return renderSortPage(req, res, { taskId: task.id, error: err.message, pick: req.body.choice, status: 400 });
     throw err;
   }
   if (decision.action === "delete") await deleteTask(req.actor, task.id);

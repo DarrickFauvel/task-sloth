@@ -1,5 +1,5 @@
 import { HttpError } from "../lib/http.js";
-import { isValidDate } from "../../public/js/lib/dates.js";
+import { addDays, isValidDate, nextWeekday, relativeLabel } from "../../public/js/lib/dates.js";
 
 /**
  * The answers to "What is this?" on the sort page, in the order they're shown.
@@ -13,6 +13,24 @@ export const SORT_CHOICES = [
   { value: "someday", icon: "💭", label: "Maybe later", hint: "Not now, but you don't want to forget it.", short: "Not now, but don't forget it." },
   { value: "delete", icon: "🗑", label: "Delete", hint: "Not needed after all.", short: "Not needed after all." },
 ];
+
+/** Which answers need a follow-up step (a detail to fill in) before they're saved. */
+export const NEEDS_DETAILS = ["todo", "date", "waiting"];
+
+/** One-tap dates for "On a date": today, tomorrow, the coming Saturday and Monday, a week out. */
+export function quickDates(today) {
+  const dates = [
+    [today, "Today"],
+    [addDays(today, 1), "Tomorrow"],
+    [nextWeekday(today, 6), null],
+    [nextWeekday(today, 1), null],
+    [addDays(today, 7), "In a week"],
+  ];
+  const seen = new Set();
+  return dates
+    .filter(([date]) => !seen.has(date) && seen.add(date))
+    .map(([date, label]) => ({ date, label: label ?? relativeLabel(date, today) }));
+}
 
 /**
  * Turns the sort form into what should happen to the task.
@@ -32,7 +50,7 @@ export function sortDecision(body) {
         input: { ...base, list: "todo", assigneeId: body.assigneeId || null, contextName: String(body.context ?? "").replace(/\s+/g, " ").trim() },
       };
     case "date":
-      if (!isValidDate(body.dueDate)) throw new HttpError(400, "Pick a date first, then tap “On a date”.");
+      if (!isValidDate(body.dueDate)) throw new HttpError(400, "Pick a date first.");
       return { action: "update", input: { ...base, list: "todo", dueDate: body.dueDate } };
     case "waiting":
       return { action: "update", input: { ...base, list: "waiting", waitingOn: body.waitingOn ?? "" } };
