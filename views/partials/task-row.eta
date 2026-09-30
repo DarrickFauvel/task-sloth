@@ -5,18 +5,21 @@
 <li class="task<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %><%= t.blockedBy && !done ? ' is-blocked' : '' %>" id="task-<%= t.id %>">
   <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>')">
     <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
-    <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><%= done ? "✓" : "" %></button>
+    <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><span aria-hidden="true">✓</span></button>
   </form>
   <div class="task-body" data-show="!(<%= renaming %>)">
-    <a class="task-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
+    <a class="task-title" href="/tasks/<%= t.id %>"><span><%= t.title %></span></a>
     <span class="meta">
-      <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
+      <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
       <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
       <% if (t.blockedBy && !done) { %><span class="blocked" title="Blocked until this is done">⏳ after “<%= t.blockedBy %>”</span><% } %>
       <% if (t.waitingLabel) { %><span title="Waiting on">⏳ <%= t.waitingLabel %></span><% } %>
       <% if (t.blocking.length && !done) { %><span title="Waiting on this">🔗 holding up <%= t.blocking.length %></span><% } %>
       <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
       <%~ include("/partials/context-tags", { t }) %>
+      <% t.phones.forEach((phone) => { /* the title is already a link, so the number gets its own */ %>
+        <a class="chip phone" href="<%= phone.tel %>" title="Call <%= phone.text %>">📞 <%= t.phones.length > 1 ? phone.text : "Call" %></a>
+      <% }) %>
       <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
       <% if (t.photoIds.length) { /* up to 3 overlapping thumbnails (+ how many more); opens the photo viewer, or the task page without script */ %>
         <% const n = Number(t.photo_count); %>
@@ -37,7 +40,7 @@
         </form>
       <% } %>
       <% if (done && it.view !== "done") { /* finished tasks linger a few minutes; this clears one now */ %>
-        <form method="post" action="/tasks/<%= t.id %>/hide" data-on:submit="@post('/tasks/<%= t.id %>/hide')" class="inline">
+        <form method="post" action="/tasks/<%= t.id %>/hide" data-on:submit="leaveThen(el.closest('li'), () => @post('/tasks/<%= t.id %>/hide'))" class="inline">
           <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
           <button class="link" title="Take it off this list now. It's still in Done.">Hide</button>
         </form>

@@ -1,0 +1,14 @@
+<%/* The "done today" badge in the header (src/web/done-today.js), re-rendered with the list on every change.
+     The emoji's id changes with the count, and the cheer's with the task just finished, so each is a new
+     element exactly when it should play: the emoji pops, and the cheer opens the badge up for a moment. */%>
+<% const d = it; %>
+<a id="done-today" class="done-badge<%= d.count ? '' : ' is-zero' %>" href="/?view=done"
+   title="<%= d.text %>" aria-label="<%= d.count === 1 ? '1 task' : `${d.count} tasks` %> done today. See what's been finished.">
+  <% if (d.emoji === "🔥") { /* two flames, one mirrored, fading into each other so it flickers (see .is-fire) */ %>
+    <span class="done-emoji is-fire" id="done-emoji-<%= d.count %>" aria-hidden="true"><span>🔥</span><span>🔥</span></span>
+  <% } else { %>
+    <span class="done-emoji" id="done-emoji-<%= d.count %>" aria-hidden="true"><%= d.emoji %></span>
+  <% } %>
+  <span class="done-count" aria-hidden="true"><%= d.count %></span>
+  <% if (d.cheer) { %><span class="done-cheer" id="done-cheer-<%= d.cheer.id %>" aria-hidden="true"><%= d.cheer.text %></span><% } %>
+</a>

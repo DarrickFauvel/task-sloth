@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  addDays, addMonths, daysBetween, dueState, isValidDate, nextWeekday, relativeLabel, todayIn, weekdayOf,
+  addDays, addMonths, daysBetween, dueState, isValidDate, nextWeekday, nowIn, relativeLabel, todayIn, weekdayOf,
 } from "../public/js/lib/dates.js";
 
 const TODAY = "2026-09-29"; // a Tuesday
@@ -59,6 +59,22 @@ test("dueState", () => {
   assert.equal(dueState(TODAY, TODAY), "today");
   assert.equal(dueState("2026-10-02", TODAY), "soon");
   assert.equal(dueState("2026-10-03", TODAY), "later");
+});
+
+test("dueState: a task due today is overdue once its time has passed", () => {
+  assert.equal(dueState(TODAY, TODAY, "15:00", "14:59"), "today");
+  assert.equal(dueState(TODAY, TODAY, "15:00", "15:00"), "today");
+  assert.equal(dueState(TODAY, TODAY, "15:00", "15:01"), "overdue");
+  assert.equal(dueState(TODAY, TODAY, null, "23:59"), "today");
+  assert.equal(dueState("2026-09-30", TODAY, "08:00", "23:00"), "soon");
+});
+
+test("nowIn gives the date and 24-hour time in a time zone", () => {
+  const at = new Date("2026-09-30T03:05:00Z");
+  assert.deepEqual(nowIn("America/New_York", at), { today: "2026-09-29", time: "23:05" });
+  assert.deepEqual(nowIn("Asia/Tokyo", at), { today: "2026-09-30", time: "12:05" });
+  assert.deepEqual(nowIn("Not/AZone", at), { today: "2026-09-30", time: "03:05" });
+  assert.equal(nowIn("UTC", new Date("2026-09-30T00:30:00Z")).time, "00:30");
 });
 
 test("todayIn returns a YYYY-MM-DD date and falls back for unknown zones", () => {

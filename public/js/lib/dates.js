@@ -3,13 +3,24 @@
 export const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 export const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
-/** Today's date in the given IANA time zone (falls back to UTC for unknown zones). */
-export function todayIn(timeZone = "UTC") {
+/** Today's date in the given IANA time zone (falls back to UTC for unknown zones), or the date at `at`. */
+export function todayIn(timeZone = "UTC", at = new Date()) {
   try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    return at.toISOString().slice(0, 10);
   }
+}
+
+/** The date and wall-clock time ("HH:MM", 24-hour) in the given IANA time zone, now or at `at`. */
+export function nowIn(timeZone = "UTC", at = new Date()) {
+  let time;
+  try {
+    time = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at);
+  } catch {
+    time = at.toISOString().slice(11, 16);
+  }
+  return { today: todayIn(timeZone, at), time };
 }
 
 const toDate = (ymd) => new Date(`${ymd}T00:00:00Z`);
@@ -67,11 +78,14 @@ export function sinceLabel(ymd, today) {
   return `${Math.floor(days / 7)} weeks`;
 }
 
-/** "overdue" | "today" | "soon" (within 3 days) | "later" — used for styling. */
-export function dueState(ymd, today) {
+/**
+ * "overdue" | "today" | "soon" (within 3 days) | "later" — used for styling and grouping.
+ * With a due time ("HH:MM") and the time now, a task due today is overdue once that time has passed.
+ */
+export function dueState(ymd, today, dueTime = null, time = null) {
   const diff = daysBetween(today, ymd);
   if (diff < 0) return "overdue";
-  if (diff === 0) return "today";
+  if (diff === 0) return dueTime && time && dueTime < time ? "overdue" : "today";
   if (diff <= 3) return "soon";
   return "later";
 }

@@ -20,6 +20,7 @@ import { ensureContext, listContexts } from "./src/services/contexts.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
+import { doneTodayView } from "./src/web/done-today.js";
 import { householdPhrase } from "./src/web/household-phrase.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
@@ -31,7 +32,7 @@ import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortc
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
-import { relativeLabel, todayIn } from "./public/js/lib/dates.js";
+import { nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
 import { createTasksApi } from "./src/google/tasks-api.js";
 import { createSyncEngine } from "./src/sync/engine.js";
@@ -102,6 +103,13 @@ const requireUser = (req, res, next) =>
 app.get("/healthz", (req, res) => res.type("text").send("ok"));
 
 const today = (req) => todayIn(req.cookies.tz);
+/** The viewer's date and wall-clock time, for due times (tasks due earlier today are overdue). */
+const clock = (req) => nowIn(req.cookies.tz);
+const decorate = (req, task, membership = req.membership) => {
+  const { today, time } = clock(req);
+  return decorateTask(task, membership, today, time);
+};
+const doneToday = (req, membership) => doneTodayView({ membership, timeZone: req.cookies.tz });
 /** How to-do lists are grouped on this device: by date ("when", the default) or by where/how. */
 const groupBy = (req) => (req.cookies.group === "where" ? "where" : "when");
 const isDatastar = (req) => req.get("datastar-request") === "true";
@@ -117,9 +125,9 @@ async function emailNoticeView(req) {
 
 app.get("/", requireUser, async (req, res) => {
   const list = req.membership
-    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), today: today(req) })
+    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdPhrase: req.membership ? householdPhrase(req.membership.household.name) : null,
     emailNotice: await emailNoticeView(req) });
 });
@@ -162,9 +170,9 @@ app.get("/events", requireHousehold, async (req, res) => {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId)];
     }
-    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
+    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), ...clock(req) });
     scheduleDrop(list.refreshAt);
-    return renderList(list, req.user.id);
+    return renderList(list, req.user.id, await doneToday(req, membership));
   };
 
   await sse(req, res, async (stream) => {
@@ -211,9 +219,10 @@ app.get("/events", requireHousehold, async (req, res) => {
 });
 
 /** The home page's live parts: the tabs (for the inbox count) and the task list. */
-const renderList = (list, userId) => [
+const renderList = (list, userId, doneToday) => [
+  eta.render("partials/done-today", doneToday),
   eta.render("partials/tabs", { list, views: VIEWS, nav: NAV, listQueryString }),
-  eta.render("partials/task-list", { ...list, userId }),
+  eta.render("partials/task-list", { ...list, userId, doneToday }),
 ];
 
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
@@ -221,8 +230,8 @@ async function sendTaskList(req, res, { flash, signals } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
-  const parts = renderList(list, req.user.id);
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: groupBy(req), ...clock(req) });
+  const parts = renderList(list, req.user.id, await doneToday(req, req.membership));
   const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
@@ -335,7 +344,7 @@ async function renderSortPage(req, res, { taskId, after, error, pick = "", statu
   const next = await nextToSort(householdId, req.user.id, task ? null : after);
   task ??= next.task;
   render(res, "pages/sort", {
-    task: task && decorateTask(task, req.membership, today(req)),
+    task: task && decorate(req, task),
     left: next.left,
     skipped: Boolean(after) && !task && next.left > 0,
     choices: SORT_CHOICES,
@@ -399,7 +408,7 @@ app.get("/help", requireUser, (req, res) =>
 // --- Task page + checklist ------------------------------------------------------------
 
 const renderTaskHead = (req, task, membership = req.membership) =>
-  eta.render("partials/task-head", { task: decorateTask(task, membership, today(req)), userId: req.user.id });
+  eta.render("partials/task-head", { task: decorate(req, task, membership), userId: req.user.id });
 
 /** Open tasks this one could be blocked by: not someone else's private inbox, not a template. */
 const blockerChoices = async (req) =>
@@ -417,7 +426,7 @@ const editView = async (req, task) =>
 
 async function renderTaskPage(req, res, { editing = false } = {}) {
   const checklist = await checklistView(req.actor.householdId, req.params.id);
-  const task = decorateTask(checklist.task, req.membership, today(req));
+  const task = decorate(req, checklist.task);
   const form = editing ? await editView(req, checklist.task) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   render(res, "pages/task", { task, checklist, form, photos, userId: req.user.id });

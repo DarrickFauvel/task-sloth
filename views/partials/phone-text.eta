@@ -1,0 +1,1 @@
+<%/* Text with its phone numbers as tap-to-call links. it.parts: splitPhones() from public/js/lib/phone.js. */%><% it.parts.forEach((p) => { %><% if (p.tel) { %><a class="phone-link" href="<%= p.tel %>"><%= p.text %></a><% } else { %><%= p.text %><% } %><% }) %>

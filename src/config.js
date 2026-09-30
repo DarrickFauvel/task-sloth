@@ -21,7 +21,7 @@ export const config = {
   // Task photos: CLOUDINARY_URL is cloudinary://<api key>:<api secret>@<cloud name>, as Cloudinary's dashboard shows it.
   cloudinary: parseCloudinaryUrl(env.CLOUDINARY_URL),
   // Sending email: SMTP_URL is smtp://<user>:<password>@<host>:<port> (smtps:// for implicit TLS on 465);
-  // MAIL_FROM is the sender, e.g. "Task Sloth <noreply@example.com>". Nothing sends mail yet.
+  // MAIL_FROM is the sender, e.g. "Task Sloth <noreply@example.com>".
   mail: parseSmtpUrl(env.SMTP_URL, env.MAIL_FROM),
 };
 

@@ -1,0 +1,12 @@
+<%/* The Done tab's "today" line: the count and a dot per task finished today, in the finisher's color (hover
+     for who and what). A new dot's id is new, so only it grows in. */%>
+<% const d = it; %>
+<p class="done-today-line">
+  <span><%= d.emoji %> <%= d.text %></span>
+  <% if (d.dots.length) { %>
+    <span class="done-dots" aria-hidden="true">
+      <% d.dots.forEach((dot) => { %><span class="done-dot" id="done-dot-<%= dot.id %>" title="<%= dot.label %>"<% if (dot.color) { %> style="--c: <%= dot.color %>"<% } %>></span><% }) %>
+      <% if (d.more) { %><span class="done-more">+<%= d.more %></span><% } %>
+    </span>
+  <% } %>
+</p>

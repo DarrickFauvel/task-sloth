@@ -408,6 +408,16 @@ export async function nextToSort(householdId, userId, afterId = null) {
   return { task: task ?? null, left: await inboxCount(householdId, userId) };
 }
 
+/** Tasks finished since `since` (an ISO time) and still done, oldest first: just who and when. */
+export async function listCompletedSince(householdId, since) {
+  return db.all(
+    `SELECT id, title, completed_by, completed_at FROM tasks
+      WHERE household_id = ? AND status = 'done' AND completed_at >= ? AND deleted_at IS NULL AND is_template = 0
+      ORDER BY completed_at, id`,
+    [householdId, since],
+  );
+}
+
 /** Open work per member for the "who's carrying what" glance: due within a week or undated. */
 export async function workload(householdId, today) {
   return db.all(
