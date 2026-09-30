@@ -1,6 +1,8 @@
 <!doctype html>
-<%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js. */%>
-<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %>>
+<%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js.
+     it.you is the signed-in member's color: the accent follows it (see --you in app.css). */%>
+<% const you = /^#[0-9a-f]{6}$/i.test(it.you ?? "") ? it.you : null; %>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

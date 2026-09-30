@@ -45,7 +45,7 @@ const appQr = {
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, you: res.locals.user?.color, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 

@@ -43,6 +43,16 @@
 }
 :root[data-theme="dark"] { color-scheme: dark; --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; }
 :root[data-theme="light"] { color-scheme: light; }
+/* Signed in, the accent follows your color (--you on <html>, from views/layout.eta; Settings changes it
+   live). Its lightness is clamped so every member color passes contrast as link text and behind button
+   text: darker in light mode, lighter in dark. Browsers without relative colors keep the purple. */
+@supports (color: oklch(from red l c h)) {
+  :root[style*="--you"] { --accent: oklch(from var(--you) min(l, 0.53) c h); }
+  @media (prefers-color-scheme: dark) {
+    :root[style*="--you"]:not([data-theme="light"]) { --accent: oklch(from var(--you) max(l, 0.74) c h); }
+  }
+  :root[style*="--you"][data-theme="dark"] { --accent: oklch(from var(--you) max(l, 0.74) c h); }
+}
 
 /* --- Base ------------------------------------------------------------------------------ */
 
