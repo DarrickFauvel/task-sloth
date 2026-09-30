@@ -9,7 +9,7 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, updateSignIn, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
@@ -569,7 +569,7 @@ app.post("/items/:id/rename", requireHousehold, async (req, res) => {
 
 // --- Settings -------------------------------------------------------------------------
 
-const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
+const renderSettings = (req, res, { saved, error, signIn, status = 200 } = {}) =>
   render(res, "pages/settings", {
     user: req.user, // loaded fresh each request, so a just-saved name shows
     membership: req.membership,
@@ -577,10 +577,11 @@ const renderSettings = (req, res, { saved, error, status = 200 } = {}) =>
     colorNames: MEMBER_COLOR_NAMES,
     saved,
     error,
+    signIn, // what was typed into the sign-in form, kept after an error
   }, status);
 
 app.get("/settings", requireUser, (req, res) =>
-  renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
+  renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -593,6 +594,25 @@ app.post("/settings/profile", requireUser, async (req, res) => {
   // Housemates' open pages show the new name and color.
   if (req.membership) changed(req.membership.household.id);
   redirect(res, "/settings?saved=profile");
+});
+
+// Username and email for password accounts, confirmed with the current password. Wrong passwords count
+// against the same limits as signing in, so this can't be used to guess one.
+app.post("/settings/sign-in", requireUser, async (req, res) => {
+  const signIn = { username: String(req.body.username ?? "").slice(0, 60), email: String(req.body.email ?? "").slice(0, 254) };
+  const key = `settings:${req.user.id}`;
+  if (accountFailures.isLimited(key) || ipFailures.isLimited(req.ip)) {
+    return renderSettings(req, res, { error: "Too many wrong passwords. Try again in 15 minutes.", signIn, status: 429 });
+  }
+  try {
+    await updateSignIn(req.user.id, { ...signIn, password: req.body.password });
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    if (err.wrongPassword) (accountFailures.hit(key), ipFailures.hit(req.ip));
+    return renderSettings(req, res, { error: err.message, signIn, status: 400 });
+  }
+  accountFailures.reset(key);
+  redirect(res, "/settings?saved=sign-in#account-title");
 });
 
 // Leaving the name field saves it (like the color below), with a toast; errors show the same way.

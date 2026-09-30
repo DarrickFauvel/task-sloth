@@ -1,67 +1,87 @@
 <% layout("/layout", { title: "Settings" }) %>
 <script type="module" src="/js/photo-picker.js"></script>
-<%/* Profile, appearance, household and account. Plain forms that post and come back here. */%>
+<%/* Profile, appearance, household and account: one card each. Everything saves as you go (the name when you
+     leave its box, a color or theme when you pick it, a photo once chosen); the household name is the only
+     field with a Save button. A fieldset groups the choices that answer one question (photo, color, theme). */%>
 <% const u = it.user; %>
+<div class="settings-page">
 <a class="back" href="/">← All tasks</a>
 <h1>Settings</h1>
-<%~ include("/partials/flash", { message: it.saved ?? it.error, error: Boolean(it.error) }) %>
+<%/* Saved messages are toasts; errors too, except the sign-in form's, which show in its card. */%>
+<% const pageError = it.signIn ? null : it.error; %>
+<%~ include("/partials/flash", { message: it.saved ?? pageError, error: Boolean(pageError) }) %>
 
 <div class="settings">
-  <section class="panel">
-    <h2><span aria-hidden="true">👤</span> Profile</h2>
-    <%/* Your photo. <photo-picker> shrinks the picked image and saves it at once (it needs script); removing
-         it is a plain form. These sit outside the profile form, which only saves name and color. */%>
-    <div class="profile-photo">
+  <section class="panel" aria-labelledby="profile-title">
+    <h2 id="profile-title"><span aria-hidden="true">👤</span> Profile</h2>
+
+    <%/* <photo-picker> shrinks the picked image and saves it at once (it needs script); removing it is a plain
+         form. Both sit outside the name/color form. */%>
+    <fieldset class="profile-photo">
+      <legend class="visually-hidden">Your photo</legend>
       <div class="profile-preview"><%~ include("/partials/avatar", { user: u, size: "lg" }) %></div>
-      <photo-picker action="/settings/photo">
-        <label class="button"><input type="file" accept="image/*" class="visually-hidden"><%= u.avatar_photo_at ? "Change photo" : "Upload a photo" %></label>
-        <p class="hint" role="status" hidden></p>
-      </photo-picker>
-      <% if (u.avatar_photo_at) { %>
-        <form method="post" action="/settings/photo/remove"><button class="button">Remove photo</button></form>
-      <% } %>
-    </div>
-    <%/* Both save as you go: the name when you leave the field (Enter leaves it too), the color when you pick one.
-         "Save profile" is only for when script is off; data-show hides it once Datastar is running. */%>
+      <div class="profile-photo-actions">
+        <photo-picker action="/settings/photo">
+          <label class="button"><input type="file" accept="image/*" class="visually-hidden"><%= u.avatar_photo_at ? "Change photo" : "Add a photo" %></label>
+          <p class="hint" role="status" hidden></p>
+        </photo-picker>
+        <% if (u.avatar_photo_at) { %>
+          <form method="post" action="/settings/photo/remove"><button class="link danger">Remove</button></form>
+        <% } else { %>
+          <span class="hint">Otherwise we show your initial.</span>
+        <% } %>
+      </div>
+    </fieldset>
+
+    <%/* The name saves when you leave its box (Enter leaves it too), the color when you pick one. "Save profile"
+         is only for when script is off; data-show hides it once Datastar is running. */%>
     <form method="post" action="/settings/profile" class="stack" data-on:submit="document.activeElement?.blur()">
-      <label>Your name
+      <label class="field">Your name
         <%/* data-bind starts the $name signal from this value; the server sends it back tidied (or restored after an error). */%>
         <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name"
                data-bind:name data-on:change="@post('/settings/name')">
-        <small class="hint">What your household sees next to your tasks, and what they type after @ to give you one. Saves when you leave the box.</small>
+        <small class="hint">Shown next to your tasks. Type @ and a name to give someone a task. Saves as you leave the box.</small>
       </label>
-      <%/* Picking a color takes effect straight away: the app's accent and your avatars on this page change to it, and it saves
-           in the background. */%>
-      <fieldset class="pills swatches" data-signals="{color: '<%= u.color %>'}"
+      <%/* Picking a color takes effect straight away: the app's accent and your avatars on this page change to
+           it, and it saves in the background. */%>
+      <fieldset class="field" data-signals="{color: '<%= u.color %>'}"
                 data-on:change="$color = evt.target.value; document.documentElement.style.setProperty('--you', $color); document.querySelectorAll('.avatar').forEach((a) => a.dataset.member === '<%= u.id %>' && a.style.setProperty('--c', $color)); @post('/settings/color')">
-        <legend>Your color <span class="hint">· also the app's accent, changes straight away</span></legend>
-        <% it.colors.forEach((c) => { %>
-          <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" title="<%= it.colorNames[c] %>" aria-label="<%= it.colorNames[c] %>"></span></label>
-        <% }) %>
+        <legend>Your color</legend>
+        <div class="pills swatches">
+          <% it.colors.forEach((c) => { %>
+            <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === u.color ? " checked" : "" %>><span style="--c: <%= c %>" title="<%= it.colorNames[c] %>" aria-label="<%= it.colorNames[c] %>"></span></label>
+          <% }) %>
+        </div>
+        <small class="hint">Your avatar and the app's highlight color.</small>
       </fieldset>
       <button class="button primary" data-show="false">Save profile</button>
     </form>
   </section>
 
-  <section class="panel">
-    <h2><span aria-hidden="true">🌓</span> Appearance</h2>
-    <form method="post" action="/settings/theme" class="pills" aria-label="Theme">
-      <% [["system", "Match my device"], ["light", "Light"], ["dark", "Dark"]].forEach(([value, label]) => { %>
-        <%/* Switches in place with the same soft animation (setTheme in the layout); without script, it posts. */%>
-        <button name="theme" value="<%= value %>" data-theme-choice="<%= value %>" class="pill<%= (it.theme ?? 'system') === value ? ' is-on' : '' %>"
-                data-on:click__prevent="setTheme(<%= value === 'system' ? 'null' : `'${value}'` %>, el)"><%= label %></button>
-      <% }) %>
+  <section class="panel" aria-labelledby="appearance-title">
+    <h2 id="appearance-title"><span aria-hidden="true">🎨</span> Appearance</h2>
+    <form method="post" action="/settings/theme">
+      <fieldset class="field">
+        <legend>Theme</legend>
+        <div class="pills">
+          <% [["system", "Match my device"], ["light", "Light"], ["dark", "Dark"]].forEach(([value, label]) => { %>
+            <%/* Switches in place with the same soft animation (setTheme in the layout); without script, it posts. */%>
+            <button name="theme" value="<%= value %>" data-theme-choice="<%= value %>" class="pill<%= (it.theme ?? 'system') === value ? ' is-on' : '' %>"
+                    data-on:click__prevent="setTheme(<%= value === 'system' ? 'null' : `'${value}'` %>, el)"><%= label %></button>
+          <% }) %>
+        </div>
+        <small class="hint">Also in the menu under your picture.</small>
+      </fieldset>
     </form>
-    <p class="hint">You can also switch from the menu under your picture.</p>
   </section>
 
   <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>
-    <section class="panel">
-      <h2><span aria-hidden="true">🏠</span> Household</h2>
+    <section class="panel" aria-labelledby="household-title">
+      <h2 id="household-title"><span aria-hidden="true">🏠</span> Household</h2>
       <%/* Only the person who set up the household can rename it. */%>
       <% if (m.ownerId === u.id) { %>
-        <form method="post" action="/settings/household" class="household-name">
-          <label>Name
+        <form method="post" action="/settings/household">
+          <label class="field">Household name
             <span class="inline-field">
               <input name="name" value="<%= m.household.name %>" required maxlength="80" autocomplete="off">
               <button class="button primary">Save</button>
@@ -69,27 +89,60 @@
           </label>
         </form>
       <% } else { %>
-        <p><strong><%= m.household.name %></strong></p>
-        <p class="hint">Only <%= owner?.name ?? "the person who set it up" %> can rename the household.</p>
+        <div class="field">
+          <span>Household name</span>
+          <strong><%= m.household.name %></strong>
+          <small class="hint">Only <%= owner?.name ?? "the person who set it up" %> can rename it.</small>
+        </div>
       <% } %>
-      <ul class="members">
-        <% m.members.forEach((p) => { %>
-          <li><%~ include("/partials/avatar", { user: p }) %> <%= p.name %><%= p.id === u.id ? " (you)" : "" %><% if (p.id === m.ownerId) { %> <span class="hint">· set it up</span><% } %></li>
-        <% }) %>
-      </ul>
+      <div class="field">
+        <h3 class="field-title">Members <span class="count">· <%= m.members.length %></span></h3>
+        <ul class="members">
+          <% m.members.forEach((p) => { %>
+            <li>
+              <%~ include("/partials/avatar", { user: p }) %>
+              <span class="member-name"><%= p.name %><% if (p.id === u.id) { %> <span class="hint">(you)</span><% } %></span>
+              <% if (p.id === m.ownerId) { %><span class="member-note">Set it up</span><% } %>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
       <div id="invite">
         <button class="button" data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
       </div>
     </section>
   <% } %>
 
-  <section class="panel">
-    <h2><span aria-hidden="true">🔑</span> Account</h2>
-    <dl class="account">
-      <% if (u.username) { %><dt>Username</dt><dd>@<%= u.username %></dd><% } %>
-      <dt>Email</dt><dd><%= u.email %></dd>
-    </dl>
-    <p class="hint">Changing your password isn't available yet.</p>
+  <section class="panel" aria-labelledby="account-title">
+    <h2 id="account-title"><span aria-hidden="true">🔑</span> Account</h2>
+    <% if (u.username) { /* a password account: username and email are yours to change */ %>
+      <% const f = it.signIn ?? { username: u.username, email: u.email }; %>
+      <form method="post" action="/settings/sign-in" class="stack">
+        <fieldset class="field sign-in-fields">
+          <legend class="visually-hidden">How you sign in</legend>
+          <label class="field">Username
+            <input name="username" value="<%= f.username %>" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_.\-]{3,30}"
+                   autocomplete="username" autocapitalize="off" spellcheck="false">
+            <small class="hint">3–30 letters, numbers, dots, dashes or underscores.</small>
+          </label>
+          <label class="field">Email
+            <input type="email" name="email" value="<%= f.email %>" required maxlength="254" autocomplete="email">
+          </label>
+          <label class="field">Current password
+            <%/* After an error the page reloads at the top; focusing here scrolls back to the form and its message. */%>
+            <input type="password" name="password" required autocomplete="current-password"<%~ it.signIn && it.error ? " autofocus" : "" %>>
+            <small class="hint">To make sure it's you.</small>
+          </label>
+        </fieldset>
+        <% if (it.signIn && it.error) { %><p class="flash is-error" role="alert"><%= it.error %></p><% } %>
+        <button class="button primary">Save changes</button>
+      </form>
+    <% } else { /* Google (or dev) sign-in: Google owns the email, and there's no username */ %>
+      <dl class="account">
+        <dt>Email</dt><dd><%= u.email %> <span class="hint">· from Google</span></dd>
+      </dl>
+    <% } %>
     <form method="post" action="/logout"><button class="button">Sign out</button></form>
   </section>
+</div>
 </div>
