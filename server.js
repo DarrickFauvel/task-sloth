@@ -17,7 +17,9 @@ import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, 
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
-import { cleanListQuery, cleanView, decorateTask, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
+import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
+import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
+import { hideDone } from "./src/web/hidden-done.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
@@ -130,6 +132,13 @@ app.get("/events", requireHousehold, async (req, res) => {
     return res.status(204).end();
   }
   let closed = false;
+  // When a finished task is due to drop off the list; nothing else changes, so the stream re-renders itself then.
+  let dropTimer = null;
+  let refresh = () => {}; // set once the stream is open
+  const scheduleDrop = (at) => {
+    clearTimeout(dropTimer);
+    if (at && !closed) dropTimer = setTimeout(refresh, Math.max(at - Date.now(), 0) + 1000);
+  };
 
   /** @returns {Promise<string[]>} the page's live parts */
   const renderPage = async (membership) => {
@@ -138,6 +147,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), today: today(req) });
+    scheduleDrop(list.refreshAt);
     return renderList(list, req.user.id);
   };
 
@@ -161,7 +171,7 @@ app.get("/events", requireHousehold, async (req, res) => {
     // One render at a time; changes that arrive mid-render are folded into one more render.
     let running = null;
     let again = false;
-    const refresh = () => {
+    refresh = () => {
       if (running) return void (again = true);
       running = (async () => {
         do {
@@ -180,6 +190,7 @@ app.get("/events", requireHousehold, async (req, res) => {
     closed = true;
     unsubscribe();
     clearInterval(heartbeat);
+    clearTimeout(dropTimer);
   });
 });
 
@@ -269,6 +280,16 @@ app.post("/tasks/:id/rename", requireHousehold, async (req, res) => {
   await sendTaskList(req, res, { flash, signals: { renaming: "", renameText: "" } });
 });
 
+// Hide a finished task from your lists now instead of when it drops off on its own. Just for you.
+app.post("/tasks/:id/hide", requireHousehold, async (req, res) => {
+  const task = await getTask(req.actor.householdId, req.params.id);
+  if (task.status === "done") {
+    hideDone(req.user.id, task.id, task.completed_at, Date.parse(task.completed_at) + LINGER_MS);
+    publish(req.actor.householdId); // your other open pages
+  }
+  await sendTaskList(req, res);
+});
+
 app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
   await assignTask(req.actor, req.params.id, req.user.id);
   await sendTaskList(req, res);
@@ -349,6 +370,11 @@ const shortcutsView = (req) => ({
 });
 
 app.get("/about", (req, res) => render(res, "pages/about", {}));
+
+app.get("/activity", requireHousehold, async (req, res) => {
+  const activity = await activityView({ userId: req.user.id, membership: req.membership, timeZone: req.cookies.tz, today: today(req) });
+  render(res, "pages/activity", { activity, days: ACTIVITY_DAYS, household: req.membership.household.name });
+});
 
 app.get("/help", requireUser, (req, res) =>
   render(res, "pages/help", { shortcuts: shortcutsView(req), choices: SORT_CHOICES, nav: NAV, views: VIEWS }),

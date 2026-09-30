@@ -656,6 +656,15 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .about-logo { width: 8rem; height: 8rem; }
 .about-credit { justify-self: stretch; margin-top: var(--space-s); }
 
+/* --- Activity ---------------------------------------------------------------------------- */
+
+.activity { list-style: none; margin: 0; padding: 0; }
+.activity li { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line); }
+.activity .avatar { width: 1.75rem; height: 1.75rem; }
+.activity-system { --c: var(--muted); }
+.activity-text { flex: 1; min-width: 0; }
+.activity time { flex: none; font-size: var(--step--1); }
+
 /* --- Settings ----------------------------------------------------------------------------- */
 
 .settings { display: grid; gap: var(--space-s); margin-top: var(--space-s); }

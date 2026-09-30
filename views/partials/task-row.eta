@@ -27,6 +27,12 @@
           <button class="link" title="Move to the To do list">Ready to do →</button>
         </form>
       <% } %>
+      <% if (done && it.view !== "done") { /* finished tasks linger a few minutes; this clears one now */ %>
+        <form method="post" action="/tasks/<%= t.id %>/hide" data-on:submit="@post('/tasks/<%= t.id %>/hide')" class="inline">
+          <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
+          <button class="link" title="Take it off this list now. It's still in Done.">Hide</button>
+        </form>
+      <% } %>
       <% if (it.view === "inbox") { /* it's yours until it's sorted */ %>
       <% } else if (t.assignee) { %>
         <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>

@@ -32,8 +32,10 @@ const OPEN_ORDER = "ORDER BY t.due_date IS NULL, t.due_date, t.priority DESC, t.
 
 /**
  * @param {string} householdId
- * @param {{ assigneeId?: string | null, creatorId?: string, list?: string, waiting?: boolean, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
+ * @param {{ assigneeId?: string | null, creatorId?: string, list?: string, waiting?: boolean, projectId?: string, contextId?: string, tag?: string, status?: "open" | "done", completedSince?: string, dueOnOrBefore?: string, templates?: boolean, limit?: number }} filter
  *   assigneeId: undefined = anyone, null = unassigned ("up for grabs")
+ *   completedSince (an ISO time): with status "open", also tasks done since then, so a finished task
+ *   lingers on its list for a while; with status "done", only tasks done since then.
  */
 export async function listTasks(householdId, filter = {}) {
   const where = ["t.household_id = ?", "t.deleted_at IS NULL", "t.is_template = ?"];
@@ -50,7 +52,11 @@ export async function listTasks(householdId, filter = {}) {
     where.push("EXISTS (SELECT 1 FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id AND g.name = ?)");
     args.push(filter.tag);
   }
-  if (filter.status) (where.push("t.status = ?"), args.push(filter.status));
+  if (filter.status === "open" && filter.completedSince) {
+    where.push("(t.status = 'open' OR (t.status = 'done' AND t.completed_at >= ?))");
+    args.push(filter.completedSince);
+  } else if (filter.status) (where.push("t.status = ?"), args.push(filter.status));
+  if (filter.status === "done" && filter.completedSince) (where.push("t.completed_at >= ?"), args.push(filter.completedSince));
   if (filter.dueOnOrBefore) (where.push("t.due_date <= ?"), args.push(filter.dueOnOrBefore));
   const order =
     filter.status === "done" ? "ORDER BY t.completed_at DESC"

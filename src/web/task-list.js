@@ -1,6 +1,7 @@
 import { inboxCount, listTasks, tagList } from "../services/tasks.js";
 import { getContext } from "../services/contexts.js";
 import { getProject } from "../services/projects.js";
+import { isHiddenDone } from "./hidden-done.js";
 import { cleanTagName } from "../services/tags.js";
 import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
@@ -25,7 +26,7 @@ export const NAV = {
     { view: "grabs", blurb: "Things nobody has taken yet" },
     { view: "waiting", blurb: "Needs someone else first" },
     { view: "someday", blurb: "Ideas for one day" },
-    { view: "done", blurb: "Recently finished" },
+    { view: "done", blurb: "Finished in the last 8 hours" },
   ],
 };
 
@@ -34,7 +35,13 @@ export const VIEW_HINTS = {
   inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",
   waiting: "Things that can't move yet: waiting on someone (a reply, a repair) or on another task to be done first.",
   someday: "Ideas you might get to one day, kept out of the way of today's list.",
+  done: "Everything finished in the last 8 hours. Older work is in Activity.",
 };
+
+/** A finished task stays on its list (ticked) this long, so a mis-tap is easy to undo. */
+export const LINGER_MS = 10 * 60_000;
+/** How far back the Done tab goes. */
+export const DONE_WINDOW_MS = 8 * 3_600_000;
 
 /**
  * Which list a quick-add goes on. Adding from the Waiting or Maybe-later tab puts it there;
@@ -82,8 +89,11 @@ export function decorateTask(t, membership, today) {
  * `project` (a project id), `context` (a context id) and `tag` (a tag name) narrow the tab; an unknown
  * project or context is ignored.
  * `groupBy` "where" groups the to-do tabs by where/how instead of by date (see groupByWhere).
+ * Tasks finished in the last LINGER_MS stay on their list, ticked, unless this user hid them (hidden-done.js);
+ * the Done tab covers DONE_WINDOW_MS.
+ * `refreshAt` (ms since the epoch, or null) is when a task next drops off, so a live page can re-render then.
  */
-export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, now = Date.now() }) {
   const householdId = membership.household.id;
   const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
@@ -94,14 +104,18 @@ export async function taskListView({ userId, membership, view, project: projectI
     grabs: { status: "open", list: "todo", assigneeId: null },
     waiting: { status: "open", waiting: true },
     someday: { status: "open", list: "someday" },
-    done: { status: "done", limit: 50 },
+    done: { status: "done" },
   }[view];
-  const tasks = (await listTasks(householdId, { ...filter, projectId: project?.id, contextId: context?.id, tag: tag ?? undefined })).map((t) =>
-    decorateTask(t, membership, today),
-  );
+  const keepFor = view === "done" ? DONE_WINDOW_MS : LINGER_MS;
+  filter.completedSince = new Date(now - keepFor).toISOString();
+  const tasks = (await listTasks(householdId, { ...filter, projectId: project?.id, contextId: context?.id, tag: tag ?? undefined }))
+    .filter((t) => view === "done" || t.status !== "done" || !isHiddenDone(userId, t, now))
+    .map((t) => decorateTask(t, membership, today));
   const query = { view, project: project?.id ?? null, context: context?.id ?? null, tag };
   const filterLabel = [project && `${project.emoji} ${project.name}`, context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
-  const base = { ...query, filterLabel, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
+  const doneTimes = tasks.filter((t) => t.status === "done").map((t) => Date.parse(t.completed_at));
+  const refreshAt = doneTimes.length ? Math.min(...doneTimes) + keepFor : null;
+  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tasks }] : [] };
