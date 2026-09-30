@@ -316,7 +316,9 @@ const shortcutsView = (req) => ({
   insertJs: INSERT_TOKEN,
 });
 
-app.get("/help", requireUser, (req, res) => render(res, "pages/help", { shortcuts: shortcutsView(req) }));
+app.get("/help", requireUser, (req, res) =>
+  render(res, "pages/help", { shortcuts: shortcutsView(req), choices: SORT_CHOICES, nav: NAV, views: VIEWS }),
+);
 
 // --- Task page + checklist ------------------------------------------------------------
 

@@ -40,7 +40,7 @@ test("sortDecision rejects a missing date or an unknown answer", () => {
 });
 
 test("every sort choice has plain-language help", () => {
-  for (const c of SORT_CHOICES) assert.ok(c.label && c.hint && c.icon, c.value);
+  for (const c of SORT_CHOICES) assert.ok(c.label && c.hint && c.short && c.icon, c.value);
 });
 
 test("sinceLabel", () => {

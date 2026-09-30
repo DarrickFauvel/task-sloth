@@ -1,14 +1,17 @@
 import { HttpError } from "../lib/http.js";
 import { isValidDate } from "../../public/js/lib/dates.js";
 
-/** The answers to "What is this?" on the sort page, in the order they're shown. */
+/**
+ * The answers to "What is this?" on the sort page, in the order they're shown.
+ * `hint` is for the sort page itself; `short` is the one-liner the How it works page shows.
+ */
 export const SORT_CHOICES = [
-  { value: "now", icon: "✅", label: "Do it now", hint: "Takes two minutes or less? Do it, then tap this to tick it off." },
-  { value: "todo", icon: "📋", label: "To do", hint: "Something to do soon. Say where or how, and who, if you like." },
-  { value: "date", icon: "📅", label: "On a date", hint: "Has to happen on a certain day." },
-  { value: "waiting", icon: "⏳", label: "Waiting on someone", hint: "Someone else has to do something first." },
-  { value: "someday", icon: "💭", label: "Maybe later", hint: "Not now, but you don't want to forget it." },
-  { value: "delete", icon: "🗑", label: "Delete", hint: "Not needed after all." },
+  { value: "now", icon: "✅", label: "Do it now", hint: "Takes two minutes or less? Do it, then tap this to tick it off.", short: "Two minutes or less? Just do it." },
+  { value: "todo", icon: "📋", label: "To do", hint: "Something to do soon. Say where or how, and who, if you like.", short: "Something to do soon." },
+  { value: "date", icon: "📅", label: "On a date", hint: "Has to happen on a certain day.", short: "Has to happen on a certain day." },
+  { value: "waiting", icon: "⏳", label: "Waiting on someone", hint: "Someone else has to do something first.", short: "Someone else goes first." },
+  { value: "someday", icon: "💭", label: "Maybe later", hint: "Not now, but you don't want to forget it.", short: "Not now, but don't forget it." },
+  { value: "delete", icon: "🗑", label: "Delete", hint: "Not needed after all.", short: "Not needed after all." },
 ];
 
 /**

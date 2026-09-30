@@ -1,34 +1,78 @@
 <% layout("/layout", { title: "How it works" }) %>
+<%/* A visual guide built from the app's own pieces (the sort answers, the list names and icons),
+     so it stays in step with the real screens. */%>
 <p><a href="/">← All tasks</a></p>
 <article class="help">
-  <h1>How Task Sloth works</h1>
-  <p>The idea is simple: get things out of your head quickly, then put each one where it belongs, so the list you look at is only what you can actually do.</p>
+  <header class="help-hero">
+    <h1>How Task Sloth works</h1>
+    <p class="lead">Get things out of your head quickly, then put each one where it belongs, so the list you look at is only what you can actually do.</p>
+    <ol class="overview">
+      <li><a href="#jot"><span aria-hidden="true">✏️</span>Jot</a></li>
+      <li><a href="#sort"><span aria-hidden="true">🗂️</span>Sort</a></li>
+      <li><a href="#do"><span aria-hidden="true">✅</span>Do</a></li>
+      <li><a href="#check-in"><span aria-hidden="true">🔄</span>Check in</a></li>
+    </ol>
+  </header>
 
-  <h2>1. Jot it down</h2>
-  <p>Type anything into the box at the top and press Add. You don't have to decide anything yet. If you only type a few words, it goes to your <strong>Inbox</strong>, which only you can see.</p>
+  <ol class="steps">
+    <li class="step" id="jot">
+      <h2>Jot it down</h2>
+      <p>Type anything into the box at the top and tap Add. You don't have to decide anything yet.</p>
+      <div class="mock-add" aria-hidden="true">
+        <span class="mock-input">call the dentist</span><span class="mock-button">Add</span>
+      </div>
+      <p class="mock-result">→ 📥 It goes to your <strong>Inbox</strong>, which only you can see.</p>
+      <p class="tip">💡 Add a detail, like <code>fri</code> or <code>@Target</code>, and it skips the Inbox and goes straight onto your list. Tap <strong>?</strong> next to the box for more.</p>
+    </li>
 
-  <h2>2. Sort your inbox</h2>
-  <p>When you have a minute, tap <strong>Sort my inbox</strong>. It shows one thing at a time and asks what it is:</p>
-  <ul>
-    <li><strong>✅ Do it now</strong>: if it takes two minutes or less, just do it. It's faster than keeping track of it.</li>
-    <li><strong>📋 To do</strong>: something to do soon. You can say where or how (at Target, on the phone) and who.</li>
-    <li><strong>📅 On a date</strong>: it has to happen on a certain day.</li>
-    <li><strong>⏳ Waiting on someone</strong>: someone else has to do something first, like a reply or a repair.</li>
-    <li><strong>💭 Maybe later</strong>: not now, but you don't want to forget it.</li>
-    <li><strong>🗑 Delete</strong>: not needed after all.</li>
-  </ul>
+    <li class="step" id="sort">
+      <h2>Sort your inbox</h2>
+      <p>When you have a minute, tap <strong>Sort my inbox</strong>. It shows one thing at a time and asks <em>“What is this?”</em></p>
+      <ul class="choice-tiles">
+        <% it.choices.forEach((c) => { %>
+          <li><span class="tile-icon" aria-hidden="true"><%= c.icon %></span><strong><%= c.label %></strong><span class="hint"><%= c.short %></span></li>
+        <% }) %>
+      </ul>
+    </li>
 
-  <h2>3. Do things</h2>
-  <p><strong>Mine</strong> shows what's yours, sorted by when it's due. <strong>Everyone</strong> shows the whole household, and <strong>Up for grabs</strong> shows things nobody has taken yet. Tap <strong>Claim</strong> to take one.</p>
-  <p>On a phone, these are in the bar at the bottom of the screen. Up for grabs, Waiting on, Maybe later and Done are under <strong>More</strong>.</p>
-  <p>Out and about? Tap a chip like <strong>@Target</strong> on any task to see everything you can do there.</p>
+    <li class="step" id="do">
+      <h2>Do things</h2>
+      <p>Pick a list to see what's there. On a phone they're in the bar at the bottom of the screen.</p>
+      <ul class="list-guide">
+        <% [
+          ["inbox", "Inbox", "What you've jotted down and not sorted yet"],
+          ["mine", "Mine", "What's yours, soonest first"],
+          ["all", "Everyone", "The whole household's list"],
+        ].forEach(([icon, name, what]) => { %>
+          <li><span class="guide-icon"><%~ include("/partials/nav-icon", { name: icon }) %></span><strong><%= name %></strong><span class="hint"><%= what %></span></li>
+        <% }) %>
+        <li class="has-more">
+          <span class="guide-icon"><%~ include("/partials/nav-icon", { name: "more" }) %></span><strong>More</strong><span class="hint">Everything else:</span>
+          <ul>
+            <% it.nav.more.forEach((m) => { %>
+              <li><strong><%= it.views[m.view] %></strong> <span class="hint">· <%= m.blurb %></span></li>
+            <% }) %>
+          </ul>
+        </li>
+      </ul>
+      <p class="tip">🙋 See something up for grabs? Tap <strong>Claim</strong> to take it.</p>
+      <p class="tip">🛒 Out and about? Tap a chip like <strong>@Target</strong> on any task to see everything you can do there.</p>
+    </li>
 
-  <h2>4. Check in now and then</h2>
-  <p>Look at <strong>Waiting on</strong> to see if you need to nudge anyone, and at <strong>Maybe later</strong> to see if something's ready. Tap <strong>Ready to do →</strong> to move it to your list.</p>
+    <li class="step" id="check-in">
+      <h2>Check in now and then</h2>
+      <p>Once in a while, look at <strong>Waiting on</strong> to see if you need to nudge anyone, and at <strong>Maybe later</strong> to see if something's ready. Tap <strong>Ready to do →</strong> to move it onto your list.</p>
+    </li>
+  </ol>
 
-  <h2 id="shortcuts">Shortcuts you can type</h2>
-  <p>You never need these, but they save taps:</p>
-  <%~ include("/partials/shortcuts", it.shortcuts) %>
+  <section class="help-card" id="shortcuts">
+    <h2>Shortcuts you can type</h2>
+    <p class="hint">You never need these, but they save taps. Type them anywhere in a task.</p>
+    <%~ include("/partials/shortcuts", it.shortcuts) %>
+  </section>
 
-  <p class="hint">This way of working comes from a method called <em>Getting Things Done</em> by David Allen. You don't need to know it to use the app.</p>
+  <footer class="help-footer">
+    <a class="button primary" href="/">Back to my tasks</a>
+    <p class="hint">This way of working comes from a method called <em>Getting Things Done</em> by David Allen. You don't need to know it to use the app.</p>
+  </footer>
 </article>
