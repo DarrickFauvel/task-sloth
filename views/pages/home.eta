@@ -28,7 +28,7 @@
   </dialog>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
   <% const l = it.list; %>
-  <div data-signals="{view: '<%= l.view %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: ''}"
+  <div data-signals="{view: '<%= l.view %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: '', renaming: '', renameText: ''}"
        data-init="@get('/events?<%= it.listQueryString(l) %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
     <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
       <input type="hidden" name="view" value="<%= l.view %>">

@@ -243,6 +243,12 @@ app.post("/tasks/:id/list/:list", requireHousehold, async (req, res) => {
   await sendTaskList(req, res);
 });
 
+// Rename from the task list. Datastar sends the typed name as the renameText signal; a plain form sends title.
+app.post("/tasks/:id/rename", requireHousehold, async (req, res) => {
+  await updateTask(req.actor, req.params.id, { title: req.body.title ?? req.body.renameText });
+  await sendTaskList(req, res, { signals: { renaming: "", renameText: "" } });
+});
+
 app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
   await assignTask(req.actor, req.params.id, req.user.id);
   await sendTaskList(req, res);
@@ -251,7 +257,7 @@ app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
   const task = await getTask(req.actor.householdId, req.params.id);
   await deleteTask(req.actor, task.id);
-  await sendTaskList(req, res, { flash: { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` } });
+  await sendTaskList(req, res, { flash: { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` }, signals: { renaming: "" } });
 });
 
 app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {

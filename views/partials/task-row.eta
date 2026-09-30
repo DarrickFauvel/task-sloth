@@ -1,10 +1,13 @@
 <% const t = it.t; const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
+<%/* Tap the title for the full task; tap ✏️ to rename it in place. While renaming, the text lives in
+     $renameText (not just the input), so a live re-render of the list can't wipe a half-typed name. */%>
+<% const renaming = `$renaming === '${t.id}'`; %>
 <li class="task<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>" id="task-<%= t.id %>">
   <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>')">
     <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
     <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><%= done ? "✓" : "" %></button>
   </form>
-  <div class="task-body">
+  <div class="task-body" data-show="!(<%= renaming %>)">
     <a class="task-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
     <span class="meta">
       <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueLabel %><%= t.due_time ? ` ${t.due_time}` : "" %></span><% } %>
@@ -33,8 +36,22 @@
       <% } %>
     </span>
   </div>
-  <form method="post" action="/tasks/<%= t.id %>/delete" data-on:submit="@post('/tasks/<%= t.id %>/delete')">
+  <form class="rename" method="post" action="/tasks/<%= t.id %>/rename" style="display: none"
+        data-show="<%= renaming %>" data-on:submit="@post('/tasks/<%= t.id %>/rename')">
     <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
-    <button class="icon" aria-label="Delete task" title="Delete">×</button>
+    <input id="rename-<%= t.id %>" name="title" value="<%= t.title %>" data-bind:rename-text required maxlength="300"
+           autocomplete="off" aria-label="Task name" data-on:keydown="evt.key === 'Escape' && ($renaming = '')">
+    <div class="rename-actions">
+      <button class="button primary">Save</button>
+      <button type="button" class="button" data-on:click="$renaming = ''">Cancel</button>
+      <a href="/tasks/<%= t.id %>/edit">All details →</a>
+      <button class="link danger" formaction="/tasks/<%= t.id %>/delete" formnovalidate
+              data-on:click__prevent="@post('/tasks/<%= t.id %>/delete')">Delete</button>
+    </div>
   </form>
+  <button type="button" class="icon rename-button" aria-label="Rename “<%= t.title %>”" title="Rename"
+          data-title="<%= t.title %>" data-show="!(<%= renaming %>)"
+          data-on:click="$renameText = el.dataset.title; $renaming = '<%= t.id %>'; setTimeout(() => { const i = document.getElementById('rename-<%= t.id %>'); i.focus(); i.select() })">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+  </button>
 </li>
