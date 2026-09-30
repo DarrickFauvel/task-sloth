@@ -9,7 +9,7 @@ import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
-import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, updateSignIn, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
+import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, getUser, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, updateSignIn, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, onChange } from "./src/services/changes.js";
@@ -21,6 +21,7 @@ import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
 import { householdPhrase } from "./src/web/household-phrase.js";
+import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addPhoto, getPhoto, PHOTO_MAX_BYTES, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
@@ -105,12 +106,22 @@ const today = (req) => todayIn(req.cookies.tz);
 const groupBy = (req) => (req.cookies.group === "where" ? "where" : "when");
 const isDatastar = (req) => req.get("datastar-request") === "true";
 
+/** The home page's nudge to confirm your email (or a pending new one), for password accounts; null if there's nothing to confirm. */
+async function emailNoticeView(req) {
+  const u = req.user;
+  if (!isPasswordAccount(u) || (emailConfirmed(u) && !u.pending_email)) return null;
+  const email = u.pending_email ?? u.email;
+  // Accounts from before confirmation existed were never sent a link, so don't claim one was.
+  return { email, pending: Boolean(u.pending_email), sent: req.query.email === "sent", linkOut: await linkSent(u.id, email) };
+}
+
 app.get("/", requireUser, async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), today: today(req) })
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
-    householdPhrase: req.membership ? householdPhrase(req.membership.household.name) : null });
+    householdPhrase: req.membership ? householdPhrase(req.membership.household.name) : null,
+    emailNotice: await emailNoticeView(req) });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -569,8 +580,10 @@ app.post("/items/:id/rename", requireHousehold, async (req, res) => {
 
 // --- Settings -------------------------------------------------------------------------
 
-const renderSettings = (req, res, { saved, error, signIn, status = 200 } = {}) =>
-  render(res, "pages/settings", {
+const renderSettings = async (req, res, { saved, error, signIn, status = 200 } = {}) => {
+  const u = req.user;
+  const rest = { emailLinkOut: isPasswordAccount(u) ? await linkSent(u.id, u.pending_email ?? u.email) : false };
+  return render(res, "pages/settings", {
     user: req.user, // loaded fresh each request, so a just-saved name shows
     membership: req.membership,
     colors: MEMBER_COLORS,
@@ -578,10 +591,14 @@ const renderSettings = (req, res, { saved, error, signIn, status = 200 } = {}) =
     saved,
     error,
     signIn, // what was typed into the sign-in form, kept after an error
+    ...rest,
   }, status);
+};
 
 app.get("/settings", requireUser, (req, res) =>
-  renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
+  renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved",
+    "email-pending": "Check your new email for a link to confirm it", "email-cancelled": "Email change cancelled",
+    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -604,15 +621,58 @@ app.post("/settings/sign-in", requireUser, async (req, res) => {
   if (accountFailures.isLimited(key) || ipFailures.isLimited(req.ip)) {
     return renderSettings(req, res, { error: "Too many wrong passwords. Try again in 15 minutes.", signIn, status: 429 });
   }
+  let result;
   try {
-    await updateSignIn(req.user.id, { ...signIn, password: req.body.password });
+    result = await updateSignIn(req.user.id, { ...signIn, password: req.body.password });
   } catch (err) {
-    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    // 400: something to fix in the form; 502: the confirmation email couldn't be sent.
+    if (!(err instanceof HttpError && [400, 502].includes(err.status))) throw err;
     if (err.wrongPassword) (accountFailures.hit(key), ipFailures.hit(req.ip));
-    return renderSettings(req, res, { error: err.message, signIn, status: 400 });
+    return renderSettings(req, res, { error: err.message, signIn, status: err.status });
   }
   accountFailures.reset(key);
-  redirect(res, "/settings?saved=sign-in#account-title");
+  const saved = result.pendingEmail ? "email-pending" : result.cancelledEmail ? "email-cancelled" : "sign-in";
+  redirect(res, `/settings?saved=${saved}#account-title`);
+});
+
+// --- Confirming email ------------------------------------------------------------------------
+// A link opens a page with a Confirm button; the POST does the work, so mail scanners that open
+// links can't use them up. Neither needs you to be signed in: the token is the proof.
+app.get("/email/confirm", async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  render(res, "pages/email-confirm", { token, link: await describeLink(token), user: req.user });
+});
+
+app.post("/email/confirm", async (req, res) => {
+  try {
+    const email = await confirmEmail(req.body.token);
+    render(res, "pages/email-confirm", { done: email, user: req.user });
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    render(res, "pages/email-confirm", { error: err.message, user: req.user }, 400);
+  }
+});
+
+// Another link, from the home page's nudge or Settings. A few an hour, so it can't be used to flood an inbox.
+const emailResends = createRateLimit({ limit: 5, windowMs: 60 * 60_000 });
+app.post("/email/resend", requireUser, async (req, res) => {
+  const back = req.body.back === "home" ? "/" : "/settings";
+  const fail = (message, status) =>
+    back === "/" ? render(res, "pages/error", { status, message }, status) : renderSettings(req, res, { error: message, status });
+  if (emailResends.isLimited(req.user.id)) return fail("That's a lot of emails. Try again in an hour.", 429);
+  try {
+    await resendConfirmation(req.user.id);
+  } catch (err) {
+    if (!(err instanceof HttpError && [400, 502].includes(err.status))) throw err;
+    return fail(err.message, err.status);
+  }
+  emailResends.hit(req.user.id);
+  redirect(res, back === "/" ? "/?email=sent" : "/settings?saved=email-sent#account-title");
+});
+
+app.post("/email/cancel", requireUser, async (req, res) => {
+  await cancelEmailChange(req.user.id);
+  redirect(res, "/settings?saved=email-cancelled#account-title");
 });
 
 // Leaving the name field saves it (like the color below), with a toast; errors show the same way.
@@ -784,6 +844,8 @@ app.post("/signup", async (req, res) => {
   }
   signups.hit(req.ip);
   await startSession(res, userId);
+  // The account works straight away; confirming the email can come later (the home page nudges).
+  await sendVerifyEmail(await getUser(userId)).catch((err) => console.error("couldn't send the sign-up confirmation", err));
   redirect(res, next);
 });
 

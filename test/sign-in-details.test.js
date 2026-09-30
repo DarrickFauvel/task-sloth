@@ -6,9 +6,11 @@ import { join } from "node:path";
 import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { createPasswordUser, getUser, updateSignIn, upsertDevUser, verifyLogin } from "../src/services/users.js";
+import { captureMail } from "../src/lib/mail.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-signin-"));
 let sam, alex;
+const outbox = captureMail();
 
 before(async () => {
   initDb({ url: `file:${join(dir, "test.db")}` });
@@ -18,18 +20,23 @@ before(async () => {
 });
 after(() => rmSync(dir, { recursive: true, force: true }));
 
-test("with the right password, username and email change, and sign-in follows them", async () => {
-  assert.equal(await updateSignIn(sam, { username: "sammy", email: " Sammy@Example.com ", password: "correct horse" }), true);
+test("with the right password, the username changes at once and a new email waits to be confirmed", async () => {
+  const result = await updateSignIn(sam, { username: "sammy", email: " Sammy@Example.com ", password: "correct horse" });
+  assert.deepEqual(result, { usernameChanged: true, pendingEmail: "sammy@example.com", cancelledEmail: false });
   const u = await getUser(sam);
   assert.equal(u.username, "sammy");
-  assert.equal(u.email, "sammy@example.com");
+  assert.equal(u.email, "sam@example.com", "the old email stays until the new one is confirmed");
+  assert.equal(u.pending_email, "sammy@example.com");
   assert.equal(await verifyLogin("sammy", "correct horse"), sam);
-  assert.equal(await verifyLogin("sammy@example.com", "correct horse"), sam);
+  assert.equal(await verifyLogin("sam@example.com", "correct horse"), sam);
   assert.equal(await verifyLogin("sam", "correct horse"), null, "the old username no longer signs in");
+  assert.deepEqual(outbox.map((m) => m.to), ["sammy@example.com", "sam@example.com"], "a link to the new address, a heads-up to the old");
 });
 
-test("saving with nothing changed is fine and says so", async () => {
-  assert.equal(await updateSignIn(sam, { username: "sammy", email: "sammy@example.com", password: "correct horse" }), false);
+test("typing the current email back in cancels a pending change", async () => {
+  const result = await updateSignIn(sam, { username: "sammy", email: "sam@example.com", password: "correct horse" });
+  assert.deepEqual(result, { usernameChanged: false, pendingEmail: null, cancelledEmail: true });
+  assert.equal((await getUser(sam)).pending_email, null);
 });
 
 test("a wrong password changes nothing and is flagged", async () => {

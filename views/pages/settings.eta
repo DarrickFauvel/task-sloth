@@ -117,6 +117,24 @@
     <h2 id="account-title"><span aria-hidden="true">🔑</span> Account</h2>
     <% if (u.username) { /* a password account: username and email are yours to change */ %>
       <% const f = it.signIn ?? { username: u.username, email: u.email }; %>
+      <%/* Where the email stands. A new email only takes over once its link is opened (src/services/email-confirm.js).
+           These are their own small forms, outside the sign-in form. */%>
+      <% if (u.pending_email) { %>
+        <div class="email-status is-pending">
+          <p>Waiting for you to confirm <strong><%= u.pending_email %></strong>. Open the link we sent there. Until then, you sign in with <%= u.email %>.</p>
+          <div class="email-status-actions">
+            <form method="post" action="/email/resend"><button class="link">Send the link again</button></form>
+            <form method="post" action="/email/cancel"><button class="link danger">Cancel change</button></form>
+          </div>
+        </div>
+      <% } else if (!u.email_verified_at) { %>
+        <div class="email-status is-pending">
+          <p>Your email isn't confirmed yet.<% if (it.emailLinkOut) { %> Open the link we sent to <strong><%= u.email %></strong>.<% } else { %> We'll send a link to <strong><%= u.email %></strong>.<% } %></p>
+          <div class="email-status-actions">
+            <form method="post" action="/email/resend"><button class="link"><%= it.emailLinkOut ? "Send the link again" : "Send me a link" %></button></form>
+          </div>
+        </div>
+      <% } %>
       <form method="post" action="/settings/sign-in" class="stack">
         <fieldset class="field sign-in-fields">
           <legend class="visually-hidden">How you sign in</legend>
@@ -127,6 +145,7 @@
           </label>
           <label class="field">Email
             <input type="email" name="email" value="<%= f.email %>" required maxlength="254" autocomplete="email">
+            <small class="hint"><%= u.email_verified_at && !u.pending_email ? "✓ Confirmed. " : "" %>A new email changes once you open the link we send to it.</small>
           </label>
           <label class="field">Current password
             <%/* After an error the page reloads at the top; focusing here scrolls back to the form and its message. */%>

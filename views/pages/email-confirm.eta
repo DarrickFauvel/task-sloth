@@ -1,0 +1,27 @@
+<% layout("/layout", { title: "Confirm your email" }) %>
+<%/* Where a confirmation link lands (see src/services/email-confirm.js). Three states: a usable link shows a
+     Confirm button (a POST, so mail scanners that open links don't use it up); after that, done; or the link
+     is used, old or unknown. You don't need to be signed in. */%>
+<p class="brand-line"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</p>
+<section class="panel">
+  <% if (it.done) { %>
+    <h1>Email confirmed</h1>
+    <p><strong><%= it.done %></strong> is confirmed. That's the email you sign in with now.</p>
+    <a class="button primary" href="<%= it.user ? '/' : '/login' %>"><%= it.user ? "Back to my tasks" : "Sign in" %></a>
+  <% } else if (it.link) { %>
+    <h1><%= it.link.purpose === "change" ? "Confirm your new email" : "Confirm your email" %></h1>
+    <p><strong><%= it.link.email %></strong></p>
+    <p class="hint"><%= it.link.purpose === "change"
+      ? "Once you confirm, you'll sign in with this email instead of your old one."
+      : "This tells us the email on your account is really yours." %></p>
+    <form method="post" action="/email/confirm">
+      <input type="hidden" name="token" value="<%= it.token %>">
+      <button class="button primary">Confirm email</button>
+    </form>
+  <% } else { %>
+    <h1>This link doesn't work anymore</h1>
+    <p><%= it.error ?? "It has expired or was already used. Links work once, for 24 hours." %></p>
+    <p class="hint">You can send a new one from Settings, under Account.</p>
+    <a class="button primary" href="<%= it.user ? '/settings#account-title' : '/login?next=%2Fsettings' %>"><%= it.user ? "Go to Settings" : "Sign in" %></a>
+  <% } %>
+</section>

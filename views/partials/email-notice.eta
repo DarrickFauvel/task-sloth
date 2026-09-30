@@ -1,0 +1,19 @@
+<%/* The home page's nudge while a password account's email (or a new one it's changing to) isn't confirmed.
+     It's a reminder, not a gate: everything works meanwhile. */%>
+<div class="email-notice" role="status">
+  <p>
+    <% if (it.sent) { %>
+      <strong>Link sent.</strong> Check <%= it.email %> and open the link to confirm it.
+    <% } else if (it.pending) { %>
+      <strong>Confirm your new email.</strong> We sent a link to <%= it.email %>. Until you open it, you still sign in with your old one.
+    <% } else if (it.linkOut) { %>
+      <strong>Confirm your email.</strong> We sent a link to <%= it.email %>.
+    <% } else { %>
+      <strong>Confirm your email.</strong> We'll send a link to <%= it.email %>.
+    <% } %>
+  </p>
+  <form method="post" action="/email/resend">
+    <input type="hidden" name="back" value="home">
+    <button class="link"><%= it.sent ? "Send another" : it.linkOut ? "Send it again" : "Send me a link" %></button>
+  </form>
+</div>
