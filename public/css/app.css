@@ -286,6 +286,7 @@ label.pill span { overflow-wrap: anywhere; }
 
 #checklist-head { margin-top: var(--space-m); }
 #checklist-head h2 { font-size: var(--step-1); margin: 0; }
+.checklist-hint { margin: var(--space-2xs) 0 0; }
 #add-items { position: static; margin: var(--space-xs) 0; padding: 0; }
 .item { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--line); }
 .item form { margin: 0; }
