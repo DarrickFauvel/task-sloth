@@ -123,7 +123,9 @@ async function emailNoticeView(req) {
   return { email, pending: Boolean(u.pending_email), sent: req.query.email === "sent", linkOut: await linkSent(u.id, email) };
 }
 
-app.get("/", requireUser, async (req, res) => {
+app.get("/", async (req, res) => {
+  // Not signed in: the landing page, instead of straight to the sign-in form.
+  if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req) })
     : null;

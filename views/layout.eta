@@ -13,6 +13,12 @@
     <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
   <% } %>
   <title><%= it.title ? `${it.title} · Task Sloth` : "Task Sloth" %></title>
+  <% if (it.description) { %>
+    <meta name="description" content="<%= it.description %>">
+    <meta property="og:title" content="Task Sloth">
+    <meta property="og:description" content="<%= it.description %>">
+    <meta property="og:image" content="<%= it.baseUrl ?? "" %>/img/logo.png">
+  <% } %>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/css/app.css">
@@ -80,7 +86,7 @@
   <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js"></script>
 </head>
 <body>
-  <main>
+  <main<%~ it.wide ? ' class="is-wide"' : "" %>>
     <%~ it.body %>
   </main>
 </body>

@@ -60,7 +60,7 @@
         data-show="<%= renaming %>" data-on:submit="@post('/tasks/<%= t.id %>/rename')">
     <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
     <input id="rename-<%= t.id %>" name="title" value="<%= t.title %>" data-bind:rename-text required maxlength="300"
-           autocomplete="off" aria-label="Task name" data-on:keydown="evt.key === 'Escape' && ($renaming = '')">
+           autocomplete="off" autocapitalize="none" aria-label="Task name" data-on:keydown="evt.key === 'Escape' && ($renaming = '')">
     <div class="rename-actions">
       <button class="button primary">Save</button>
       <button type="button" class="button" data-on:click="$renaming = ''">Cancel</button>

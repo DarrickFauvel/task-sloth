@@ -1,11 +1,11 @@
-<%/* The home page's top bar: the brand with the household's name tucked under it (scrolled, just the logo;
-     see /js/sticky-header.js), then the "done today" badge, then your name and avatar
+<%/* The home page's top bar: the brand with the household's name tucked under it (scrolled, the household line
+     and your name tuck away; see /js/sticky-header.js), then the "done today" badge, then your name and avatar
      as one button that opens the account menu. The menu is a native popover: tapping outside or Esc closes it,
      with no script. The household name sits outside the heading and link, so neither reads it out. */%>
 <% const u = it.user; const household = it.membership?.household.name; %>
 <header class="bar app-header">
   <div class="brand-block">
-    <h1><a class="brand" href="/"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192"><span class="brand-name">Task Sloth</span></a></h1>
+    <h1><%~ include("/partials/brand", {}) %></h1>
     <%/* A random sloth-paced line with the household's name in it (src/web/household-phrase.js), typed out softly. */%>
     <% if (household) { %><p class="brand-household"><type-writer><%= it.phrase ?? household %></type-writer></p><% } %>
   </div>

@@ -1,5 +1,5 @@
 <% layout("/layout", { title: "Join household" }) %>
-<p class="brand-line"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</p>
+<p class="brand-line"><%~ include("/partials/brand", {}) %></p>
 <section class="panel">
   <h1>Join <%= it.invite.household_name %></h1>
   <p><%= it.invite.inviter_name %> invited you to share tasks in their household.</p>

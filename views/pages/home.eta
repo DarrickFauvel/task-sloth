@@ -26,7 +26,7 @@
       <%/* The × clears what's typed (so does Esc) and keeps the cursor in the box. It starts hidden;
            data-show reveals it once there's text. */%>
       <span class="input-wrap">
-        <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" aria-label="New task"
+        <input name="quick" data-bind:quick required maxlength="300" autocomplete="off" autocapitalize="none" aria-label="New task"
                placeholder="Add a task…" data-on:keydown="evt.key === 'Escape' && $quick && (evt.preventDefault(), $quick = '')">
         <button type="button" class="clear-input" aria-label="Clear" style="display: none"
                 data-show="$quick.length > 0" data-on:click="$quick = ''; el.previousElementSibling.focus()">

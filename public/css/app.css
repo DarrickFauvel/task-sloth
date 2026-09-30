@@ -36,6 +36,11 @@
   --tint: color-mix(in srgb, var(--accent) 8%, transparent);
   --tint-strong: color-mix(in srgb, var(--accent) 12%, transparent);
   --tint-line: color-mix(in srgb, var(--accent) 20%, transparent);
+  /* Gradients: the accent and a partner hue-shifted from it (below), so they follow each member's color and
+     both themes. Where relative colors aren't supported, the partner is the accent itself: a flat fill. */
+  --accent-2: var(--accent);
+  --gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --gradient-soft: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent-2) 12%, transparent));
 }
 /* Dark follows the device unless someone picked a theme (data-theme on <html>, from the theme cookie). */
 @media (prefers-color-scheme: dark) {
@@ -52,6 +57,10 @@
     :root[style*="--you"]:not([data-theme="light"]) { --accent: oklch(from var(--you) max(l, 0.74) c h); }
   }
   :root[style*="--you"][data-theme="dark"] { --accent: oklch(from var(--you) max(l, 0.74) c h); }
+}
+
+@supports (color: oklch(from red l c h)) {
+  :root { --accent-2: oklch(from var(--accent) calc(l + 0.02) c calc(h + 50)); }
 }
 
 /* --- Base ------------------------------------------------------------------------------ */
@@ -95,7 +104,12 @@ select { background: var(--bg); }
 textarea { resize: vertical; field-sizing: content; max-height: 12rem; }
 button, .button { cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.4em; }
 button:active, .button:active { transform: scale(0.97); }
-.button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.button.primary {
+  background: var(--gradient); background-size: 160% 100%; background-position: 0 0; border-color: transparent;
+  color: var(--bg); font-weight: 600; box-shadow: 0 0.35rem 1rem -0.4rem color-mix(in srgb, var(--accent) 60%, transparent);
+  transition: background-position 0.4s ease, box-shadow 0.3s ease;
+}
+@media (hover: hover) { .button.primary:hover { background-position: 100% 0; box-shadow: 0 0.5rem 1.3rem -0.4rem color-mix(in srgb, var(--accent-2) 65%, transparent); } }
 label { display: grid; gap: var(--space-2xs); }
 
 /* Text-style buttons and links inside dense rows: small to look at, still a full tap target tall. */
@@ -112,7 +126,7 @@ button.icon:focus-visible { opacity: 1; }
   border-radius: 50%; border: 2px solid var(--muted); line-height: 1; font-size: var(--step--1);
 }
 .check::after { content: ""; position: absolute; inset: -0.6rem; }
-.is-done .check { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.is-done .check { background: var(--gradient); border-color: transparent; color: var(--bg); }
 /* The tick is always in the button, hidden until done, so ticking a box eases it in rather than swapping text. */
 .check { transition: background-color 0.3s ease, border-color 0.3s ease; }
 .check span { display: block; opacity: 0; scale: 0.4; transition: opacity 0.2s ease, scale 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
@@ -143,19 +157,42 @@ button.icon:focus-visible { opacity: 1; }
 .brand { color: inherit; text-decoration: none; }
 /* The sloth beside the name, in the header and on the sign-in pages. */
 .brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
-.brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; transition: transform 0.3s cubic-bezier(0.3, 1.5, 0.5, 1); }
-/* Hovering the brand (or tabbing to it) brings the sloth a little closer, with a small bounce. */
-@media (hover: hover) {
-  .brand:hover .brand-logo { transform: scale(1.12); }
-  .brand:hover { text-decoration: none; } /* the sloth is the hover cue */
+.brand-mark { position: relative; display: flex; flex: none; }
+.brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; }
+@media (hover: hover) { .brand:hover { text-decoration: none; } } /* the dozing sloth is the hover cue */
+/* Hovering the brand (or tabbing to it), the sloth dozes off: a staircase of three z's, small to big, rising
+   from just right of its face. They fade in one after another, linger, drift off, and start again for as long
+   as you stay. (Each z's position is in its own font size: about 0.3 and 0.6 of the brand's size across,
+   0.3 and 0.6 up.) */
+.brand-zzz { position: absolute; left: 78%; top: 0.8em; pointer-events: none; }
+.brand-zzz span {
+  position: absolute; left: 0; bottom: 0; opacity: 0;
+  font-size: 0.5em; font-weight: 800; font-style: italic; line-height: 1; color: var(--accent);
 }
-.brand:focus-visible .brand-logo { transform: scale(1.12); }
-@media (prefers-reduced-motion: reduce) { .brand-logo { transition: none; } }
+.brand-zzz span:nth-child(2) { font-size: 0.62em; left: 0.48em; bottom: 0.48em; }
+.brand-zzz span:nth-child(3) { font-size: 0.7em; left: 0.86em; bottom: 0.86em; }
+@media (hover: hover) {
+  .brand:hover .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
+}
+.brand:focus-visible .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
+.brand:is(:hover, :focus-visible) .brand-zzz span:nth-child(2) { animation-delay: 0.45s; }
+.brand:is(:hover, :focus-visible) .brand-zzz span:nth-child(3) { animation-delay: 0.9s; }
+@keyframes zzz {
+  0% { opacity: 0; translate: -0.15em 0.25em; }
+  15%, 60% { opacity: 1; translate: 0 0; }
+  80%, 100% { opacity: 0; translate: 0.1em -0.35em; }
+}
+@media (prefers-reduced-motion: reduce) { .brand-zzz { display: none; } }
 /* The brand, with the household's name under the words "Task Sloth" (not the logo). The name is taken out of
    the flow, so the brand stays centered against the account button whether or not there is one; the header's
    bottom padding makes room for it. A long name is cut short rather than running under the account button. */
 .app-header { flex-wrap: nowrap; }
 .app-header:has(.brand-household) { padding-bottom: 1.1rem; }
+/* ...and the logo moves down by half of it, so it's centered on both lines (name and household), not just the
+   name. (The badge and avatar stay level with the name, clear of the household line.) Compacted (see below),
+   the line goes and so does the offset. */
+.app-header:has(.brand-household) .brand-mark { translate: 0 0.55rem; transition: translate 0.25s ease; }
+.app-header.is-compact .brand-mark { translate: none; }
 .brand-block { position: relative; flex: none; min-width: 0; }
 .app-header h1 { flex: none; }
 .brand-household {
@@ -179,15 +216,16 @@ button.icon:focus-visible { opacity: 1; }
 .app-header.is-sticky .brand-household { transition: opacity 0.2s ease, translate 0.25s ease; }
 .app-header.is-compact .brand-household { opacity: 0; translate: 0 -0.4rem; }
 /* The words "Task Sloth" fold away (still read out: they're only squeezed to nothing), leaving the logo. */
-.app-header.is-sticky .brand-name { display: inline-block; max-width: 10em; overflow: hidden; white-space: nowrap; transition: max-width 0.3s ease, opacity 0.2s ease; }
-.app-header.is-compact .brand-name { max-width: 0; opacity: 0; }
 /* Compact, your name gives its room to the badge; the avatar stays (and the button's label still says who). */
 .app-header.is-compact .account-name { display: none; }
 .app-header.is-sticky ~ * .quick-add { top: var(--app-header-h, 0px); }
-/* Once pinned together, a hairline under the add box separates them from the list. */
-.app-header.is-compact ~ * .quick-add { box-shadow: 0 1px 0 var(--line); }
+/* Once pinned together, a hairline under the add box (the accent gradient, fading to grey at the ends)
+   separates them from the list. */
+.app-header.is-compact ~ * .quick-add {
+  background: linear-gradient(90deg, var(--line), var(--accent) 30%, var(--accent-2) 70%, var(--line)) bottom / 100% 1px no-repeat, var(--bg);
+}
 @media (prefers-reduced-motion: reduce) {
-  .app-header.is-sticky, .app-header.is-sticky .brand-household, .app-header.is-sticky .brand-name { transition: none; }
+  .app-header.is-sticky, .app-header.is-sticky .brand-household, .app-header .brand-mark { transition: none; }
 }
 .tw-char { animation: tw-in 0.35s ease both; }
 @keyframes tw-in { from { opacity: 0; filter: blur(3px); } }
@@ -236,12 +274,12 @@ button.icon:focus-visible { opacity: 1; }
 .done-emoji { display: inline-block; animation: done-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
 .done-cheer {
   position: absolute; top: calc(100% - 0.2rem); right: 0; z-index: 3; padding: 0.3rem 0.7rem; border-radius: 999px;
-  background: var(--accent); color: var(--bg); font-size: var(--step--1); font-weight: 600; white-space: nowrap; pointer-events: none;
+  background: var(--gradient); color: var(--bg); font-size: var(--step--1); font-weight: 600; white-space: nowrap; pointer-events: none;
   box-shadow: 0 0.3rem 1rem rgb(0 0 0 / 0.15); transform-origin: top right; opacity: 0; animation: done-cheer 2.8s ease both;
 }
 /* Its tail points up at the badge. */
 .done-cheer::before {
-  content: ""; position: absolute; bottom: 100%; right: 1rem; border: 0.35rem solid transparent; border-bottom-color: var(--accent);
+  content: ""; position: absolute; bottom: 100%; right: 1rem; border: 0.35rem solid transparent; border-bottom-color: color-mix(in oklch, var(--accent), var(--accent-2)); /* where the gradient is, under it */
 }
 /* On a roll: the flame and its mirror image fade into each other, so it licks left and right, while it
    flickers a little taller and shorter from its base. */
@@ -299,7 +337,7 @@ button.icon:focus-visible { opacity: 1; }
 .tabs a[aria-current] { color: var(--fg); border-color: var(--accent); font-weight: 600; }
 .badge {
   display: inline-block; min-width: 1.4em; padding: 0 0.4em; border-radius: 1em; text-align: center;
-  background: var(--accent); color: var(--bg); font-size: var(--step--2); font-weight: 600; line-height: 1.5;
+  background: var(--gradient); color: var(--bg); font-size: var(--step--2); font-weight: 600; line-height: 1.5;
 }
 .tab-hint { margin: var(--space-2xs) 0 var(--space-xs); }
 /* "Group by  When | Where / how" above a to-do list. */
@@ -563,7 +601,7 @@ label.pill span, button.pill {
   display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-s);
   border: 1px solid var(--line); border-radius: 2rem; cursor: pointer; background: none;
 }
-.pill input:checked + span, button.pill.is-on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.pill input:checked + span, button.pill.is-on { background: var(--gradient); border-color: transparent; color: var(--bg); }
 .pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .sort-footer { text-align: center; font-size: var(--step--1); margin-top: var(--space-m); }
@@ -974,4 +1012,136 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
   --theme-feather: 12rem;
   mask-image: radial-gradient(circle at var(--theme-x, 50%) var(--theme-y, 0px),
     #000 max(0px, calc(var(--theme-r) - var(--theme-feather))), transparent var(--theme-r));
+}
+
+/* --- Landing page (views/pages/landing.eta) --------------------------------------------------- */
+
+main.is-wide { max-width: 68rem; }
+/* minmax(0, 1fr) columns: the preview's one-line add box mustn't widen the page. */
+.landing { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(2.5rem, 2rem + 4vw, 5rem); }
+/* Only there for desktop scrollbars (100vw counts them); phones' overlay scrollbars need nothing clipped. */
+body:has(.landing) { overflow-x: clip; }
+.landing-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-m); font-size: var(--step-1); font-weight: 700; }
+.landing-signin { font-size: var(--step-0); font-weight: 600; }
+/* A soft aurora behind the hero: two blobs of the accent pair, drifting very slowly. It spans the screen's full
+   width (not just the content's), so its fade reaches the screen edge instead of stopping in a line. */
+.landing-hero { position: relative; isolation: isolate; }
+.landing-hero::before {
+  content: ""; position: absolute; inset: -6rem calc(50% - 50vw) -2rem; z-index: -1; pointer-events: none; overflow: hidden;
+  background:
+    radial-gradient(40% 50% at 20% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(40% 55% at 80% 55%, color-mix(in srgb, var(--accent-2) 20%, transparent), transparent 70%);
+  background-size: 100% 100%; animation: aurora 18s ease-in-out infinite alternate;
+}
+@keyframes aurora { to { background-position: 3% 6%; } }
+.landing-glow {
+  background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.landing-kicker { background: var(--gradient); -webkit-background-clip: text; background-clip: text; }
+.landing-hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-l); align-items: center; }
+.landing-pitch { display: grid; gap: var(--space-s); justify-items: start; }
+.landing-pitch h1 { margin: 0; font-size: clamp(2rem, 1.5rem + 2.6vw, 3.4rem); line-height: 1.08; letter-spacing: -0.02em; }
+.landing-pitch .lead { margin: 0; color: var(--muted); max-width: 34rem; }
+.landing-kicker { margin: 0; color: transparent; font-size: var(--step--1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.landing-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-xs); }
+.landing-actions .button { min-height: 3rem; padding-inline: var(--space-m); }
+.landing-pitch .hint { margin: 0; }
+
+/* The preview: a phone-ish card of real task rows, made inert. It leans in a little and floats on a soft glow. */
+.landing-demo { position: relative; margin: 0; justify-self: center; width: min(100%, 24rem); }
+.landing-demo::before {
+  content: ""; position: absolute; inset: 8% 0 -4%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-2) 26%, transparent), transparent);
+}
+.demo-screen {
+  padding: var(--space-s) var(--space-m) var(--space-m); border: 1px solid var(--line); border-radius: 1.75rem; background: var(--bg);
+  box-shadow: 0 1.5rem 3rem -1rem rgb(0 0 0 / 0.25); pointer-events: none; user-select: none;
+  animation: demo-float 7s ease-in-out infinite;
+}
+.demo-top { display: flex; align-items: center; gap: var(--space-xs); }
+.demo-top .brand-logo { width: 2.4rem; height: 2.4rem; margin: 0 auto 0 0; }
+.demo-top .done-badge { min-height: 0; }
+.demo-avatars { display: flex; }
+.demo-avatars .avatar { width: 1.7rem; height: 1.7rem; font-size: var(--step--2); border: 2px solid var(--bg); }
+.demo-avatars .avatar + .avatar { margin-left: -0.5rem; }
+.demo-add { display: flex; gap: var(--space-xs); margin: var(--space-s) 0 var(--space-2xs); }
+.demo-input {
+  flex: 1; min-width: 0; padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: var(--step--1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.demo-add .button { min-height: 0; padding: 0.4rem 0.9rem; }
+.landing-demo .group { margin-top: var(--space-s); }
+.landing-demo .task:last-child { border-bottom: 0; }
+.landing-demo .meta { gap: 0 var(--space-xs); }
+.landing-demo .chip, .landing-demo .chip.phone { color: var(--accent); }
+/* Every few seconds, "Water the plants" gets ticked off, stays done a moment, then resets. */
+.demo-ticking .check { animation: demo-check 6s ease infinite 1.5s; }
+.demo-ticking .check span { animation: demo-tick 6s ease infinite 1.5s; }
+.demo-ticking .task-title { animation: demo-title 6s ease infinite 1.5s; }
+.demo-ticking .task-title > span { animation: demo-strike 6s ease infinite 1.5s; }
+@keyframes demo-check { 0%, 18% { background: transparent; border-color: var(--muted); } 24%, 80% { background: var(--accent-2); border-color: transparent; } 88%, 100% { background: transparent; border-color: var(--muted); } }
+@keyframes demo-tick { 0%, 18% { opacity: 0; scale: 0.4; } 26%, 80% { opacity: 1; scale: 1; color: var(--bg); } 88%, 100% { opacity: 0; scale: 0.4; } }
+@keyframes demo-title { 0%, 20% { color: var(--fg); } 30%, 80% { color: var(--muted); } 90%, 100% { color: var(--fg); } }
+@keyframes demo-strike { 0%, 20% { background-size: 0 1px; } 34%, 80% { background-size: 100% 1px; } 88%, 100% { background-size: 0 1px; } }
+@keyframes demo-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -0.4rem; } }
+
+.landing-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-m); }
+.landing-section h2, .landing-cta h2 { margin: 0; font-size: var(--step-3); letter-spacing: -0.01em; }
+.landing-steps, .landing-features { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
+/* Cards: a soft gradient wash inside, and a border (the outer background layer showing through a transparent
+   border) that turns into the accent gradient on hover. */
+.landing-steps li, .landing-features li {
+  --edge: linear-gradient(var(--line), var(--line));
+  display: grid; gap: var(--space-2xs); align-content: start; padding: var(--space-m);
+  border: 1px solid transparent; border-radius: var(--radius-lg);
+  background:
+    linear-gradient(160deg, var(--tint-strong), transparent 70%) padding-box,
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    var(--edge) border-box;
+  transition: translate 0.3s ease, box-shadow 0.3s ease;
+}
+@media (hover: hover) {
+  .landing-steps li:hover, .landing-features li:hover {
+    --edge: var(--gradient); translate: 0 -2px; box-shadow: 0 0.8rem 1.6rem -1rem color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+}
+/* Each icon sits on a small gradient tile. */
+.landing-icon {
+  display: grid; place-items: center; width: 2.6rem; height: 2.6rem; margin-bottom: var(--space-2xs);
+  border-radius: 0.8rem; background: var(--gradient-soft); font-size: var(--step-1);
+}
+.landing-steps h3, .landing-features h3 { margin: 0; font-size: var(--step-1); }
+.landing-steps p, .landing-features p { margin: 0; color: var(--muted); }
+.landing-steps { counter-reset: step; }
+.landing-steps h3::before {
+  counter-increment: step; content: counter(step) ". ";
+  background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.landing-features code { font-size: 0.9em; padding: 0.05em 0.3em; border-radius: 0.3em; background: var(--tint-strong); color: var(--fg); }
+
+.landing-cta {
+  display: grid; justify-items: center; gap: var(--space-s); padding: var(--space-l) var(--space-m); text-align: center;
+  border-radius: 1.75rem; border: 1px solid var(--tint-line);
+  background:
+    radial-gradient(60% 80% at 0% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%),
+    radial-gradient(60% 80% at 100% 100%, color-mix(in srgb, var(--accent-2) 20%, transparent), transparent 70%),
+    var(--bg);
+}
+.landing-cta p { margin: 0; color: var(--muted); }
+.landing-cta .button { min-height: 3rem; padding-inline: var(--space-l); }
+.landing-cta-logo { width: 5.5rem; height: 5.5rem; }
+.landing-footer { padding-bottom: var(--space-m); text-align: center; color: var(--muted); font-size: var(--step--1); }
+.landing-footer a { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; }
+
+@media (min-width: 40rem) {
+  .landing-steps, .landing-features { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 56rem) {
+  .landing-hero { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .landing-steps { grid-template-columns: repeat(4, 1fr); }
+  .landing-features { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero::before, .demo-screen, .demo-ticking .check, .demo-ticking .check span, .demo-ticking .task-title, .demo-ticking .task-title > span { animation: none; }
 }

@@ -1,6 +1,5 @@
 // The home page's header stays at the top while the list scrolls under it (.is-sticky), and once the page
-// has scrolled it tucks away the household line, the words "Task Sloth" and your name (.is-compact) to give
-// the list the room. --app-header-h is its height, so the sticky add box sits just under it. Without script,
+// has scrolled it tucks away the household line and your name (.is-compact) to give the list the room. --app-header-h is its height, so the sticky add box sits just under it. Without script,
 // the header scrolls away as before.
 const header = document.querySelector(".app-header");
 if (header) {

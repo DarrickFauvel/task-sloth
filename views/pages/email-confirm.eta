@@ -2,7 +2,7 @@
 <%/* Where a confirmation link lands (see src/services/email-confirm.js). Three states: a usable link shows a
      Confirm button (a POST, so mail scanners that open links don't use it up); after that, done; or the link
      is used, old or unknown. You don't need to be signed in. */%>
-<p class="brand-line"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">Task Sloth</p>
+<p class="brand-line"><%~ include("/partials/brand", {}) %></p>
 <section class="panel">
   <% if (it.done) { %>
     <h1>Email confirmed</h1>
