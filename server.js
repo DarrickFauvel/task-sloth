@@ -24,7 +24,7 @@ import { doneTodayView } from "./src/web/done-today.js";
 import { householdPhrase } from "./src/web/household-phrase.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
-import { addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
+import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
@@ -585,6 +585,17 @@ app.post("/items/:id/uncheck", requireHousehold, async (req, res) => {
 
 app.post("/items/:id/delete", requireHousehold, async (req, res) => {
   await sendChecklist(req, res, await deleteItem(req.actor, req.params.id), { signals: { itemRenaming: "" } });
+});
+
+// An item's photo: the bytes as the body, like /tasks/:id/photos. A new one replaces the old; the live update shows it.
+app.post("/items/:id/photo", requireHousehold, express.raw({ type: "image/*", limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  try {
+    await addItemPhoto(req.actor, req.params.id, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return res.status(err.status).type("text").send(err.message);
+    throw err;
+  }
+  res.sendStatus(204);
 });
 
 // Drag (or arrow keys on the grip) to reorder within a section; see public/js/reorder-items.js.

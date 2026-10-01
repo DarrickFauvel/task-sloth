@@ -4,10 +4,29 @@ import { parseChecklistInput, parseSingleItem } from "../../public/js/lib/checkl
 import { guessCategory } from "../../public/js/lib/groceries.js";
 import { activityStatement } from "./activity.js";
 import { changed } from "./changes.js";
+import { destroyImages } from "./photos.js";
 import { getTask, itemInsert } from "./tasks.js";
 
+/** A task's items, each with photo_id: its photo, if it has one. */
 export async function listItems(taskId) {
-  return db.all("SELECT * FROM checklist_items WHERE task_id = ? ORDER BY sort_order, created_at", [taskId]);
+  return db.all(
+    `SELECT c.*, (SELECT ph.id FROM task_photos ph WHERE ph.item_id = c.id) AS photo_id
+       FROM checklist_items c WHERE c.task_id = ? ORDER BY c.sort_order, c.created_at`,
+    [taskId],
+  );
+}
+
+/**
+ * Deletes the items `where` picks (an SQL condition on checklist_items) along with their photos, then the
+ * photos' images on Cloudinary.
+ */
+async function deleteItemsWhere(where, args) {
+  const photos = await db.all(`SELECT public_id FROM task_photos WHERE item_id IN (SELECT id FROM checklist_items WHERE ${where})`, args);
+  await db.batch([
+    { sql: `DELETE FROM task_photos WHERE item_id IN (SELECT id FROM checklist_items WHERE ${where})`, args },
+    { sql: `DELETE FROM checklist_items WHERE ${where}`, args },
+  ]);
+  return photos;
 }
 
 /** Groups items by category (shopping mode) with checked items sinking to the bottom of each group. */
@@ -95,8 +114,9 @@ export async function updateItem(actor, itemId, { text, quantity, category }, { 
 
 export async function deleteItem(actor, itemId, { fromGoogle = false } = {}) {
   const item = await getItem(actor, itemId);
-  await db.run("DELETE FROM checklist_items WHERE id = ?", [itemId]);
+  const photos = await deleteItemsWhere("id = ?", [itemId]);
   changed(actor.householdId, item.task_id, { fromGoogle });
+  await destroyImages(photos);
   return item.task_id;
 }
 
@@ -132,8 +152,9 @@ export async function uncheckAll(actor, taskId) {
 
 export async function clearChecked(actor, taskId) {
   await getTask(actor.householdId, taskId);
-  await db.run("DELETE FROM checklist_items WHERE task_id = ? AND checked = 1", [taskId]);
+  const photos = await deleteItemsWhere("task_id = ? AND checked = 1", [taskId]);
   changed(actor.householdId, taskId);
+  await destroyImages(photos);
 }
 
 /**
