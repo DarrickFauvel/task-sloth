@@ -150,6 +150,15 @@ function householdLine(req, res) {
 }
 const phraseCookie = (index) => `phrase=${index}; Path=/; Max-Age=31536000; SameSite=Lax`;
 
+/** After deleting from the task page (?deleted=): the toast with Undo, while the delete is fresh and not undone. */
+async function deletedNotice(req) {
+  const id = typeof req.query.deleted === "string" ? req.query.deleted : null;
+  if (!id || !req.membership) return null;
+  const task = await getTask(req.membership.household.id, id, { includeDeleted: true }).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
+  if (!task?.deleted_at || Date.now() - Date.parse(task.deleted_at) > 5 * 60_000) return null;
+  return { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` };
+}
+
 app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
   if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
@@ -158,7 +167,7 @@ app.get("/", async (req, res) => {
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdLine: householdLine(req, res),
-    emailNotice: await emailNoticeView(req) });
+    emailNotice: await emailNoticeView(req), flash: await deletedNotice(req) });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -359,6 +368,8 @@ app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
   const task = await getTask(req.actor.householdId, req.params.id);
   await deleteTask(req.actor, task.id);
+  // From the task page: back to your lists, which say what was deleted and offer Undo.
+  if (req.body.back === "task-page") return redirect(res, `/?deleted=${task.id}`);
   await sendTaskList(req, res, { flash: { message: `Deleted “${task.title}”`, undo: `/tasks/${task.id}/restore` }, signals: { renaming: "" } });
 });
 
