@@ -78,7 +78,7 @@
           <% }) %>
           <option value="new">➕ New task…</option>
         </select>
-        <span class="hint">It'll show ⏳ until that task is done, then it's ready to go.</span>
+        <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
       </label>
       <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
       <label class="new-blocker">New task to do first
