@@ -39,11 +39,12 @@ async function task(title, msAgo = null) {
 
 const titles = (list) => list.groups.flatMap((g) => g.tasks.map((t) => t.title)).sort();
 
-test("a finished task stays on its list for 10 minutes, then the Done tab keeps it for 8 hours", async () => {
+test("a finished task stays on its list for 10 minutes, then the Done tab keeps it for 24 hours", async () => {
   await task("open one");
   await task("just done", 2 * 60_000);
   await task("done a while ago", 30 * 60_000);
-  await task("done yesterday", 20 * 3_600_000);
+  await task("done last night", 20 * 3_600_000);
+  await task("done the day before", 30 * 3_600_000);
 
   const all = await taskListView({ userId: "u1", membership, view: "all", today, now: NOW });
   assert.deepEqual(titles(all), ["just done", "open one"]);
@@ -51,8 +52,9 @@ test("a finished task stays on its list for 10 minutes, then the Done tab keeps 
   assert.equal(all.refreshAt, NOW - 2 * 60_000 + LINGER_MS);
 
   const done = await taskListView({ userId: "u1", membership, view: "done", today, now: NOW });
-  assert.deepEqual(titles(done), ["done a while ago", "just done"]);
-  assert.equal(done.refreshAt, NOW - 30 * 60_000 + DONE_WINDOW_MS);
+  assert.deepEqual(titles(done), ["done a while ago", "done last night", "just done"]);
+  // The oldest one drops off first.
+  assert.equal(done.refreshAt, NOW - 20 * 3_600_000 + DONE_WINDOW_MS);
 });
 
 test("a list with nothing finished lately has nothing to refresh", async () => {

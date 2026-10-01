@@ -27,7 +27,7 @@ export const NAV = {
     { view: "grabs", blurb: "Things nobody has taken yet" },
     { view: "waiting", blurb: "Needs someone else first" },
     { view: "someday", blurb: "Ideas for one day" },
-    { view: "done", blurb: "Finished in the last 8 hours" },
+    { view: "done", blurb: "Finished in the last 24 hours" },
   ],
 };
 
@@ -36,13 +36,13 @@ export const VIEW_HINTS = {
   inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",
   waiting: "Things that can't move yet: waiting on someone (a reply, a repair) or on another task to be done first.",
   someday: "Ideas you might get to one day, kept out of the way of today's list.",
-  done: "Everything finished in the last 8 hours. Older work is in Activity.",
+  done: "Everything finished in the last 24 hours. Older work is in Activity.",
 };
 
 /** A finished task stays on its list (ticked) this long, so a mis-tap is easy to undo. */
 export const LINGER_MS = 10 * 60_000;
 /** How far back the Done tab goes. */
-export const DONE_WINDOW_MS = 8 * 3_600_000;
+export const DONE_WINDOW_MS = 24 * 3_600_000;
 
 /**
  * Which list a quick-add goes on. Adding from the Waiting or Maybe-later tab puts it there;
