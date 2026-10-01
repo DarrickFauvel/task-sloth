@@ -81,3 +81,13 @@ test("editFormView keeps a known focus field and drops anything else", () => {
   assert.equal(editFormView({}, { ...ctx, focus: "" }).focus, null);
   assert.equal(editFormView({}, ctx).focus, null);
 });
+
+test("editFormView folds More (project, tags, priority) unless something in it is set or asked for", () => {
+  const projects = [{ id: "p1", name: "House", emoji: "🏠" }];
+  const plain = editFormView({ priority: 0 }, { ...ctx, projects });
+  assert.deepEqual(plain.more, { summary: "No project · no tags · normal priority", open: false });
+  const set = editFormView({ priority: -1, project_id: "p1", tag_names: "kids errand" }, { ...ctx, projects });
+  assert.deepEqual(set.more, { summary: "🏠 House · +errand +kids · low priority", open: true });
+  assert.equal(editFormView({ priority: 0 }, { ...ctx, projects, focus: "priority" }).more.open, true);
+  assert.equal(editFormView({ priority: 0 }, { ...ctx, projects, focus: "dueDate" }).more.open, false);
+});

@@ -39,12 +39,25 @@ export function editFormView(task, { members, projects, contexts = [], today = n
     repeats.push({ value: currentRepeat, label: describeRecurrence(current) });
   }
   const tags = task.tag_names ? task.tag_names.split(" ").sort().join(" ") : "";
+  const priorities = [{ value: 1, label: "High" }, { value: 0, label: "Normal" }, { value: -1, label: "Low" }];
+  const priority = Number(task.priority) || 0;
+  const project = projects.find((p) => p.id === task.project_id);
+  const focusField = Object.hasOwn(FIELD_LABELS, focus) ? focus : null;
   return {
-    task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS, userId,
-    focus: Object.hasOwn(FIELD_LABELS, focus) ? focus : null,
+    task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS, userId, priorities,
+    focus: focusField,
     blockers: openTasks.filter((o) => o.id !== task.id).map((o) => ({ id: o.id, title: o.title })),
     quickDates: today ? quickDates(today) : [],
-    priorities: [{ value: 1, label: "High" }, { value: 0, label: "Normal" }, { value: -1, label: "Low" }],
+    // The folded "More" card (project, tags, priority): one line saying what's set, and open when any of it
+    // is set or a tap on the task page asked for one of its fields.
+    more: {
+      summary: [
+        project ? `${project.emoji} ${project.name}` : "No project",
+        tags ? tags.split(" ").map((tag) => `+${tag}`).join(" ") : "no tags",
+        `${priorities.find((p) => p.value === priority)?.label.toLowerCase() ?? "normal"} priority`,
+      ].join(" · "),
+      open: Boolean(project || tags || priority) || ["projectId", "tags", "priority"].includes(focusField),
+    },
   };
 }
 

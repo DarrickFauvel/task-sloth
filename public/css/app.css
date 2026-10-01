@@ -568,13 +568,13 @@ button.link.danger { color: var(--danger); }
    says what it does. Features are split by the same hairline as the task list's rows, with --feature-gap on
    either side of it. */
 .edit { --feature-gap: var(--space-m); }
-.edit-group, .edit-col { display: grid; align-content: start; gap: var(--feature-gap); }
+.edit-group { display: grid; align-content: start; gap: var(--feature-gap); }
 .edit-field {
   display: grid; gap: var(--space-xs); min-width: 0; margin: 0; padding: 0; border: 0;
   font-size: var(--step--1); font-weight: 600; color: var(--fg);
 }
 /* ~ rather than +, so a hidden field or the datalist in between doesn't drop a line. */
-.edit-field ~ .edit-field, .edit-col + .edit-col { padding-top: var(--feature-gap); border-top: 1px solid var(--line); }
+.edit-field ~ .edit-field { padding-top: var(--feature-gap); border-top: 1px solid var(--line); }
 /* Floated, a legend is laid out as an ordinary grid item instead of on the fieldset's border, so it sits under the divider. */
 .edit-field legend { float: left; padding: 0; }
 .edit-field :is(.pills, input, select, .hint) { font-weight: normal; }
@@ -593,6 +593,22 @@ button.link.danger { color: var(--danger); }
 .edit-field:has([value="waiting"]:checked) .list-hint[data-list="waiting"],
 .edit-field:has([value="someday"]:checked) .list-hint[data-list="someday"] { display: block; }
 .waiting-field, .new-blocker { display: none; }
+/* "More" (project, tags, priority) folds to its header band: the summary is the band, with a chevron that turns
+   when it opens, and one line saying what's set (hidden while open, where the fields show it). Folded, the band
+   is the whole card, so it takes the card's bottom padding and corners too. */
+.edit-group.is-more { display: block; }
+.is-more > summary { list-style: none; cursor: pointer; font-size: var(--step-1); font-weight: 700; }
+.is-more > summary::-webkit-details-marker { display: none; }
+.is-more .chevron {
+  display: inline-block; width: 0.45em; height: 0.45em; margin: 0 0 0.12em 0.25em; vertical-align: middle;
+  border: solid currentColor; border-width: 0 0.12em 0.12em 0; rotate: -45deg; transition: rotate 0.2s ease;
+}
+.is-more[open] .chevron { rotate: 45deg; }
+.more-summary { display: block; margin-top: 0.15em; font-size: var(--step--1); font-weight: normal; color: var(--muted); }
+.is-more[open] .more-summary { display: none; }
+.is-more:not([open]) > summary { margin-bottom: calc(-1 * var(--space-m)); border-bottom-color: transparent; border-radius: calc(var(--radius-lg) - 1px); }
+.edit-more { display: grid; gap: var(--feature-gap); margin-top: var(--feature-gap); }
+@media (prefers-reduced-motion: reduce) { .is-more .chevron { transition: none; } }
 .edit-group:has(input[name="list"][value="waiting"]:checked) .waiting-field { display: grid; }
 .edit-group:has(select[name="waitingTaskId"] option[value="new"]:checked) .new-blocker { display: grid; }
 /* "Changes save as you go." on the left, Done on the right. */
@@ -783,13 +799,11 @@ label.pill span, button.pill {
   main:has(.bottom-nav) { padding-bottom: var(--space-l); }
   .quick-add { margin-inline: 0; padding-inline: 0; }
   .edit-actions { margin-inline: 0; padding-inline: 0; }
-  /* When and Who & where side by side; the title and the list card span both columns. */
+  /* Cards in pairs (When | Who & where, List & waiting | More); the title card and Done span both columns.
+     Folded, More keeps its own height instead of stretching to its neighbor's. */
   .edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .edit-main, .edit-group.is-list, .edit-actions { grid-column: 1 / -1; }
-  .edit-group.is-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-l); }
-  .edit-group.is-list > h2 { grid-column: 1 / -1; }
-  /* Side by side, the second column needs no line above it. */
-  .edit-group.is-list > .edit-col + .edit-col { padding-top: 0; border-top: 0; }
+  .edit-main, .edit-actions { grid-column: 1 / -1; }
+  .edit-group.is-more { align-self: start; }
 }
 
 /* Hover only where there's a pointer that can hover; on touch these would stick after a tap. */

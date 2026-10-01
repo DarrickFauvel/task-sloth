@@ -1,6 +1,7 @@
 <%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing.
      It sits outside #task-head, so live updates never touch a form that's being filled in.
-     Four cards: what it is, when, who and where, and which list it's on. They're the same plain .panel cards as
+     Five cards: what it is, when, who and where, where it stands (list and waiting), and a folded More (project,
+     tags, priority). They're the same plain .panel cards as
      Settings (the other screen that saves as you go), heading inside. Each field has a small label and a
      hint that says what it does; chips instead of dropdowns where the choices are few. Done is pinned
      to the bottom of the screen.
@@ -71,39 +72,64 @@
       <datalist id="contexts">
         <% f.contexts.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %>
       </datalist>
-      <label class="edit-field">Project
-        <select name="projectId">
-          <option value="">No project</option>
-          <% f.projects.forEach((p) => { %>
-            <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
+    </section>
+
+    <%/* Where it stands and what's holding it up: the list, then who or what it's waiting on, then a task it waits for. */%>
+    <section class="panel edit-group is-list" aria-labelledby="edit-list">
+      <h2 id="edit-list"><span class="emoji" aria-hidden="true">📥</span> List &amp; waiting</h2>
+      <fieldset class="edit-field"<%~ focus("list") %>>
+        <legend>Which list</legend>
+        <div class="pills">
+          <% f.lists.forEach((o) => { %>
+            <label class="pill"><input type="radio" name="list" value="<%= o.value %>"<%~ checked(o.value === t.list) %>><span><%= o.label %></span></label>
           <% }) %>
-        </select>
+        </div>
+        <%/* Only the hint for the picked list shows (CSS :has, no script). */%>
+        <% f.lists.forEach((o) => { %>
+          <p class="hint list-hint" data-list="<%= o.value %>"><%= o.hint %></p>
+        <% }) %>
+      </fieldset>
+      <%/* Shown only while "Waiting on" is picked (CSS :has, no script). */%>
+      <label class="edit-field waiting-field">Waiting on who or what?
+        <input name="waitingOn"<%~ focus("waitingOn") %> value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
       </label>
-      <label class="edit-field">Tags
-        <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
-        <span class="hint">Words to find it by, separated by spaces.</span>
+      <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
+      <label class="edit-field">Has to wait for another task?
+        <select name="waitingTaskId"<%~ focus("waitingTaskId") %>>
+          <option value="">No, ready when you are</option>
+          <% f.blockers.forEach((b) => { %>
+            <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
+          <% }) %>
+          <option value="new">➕ New task…</option>
+        </select>
+        <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
+      </label>
+      <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
+      <label class="edit-field new-blocker">New task to do first
+        <input name="newBlocker" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
+        <span class="hint">Shortcuts work here too. It goes on To do, in the same project as this one.</span>
       </label>
     </section>
 
-    <section class="panel edit-group is-list" aria-labelledby="edit-list">
-      <h2 id="edit-list"><span class="emoji" aria-hidden="true">📥</span> List &amp; priority</h2>
-      <%/* Two columns on wider screens: the list (and who it's waiting on) and priority; then what it waits for. */%>
-      <div class="edit-col">
-        <fieldset class="edit-field"<%~ focus("list") %>>
-          <legend>Which list</legend>
-          <div class="pills">
-            <% f.lists.forEach((o) => { %>
-              <label class="pill"><input type="radio" name="list" value="<%= o.value %>"<%~ checked(o.value === t.list) %>><span><%= o.label %></span></label>
+    <%/* The fields most tasks never need, folded to one line that says what's set (f.more). It starts open when
+         any of them is set, or when a tap on the task page asked for one. The summary hides while it's open,
+         since what's inside shows the same thing (and stays current as you change it). */%>
+    <details class="panel edit-group is-more"<%~ f.more.open ? " open" : "" %>>
+      <summary class="card-title" id="edit-more"><span class="emoji" aria-hidden="true">🗂️</span> More <span class="chevron" aria-hidden="true"></span>
+        <span class="more-summary"><%= f.more.summary %></span></summary>
+      <div class="edit-more">
+        <label class="edit-field">Project
+          <select name="projectId"<%~ focus("projectId") %>>
+            <option value="">No project</option>
+            <% f.projects.forEach((p) => { %>
+              <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
             <% }) %>
-          </div>
-          <%/* Only the hint for the picked list shows (CSS :has, no script). */%>
-          <% f.lists.forEach((o) => { %>
-            <p class="hint list-hint" data-list="<%= o.value %>"><%= o.hint %></p>
-          <% }) %>
-        </fieldset>
-        <%/* Shown only while "Waiting on" is picked (CSS :has, no script). */%>
-        <label class="edit-field waiting-field">Waiting on who or what?
-          <input name="waitingOn"<%~ focus("waitingOn") %> value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
+          </select>
+          <span class="hint">A bigger thing this is part of, like “Paint the hallway”.</span>
+        </label>
+        <label class="edit-field">Tags
+          <input name="tags"<%~ focus("tags") %> value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
+          <span class="hint">Words to find it by, separated by spaces.</span>
         </label>
         <fieldset class="edit-field"<%~ focus("priority") %>>
           <legend>Priority</legend>
@@ -115,25 +141,7 @@
           <p class="hint">High goes first among tasks due the same day.</p>
         </fieldset>
       </div>
-      <div class="edit-col">
-        <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
-        <label class="edit-field">Has to wait for another task?
-          <select name="waitingTaskId"<%~ focus("waitingTaskId") %>>
-            <option value="">No, ready when you are</option>
-            <% f.blockers.forEach((b) => { %>
-              <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
-            <% }) %>
-            <option value="new">➕ New task…</option>
-          </select>
-          <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
-        </label>
-        <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
-        <label class="edit-field new-blocker">New task to do first
-          <input name="newBlocker" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
-          <span class="hint">Shortcuts work here too. It goes on To do, in the same project as this one.</span>
-        </label>
-      </div>
-    </section>
+    </details>
 
     <div class="edit-actions">
       <p class="hint">Changes save as you go.</p>
