@@ -1,5 +1,6 @@
 // A sloth-paced line under the brand that works the household's name in, e.g. "The Fauvel House,
-// takin' it slow". One is picked at random per page load; the header types it out (/js/type-writer.js).
+// takin' it slow". One is picked at random and remembered on the device (the phrase cookie holds its index),
+// so the header types it out once (/js/type-writer.js) and then just shows it; clicking the brand picks another.
 // {h} is the household name. Keep them short: on a phone about 40 characters fit before the "…".
 
 export const HOUSEHOLD_PHRASES = [
@@ -26,3 +27,19 @@ export function householdPhrase(name, random = Math.random) {
   const template = HOUSEHOLD_PHRASES[Math.floor(random() * HOUSEHOLD_PHRASES.length)];
   return template.replace("{h}", name);
 }
+
+/** A phrase index from the cookie, or null if it isn't one. */
+export function phraseIndex(value) {
+  const i = Number(value);
+  return value !== undefined && value !== "" && Number.isInteger(i) && i >= 0 && i < HOUSEHOLD_PHRASES.length ? i : null;
+}
+
+/** A random phrase index, never `current` (so a click on the brand always changes the line). `random` is for tests. */
+export function nextPhraseIndex(current = null, random = Math.random) {
+  const n = HOUSEHOLD_PHRASES.length;
+  if (current === null) return Math.floor(random() * n);
+  return (current + 1 + Math.floor(random() * (n - 1))) % n;
+}
+
+/** The phrase at `index`, with the household's name worked in. */
+export const phraseText = (name, index) => HOUSEHOLD_PHRASES[index].replace("{h}", name);

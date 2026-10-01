@@ -5,9 +5,10 @@
 <% const u = it.user; const household = it.membership?.household.name; %>
 <header class="bar app-header">
   <div class="brand-block">
-    <h1><%~ include("/partials/brand", {}) %></h1>
-    <%/* A random sloth-paced line with the household's name in it (src/web/household-phrase.js), typed out softly. */%>
-    <% if (household) { %><p class="brand-household"><type-writer><%= it.phrase ?? household %></type-writer></p><% } %>
+    <%/* Clicking the brand (it still takes you home) asks for a new line under it. */%>
+    <h1 data-on:click="evt.target.closest('.brand') && @post('/household-line')"><%~ include("/partials/brand", {}) %></h1>
+    <%/* A sloth-paced line with the household's name in it (src/web/household-phrase.js), typed out once and kept. */%>
+    <% if (household && it.line) { %><%~ include("/partials/household-line", { line: it.line }) %><% } %>
   </div>
   <div class="header-end">
     <% if (it.doneToday) { %><%~ include("/partials/done-today", it.doneToday) %><% } %>

@@ -21,7 +21,7 @@ import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
 import { doneTodayView } from "./src/web/done-today.js";
-import { householdPhrase } from "./src/web/household-phrase.js";
+import { nextPhraseIndex, phraseIndex, phraseText } from "./src/web/household-phrase.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
@@ -130,6 +130,17 @@ async function emailNoticeView(req) {
   return { email, pending: Boolean(u.pending_email), sent: req.query.email === "sent", linkOut: await linkSent(u.id, email) };
 }
 
+/** The line under the brand: the one remembered on this device (typed out already, so it just shows), or a new one,
+ *  typed out and remembered. */
+function householdLine(req, res) {
+  if (!req.membership) return null;
+  const saved = phraseIndex(req.cookies.phrase);
+  const index = saved ?? nextPhraseIndex();
+  if (saved === null) res.append("Set-Cookie", phraseCookie(index));
+  return { index, text: phraseText(req.membership.household.name, index), animate: saved === null };
+}
+const phraseCookie = (index) => `phrase=${index}; Path=/; Max-Age=31536000; SameSite=Lax`;
+
 app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
   if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
@@ -137,7 +148,7 @@ app.get("/", async (req, res) => {
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req) })
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
-    householdPhrase: req.membership ? householdPhrase(req.membership.household.name) : null,
+    householdLine: householdLine(req, res),
     emailNotice: await emailNoticeView(req) });
 });
 
@@ -805,6 +816,15 @@ app.post("/settings/household", requireUser, async (req, res) => {
   }
   changed(householdId);
   redirect(res, "/settings?saved=household");
+});
+
+// Clicking the brand: a different line under it, typed out and remembered. The new id on <type-writer> makes the
+// patch a new element, so it types again.
+app.post("/household-line", requireHousehold, async (req, res) => {
+  const index = nextPhraseIndex(phraseIndex(req.cookies.phrase));
+  res.append("Set-Cookie", phraseCookie(index));
+  const line = { index, text: phraseText(req.membership.household.name, index), animate: true };
+  await sse(req, res, (stream) => stream.patchElements(eta.render("partials/household-line", { line })));
 });
 
 // Group Mine / Everyone / Up for grabs by date or by where/how, remembered on this device like the theme.
