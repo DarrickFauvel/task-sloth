@@ -65,9 +65,10 @@
         <legend>Theme</legend>
         <div class="pills">
           <% [["system", "Match my device"], ["light", "Light"], ["dark", "Dark"]].forEach(([value, label]) => { %>
-            <%/* Switches in place with the same soft animation (setTheme in the layout); without script, it posts. */%>
+            <%/* Switches in place with the same soft animation (setTheme in the layout), then posts for the "saved" toast;
+                 without script, it's the plain form post. */%>
             <button name="theme" value="<%= value %>" data-theme-choice="<%= value %>" class="pill<%= (it.theme ?? 'system') === value ? ' is-on' : '' %>"
-                    data-on:click__prevent="setTheme(<%= value === 'system' ? 'null' : `'${value}'` %>, el)"><%= label %></button>
+                    data-on:click__prevent="setTheme(<%= value === 'system' ? 'null' : `'${value}'` %>, el); @post('/settings/theme?theme=<%= value %>')"><%= label %></button>
           <% }) %>
         </div>
         <small class="hint">Also in the menu under your picture.</small>
@@ -78,9 +79,9 @@
         <legend>Icons</legend>
         <div class="pills">
           <% [["on", "Show"], ["off", "Hide"]].forEach(([value, label]) => { %>
-            <%/* Switches in place (setIcons in the layout); without script, it posts. */%>
+            <%/* Switches in place (setIcons in the layout), then posts for the toast; without script, it's the form post. */%>
             <button name="icons" value="<%= value %>" data-icons-choice="<%= value %>" class="pill<%= (it.icons ?? 'on') === value ? ' is-on' : '' %>"
-                    data-on:click__prevent="setIcons(<%= value === 'on' %>)"><%= label %></button>
+                    data-on:click__prevent="setIcons(<%= value === 'on' %>); @post('/settings/icons?icons=<%= value %>')"><%= label %></button>
           <% }) %>
         </div>
         <small class="hint">Hide the little pictures beside headings and menus. Task details like ☑ 2/5 stay.</small>
