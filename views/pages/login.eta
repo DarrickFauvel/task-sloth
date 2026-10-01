@@ -9,6 +9,7 @@
       <input name="identifier" value="<%= it.identifier ?? '' %>" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
     </label>
     <label>Password <input type="password" name="password" required maxlength="200" autocomplete="current-password"></label>
+    <p class="hint forgot-link"><a href="/password/forgot">Forgot your password?</a></p>
     <button class="button primary">Sign in</button>
   </form>
   <% if (it.google) { %>

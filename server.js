@@ -26,7 +26,7 @@ import { lastResetAt, recordReset, resetDue, resetSummary, snoozeReset } from ".
 import { deleteComment, markCommentsSeen, restoreComment } from "./src/services/comments.js";
 import { commentsView } from "./src/web/comments.js";
 import { ANSWER_LABELS, RESET_STEPS, resetStepView } from "./src/web/reset-page.js";
-import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
+import { cancelEmailChange, confirmEmail, describeLink, describeResetLink, emailConfirmed, isPasswordAccount, linkSent, requestPasswordReset, resendConfirmation, resetPassword, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
@@ -167,7 +167,7 @@ app.get("/", async (req, res) => {
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdLine: householdLine(req, res),
-    emailNotice: await emailNoticeView(req), flash: await deletedNotice(req) });
+    emailNotice: await emailNoticeView(req), flash: req.query.password === "changed" ? { message: "Password changed. You're signed in." } : await deletedNotice(req) });
 });
 
 // --- Tasks ----------------------------------------------------------------------------
@@ -1090,6 +1090,48 @@ app.post("/login", async (req, res) => {
   accountFailures.reset(accountKey);
   await startSession(res, userId);
   redirect(res, next);
+});
+
+// Forgotten passwords: ask for a link by username or email, then choose a new password on the page it opens.
+// The "sent" page says the same whether or not there's an account. Limited per address asked about and per IP.
+const resetAsks = createRateLimit({ limit: 3, windowMs: 60 * 60_000 });
+const resetAsksByIp = createRateLimit({ limit: 20, windowMs: 60 * 60_000 });
+
+app.get("/password/forgot", (req, res) => render(res, "pages/password", { forgot: true }));
+
+app.post("/password/forgot", async (req, res) => {
+  const identifier = String(req.body.identifier ?? "").trim().slice(0, 254);
+  if (!identifier) return render(res, "pages/password", { forgot: true, error: "Type your username or email" }, 400);
+  const key = `reset:${identifier.toLowerCase()}`;
+  if (resetAsksByIp.isLimited(req.ip)) {
+    return render(res, "pages/password", { forgot: true, identifier, error: "Too many reset links asked for from here. Try again later." }, 429);
+  }
+  resetAsksByIp.hit(req.ip);
+  // Over the per-address limit, quietly send nothing: saying so would tell whether the account exists.
+  if (!resetAsks.isLimited(key)) {
+    resetAsks.hit(key);
+    await requestPasswordReset(identifier).catch((err) => console.error("couldn't send a password reset", err));
+  }
+  render(res, "pages/password", { sent: true, identifier });
+});
+
+app.get("/password/reset", async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  render(res, "pages/password", { token, reset: await describeResetLink(token) });
+});
+
+app.post("/password/reset", async (req, res) => {
+  const token = String(req.body.token ?? "");
+  let userId;
+  try {
+    userId = await resetPassword(token, req.body.password, req.body.again);
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    const reset = await describeResetLink(token);
+    return render(res, "pages/password", reset ? { token, reset, error: err.message } : { error: err.message }, 400);
+  }
+  await startSession(res, userId);
+  redirect(res, "/?password=changed");
 });
 
 app.get("/signup", (req, res) => {
