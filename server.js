@@ -424,7 +424,8 @@ const shortcutsView = (req) => ({
 app.get("/about", (req, res) => render(res, "pages/about", {}));
 
 app.get("/activity", requireHousehold, async (req, res) => {
-  const activity = await activityView({ userId: req.user.id, membership: req.membership, timeZone: req.cookies.tz, today: today(req) });
+  const who = typeof req.query.who === "string" ? req.query.who : null;
+  const activity = await activityView({ userId: req.user.id, membership: req.membership, timeZone: req.cookies.tz, today: today(req), who });
   render(res, "pages/activity", { activity, days: ACTIVITY_DAYS, household: req.membership.household.name });
 });
 

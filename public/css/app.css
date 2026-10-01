@@ -718,11 +718,11 @@ fieldset.who { margin: 0; padding: 0; border: 0; }
 fieldset.who legend { padding: 0; margin-bottom: var(--space-2xs); }
 label.pill { position: relative; display: inline-flex; }
 .pill input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-label.pill span, button.pill {
+label.pill span, button.pill, a.pill {
   display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-s);
   border: 1px solid var(--line); border-radius: 2rem; cursor: pointer; background: none;
 }
-.pill input:checked + span, button.pill.is-on { background: var(--gradient); border-color: transparent; color: var(--bg); }
+.pill input:checked + span, button.pill.is-on, a.pill.is-on { background: var(--gradient); border-color: transparent; color: var(--bg); }
 .pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .sort-footer { text-align: center; font-size: var(--step--1); margin-top: var(--space-m); }
@@ -1069,6 +1069,15 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .activity .avatar { width: 1.75rem; height: 1.75rem; }
 .activity-system { --c: var(--muted); }
 .activity-text { flex: 1; min-width: 0; }
+.activity-detail { display: block; font-size: var(--step--1); }
+.activity li:last-child { border-bottom: 0; }
+/* One card per day, like Settings (header band), and the "Everyone | You | Sam" chips above them. */
+.activity-people { margin: var(--space-s) 0 0; }
+.activity-people .pill { text-decoration: none; color: inherit; }
+.activity-people .pill.is-on { color: var(--bg); }
+.activity-days { display: grid; gap: var(--space-m); margin-top: var(--space-m); }
+.activity-day h2 { font-size: var(--step-1); }
+.activity-day .count { font-weight: normal; color: var(--muted); }
 .activity time { flex: none; font-size: var(--step--1); }
 
 /* --- Settings ----------------------------------------------------------------------------- */
@@ -1118,7 +1127,7 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 /* Cards on Settings, the edit form and the task page (.card-title, for a heading not directly in its card): the heading is a band across the card's top, a soft wash of your
    accent fading into its second color, so each card reads as titled. The negative margins reach the card's edges
    (its padding), and the top corners follow the card's, inside its 1px border. */
-:where(.settings, .edit, .task-cards) .panel {
+:where(.settings, .edit, .task-cards, .activity-days) .panel {
   /* The body gets a lighter wash of the same colors, fading out toward the bottom. */
   background: linear-gradient(160deg, color-mix(in oklch, var(--accent) 5%, transparent), color-mix(in oklch, var(--accent-2) 3%, transparent) 45%, transparent 85%);
 }
