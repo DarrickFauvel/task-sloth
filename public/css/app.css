@@ -171,13 +171,13 @@ button.icon:focus-visible { opacity: 1; }
 }
 .brand-zzz span:nth-child(2) { font-size: 0.62em; left: 0.48em; bottom: 0.48em; }
 .brand-zzz span:nth-child(3) { font-size: 0.7em; left: 0.86em; bottom: 0.86em; }
-.brand:focus-visible .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
+.brand:focus-visible .brand-zzz span, .brand:hover .brand-zzz span /* TEMP: hover for testing */ { animation: zzz 3s ease-in-out infinite; }
 /* The same 3-second doze, then 17 seconds awake, starting 20 seconds after the page loads. */
 .app-header .brand-zzz span { animation: zzz-every-20s 20s ease-in-out 20s infinite; }
 .app-header .brand-zzz span:nth-child(2) { animation-delay: 20.45s; }
 .app-header .brand-zzz span:nth-child(3) { animation-delay: 20.9s; }
-.brand:focus-visible .brand-zzz span:nth-child(2) { animation-delay: 0.45s; }
-.brand:focus-visible .brand-zzz span:nth-child(3) { animation-delay: 0.9s; }
+.brand:focus-visible .brand-zzz span:nth-child(2), .brand:hover .brand-zzz span:nth-child(2) { animation-delay: 0.45s; }
+.brand:focus-visible .brand-zzz span:nth-child(3), .brand:hover .brand-zzz span:nth-child(3) { animation-delay: 0.9s; }
 @keyframes zzz {
   0% { opacity: 0; translate: -0.15em 0.25em; }
   15%, 60% { opacity: 1; translate: 0 0; }
@@ -199,6 +199,9 @@ button.icon:focus-visible { opacity: 1; }
    the line goes and so does the offset. */
 .app-header:has(.brand-household) .brand-mark { translate: 0 0.55rem; transition: translate 0.25s ease; }
 .app-header.is-compact .brand-mark { translate: none; }
+/* Compacted, the sloth shrinks too, so the pinned header takes less of the screen. */
+.app-header.is-sticky .brand-logo { transition: width 0.25s ease, height 0.25s ease; }
+.app-header.is-compact .brand-logo { width: 1.6em; height: 1.6em; }
 .brand-block { position: relative; flex: none; min-width: 0; }
 .app-header h1 { flex: none; }
 .brand-household {
@@ -222,8 +225,15 @@ button.icon:focus-visible { opacity: 1; }
 .app-header.is-sticky .brand-household { transition: opacity 0.2s ease, translate 0.25s ease; }
 .app-header.is-compact .brand-household { opacity: 0; translate: 0 -0.4rem; }
 /* The words "Task Sloth" fold away (still read out: they're only squeezed to nothing), leaving the logo. */
-/* Compact, your name gives its room to the badge; the avatar stays (and the button's label still says who). */
-.app-header.is-compact .account-name { display: none; }
+/* Compact, your name gives its room to the badge: it fades as it narrows to nothing, closing the gap beside
+   the avatar, and widens back in at the top. The avatar stays (and the button's label still says who). */
+.app-header.is-sticky .account-name {
+  max-width: 12em; transition: max-width 0.25s ease, margin 0.25s ease, opacity 0.2s ease, visibility 0s;
+}
+.app-header.is-compact .account-name {
+  max-width: 0; margin-inline-end: calc(-1 * var(--space-xs)); opacity: 0; visibility: hidden;
+  transition: max-width 0.25s ease, margin 0.25s ease, opacity 0.2s ease, visibility 0s 0.25s;
+}
 .app-header.is-sticky ~ * .quick-add { top: var(--app-header-h, 0px); }
 /* Once pinned together, a hairline under the add box (the accent gradient, fading to grey at the ends)
    separates them from the list. */
@@ -231,7 +241,7 @@ button.icon:focus-visible { opacity: 1; }
   background: linear-gradient(90deg, var(--line), var(--accent) 30%, var(--accent-2) 70%, var(--line)) bottom / 100% 1px no-repeat, var(--bg);
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-header.is-sticky, .app-header.is-sticky .brand-household, .app-header .brand-mark { transition: none; }
+  .app-header.is-sticky, .app-header.is-sticky .brand-household, .app-header .brand-mark, .app-header .brand-logo, .app-header .account-name { transition: none; }
 }
 .tw-char { animation: tw-in 0.35s ease both; }
 @keyframes tw-in { from { opacity: 0; filter: blur(3px); } }
