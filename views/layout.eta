@@ -21,6 +21,8 @@
   <% } %>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <%/* Installable as an app; public/sw.js shows an offline page and caches styles, scripts and images. */%>
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/css/app.css">
   <script>
     document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
@@ -77,6 +79,15 @@
           { duration: 700, easing: "cubic-bezier(0.45, 0, 0.25, 1)", fill: "forwards", pseudoElement: "::view-transition-new(root)" },
         );
       });
+    }
+    // Runs fn now, or, on a page the browser is prerendering (see the speculation rules below), once it's
+    // actually shown, so a page someone might open doesn't start its live stream early.
+    function whenShown(fn) {
+      if (document.prerendering) document.addEventListener("prerenderingchange", () => fn(), { once: true });
+      else fn();
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js<%= it.dev ? '?dev=1' : '' %>").catch((err) => console.warn("service worker not registered", err));
     }
     // The menu's light/dark item: switch to whichever isn't showing.
     function toggleTheme(origin) {

@@ -152,6 +152,7 @@ button.icon:focus-visible { opacity: 1; }
 .empty-state h1 { margin: 0; }
 .empty-state p { margin: 0; }
 .empty-icon { font-size: 3rem; line-height: 1; }
+.offline-logo { width: 7rem; height: 7rem; } /* public/offline.html */
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
 .bar h1 { margin: 0; font-size: var(--step-2); }
