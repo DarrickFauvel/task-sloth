@@ -5,7 +5,7 @@
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them.
      since and whenShown: as on the home page. */%>
-<div data-signals="{items: '', editing: <%= it.form ? 'true' : 'false' %>, itemRenaming: '', itemText: ''}"
+<div data-signals="{items: '', comment: '', editing: <%= it.form ? 'true' : 'false' %>, itemRenaming: '', itemText: ''}"
      data-init="whenShown(() => @get('/events?task=<%= t.id %>&since=<%= it.renderedAt %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>
@@ -39,6 +39,17 @@
         </task-photo>
       </section>
     <% } %>
+
+    <%/* Last, like a conversation: the newest comment sits just above the box. Ctrl/⌘+Enter posts too. */%>
+    <section class="panel task-card" aria-labelledby="comments-title">
+      <%~ include("/partials/comments", it.comments) %>
+      <form class="comment-form" method="post" action="/tasks/<%= t.id %>/comments" data-on:submit="@post('/tasks/<%= t.id %>/comments')">
+        <textarea name="comment" data-bind:comment rows="2" required maxlength="4000" aria-label="Write a comment"
+                  placeholder="Write a comment…"
+                  data-on:keydown="evt.key === 'Enter' && (evt.ctrlKey || evt.metaKey) && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
+        <button class="button">Post</button>
+      </form>
+    </section>
   </div>
   <%~ include("/partials/flash", {}) %>
   <p id="reorder-status" class="visually-hidden" role="status"></p>

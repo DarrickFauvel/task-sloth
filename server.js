@@ -13,7 +13,7 @@ import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, getUser, MEMBER_C
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
-import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { ensureContext, listContexts } from "./src/services/contexts.js";
@@ -23,6 +23,8 @@ import { hideDone } from "./src/web/hidden-done.js";
 import { doneTodayView } from "./src/web/done-today.js";
 import { nextPhraseIndex, phraseIndex, phraseText } from "./src/web/household-phrase.js";
 import { lastResetAt, recordReset, resetDue, resetSummary, snoozeReset } from "./src/services/reset.js";
+import { deleteComment, markCommentsSeen, restoreComment } from "./src/services/comments.js";
+import { commentsView } from "./src/web/comments.js";
 import { ANSWER_LABELS, RESET_STEPS, resetStepView } from "./src/web/reset-page.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
@@ -199,7 +201,7 @@ app.get("/events", requireHousehold, async (req, res) => {
   const renderPage = async (membership) => {
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId)];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership)];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
     scheduleDrop(list.refreshAt);
@@ -578,8 +580,43 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const task = decorate(req, checklist.task);
   const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
-  render(res, "pages/task", { task, checklist, form, photos, userId: req.user.id });
+  const comments = await taskComments(req, req.membership, task.id);
+  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id });
 }
+
+/** The task's comments for its page, which also counts as seeing them (so its row's "new" dot goes). */
+async function taskComments(req, membership, taskId) {
+  await markCommentsSeen(req.user.id, taskId);
+  return commentsView(taskId, { userId: req.user.id, membership, timeZone: req.cookies.tz, today: today(req) });
+}
+const renderComments = async (req, taskId, membership = req.membership) => eta.render("partials/comments", await taskComments(req, membership, taskId));
+
+// Commenting on a task, and deleting (or, from the toast, restoring) your own comment. Datastar re-renders the list
+// in place (and clears the box); without script, back to the task page.
+app.post("/tasks/:id/comments", requireHousehold, async (req, res) => {
+  await addComment(req.actor, req.params.id, req.body.comment ?? req.body.body);
+  if (!isDatastar(req)) return redirect(res, `/tasks/${req.params.id}#comments`);
+  const html = await renderComments(req, req.params.id);
+  await sse(req, res, (stream) => {
+    stream.patchElements(html);
+    stream.patchSignals(JSON.stringify({ comment: "" }));
+  });
+});
+
+app.post("/comments/:id/delete", requireHousehold, async (req, res) => {
+  const c = await deleteComment(req.actor, req.params.id);
+  if (!isDatastar(req)) return redirect(res, `/tasks/${c.task_id}#comments`);
+  const html = await renderComments(req, c.task_id);
+  const flash = eta.render("partials/flash", { message: "Comment deleted", undo: `/comments/${c.id}/restore` });
+  await sse(req, res, (stream) => (stream.patchElements(html), stream.patchElements(flash)));
+});
+
+app.post("/comments/:id/restore", requireHousehold, async (req, res) => {
+  const c = await restoreComment(req.actor, req.params.id);
+  if (!isDatastar(req)) return redirect(res, `/tasks/${c.task_id}#comments`);
+  const html = await renderComments(req, c.task_id);
+  await sse(req, res, (stream) => (stream.patchElements(html), stream.patchElements(eta.render("partials/flash", {}))));
+});
 
 const renderPhotos = async (householdId, taskId) => eta.render("partials/task-photos", await taskPhotosView(householdId, taskId));
 

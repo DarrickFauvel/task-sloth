@@ -1,0 +1,26 @@
+<%/* A task's comments (src/web/comments.js), oldest first, so the newest sits just above the box to write one. Live:
+     re-rendered when anyone comments. The box is outside #comments (in pages/task), so a re-render doesn't wipe
+     what's being typed. You can delete your own; the toast offers Undo. */%>
+<div id="comments" class="comments">
+  <h2 id="comments-title" class="card-title"><span class="emoji" aria-hidden="true">💬</span> Comments<% if (it.comments.length) { %> <span class="count"><%= it.comments.length %></span><% } %></h2>
+  <% if (!it.comments.length) { %>
+    <p class="empty">No comments yet. Leave a note for the household, like “Got the blue one, the green was sold out.”</p>
+  <% } else { %>
+    <ul class="comment-list">
+      <% it.comments.forEach((c) => { %>
+        <li class="comment<%= c.mine ? ' is-mine' : '' %>" id="comment-<%= c.id %>">
+          <% if (c.author) { %><%~ include("/partials/avatar", { user: c.author }) %><% } else { %><span class="avatar" aria-hidden="true">?</span><% } %>
+          <div class="comment-body">
+            <p class="comment-meta"><strong><%= c.name %></strong> <time class="hint" datetime="<%= c.iso %>"><%= c.time %></time></p>
+            <p class="comment-text"><%~ include("/partials/phone-text", { parts: c.parts }) %></p>
+          </div>
+          <% if (c.mine) { %>
+            <form method="post" action="/comments/<%= c.id %>/delete" data-on:submit="@post('/comments/<%= c.id %>/delete')">
+              <button class="link danger comment-delete" aria-label="Delete your comment from <%= c.time %>">Delete</button>
+            </form>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>

@@ -1,4 +1,5 @@
 import { inboxCount, listTasks, tagList } from "../services/tasks.js";
+import { tasksWithNewComments } from "../services/comments.js";
 import { getContext } from "../services/contexts.js";
 import { getProject } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
@@ -129,6 +130,9 @@ export async function taskListView({ userId, membership, view, project: projectI
   const tasks = (await listTasks(householdId, { ...filter, projectId: project?.id, contextId: context?.id, tag: tag ?? undefined }))
     .filter((t) => view === "done" || t.status !== "done" || !isHiddenDone(userId, t, now))
     .map((t) => decorateTask(t, membership, today, time));
+  // Comments someone else left that you haven't seen (see src/services/comments.js): the row's 💬 gets a dot.
+  const unseen = await tasksWithNewComments(householdId, userId);
+  for (const t of tasks) t.newComments = unseen.has(t.id);
   const query = { view, project: project?.id ?? null, context: context?.id ?? null, tag };
   const filterLabel = [project && `${project.emoji} ${project.name}`, context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
   const doneTimes = tasks.filter((t) => t.status === "done").map((t) => Date.parse(t.completed_at));

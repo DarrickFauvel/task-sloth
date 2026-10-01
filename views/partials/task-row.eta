@@ -30,7 +30,8 @@
           <% if (n > t.photoIds.length) { %><span class="photo-more" data-index="<%= t.photoIds.length %>">+<%= n - t.photoIds.length %></span><% } %>
         </a>
       <% } %>
-      <% if (Number(t.comment_count)) { %><span title="Comments">💬 <%= t.comment_count %></span><% } %>
+      <%/* A dot when someone else commented since you last opened the task. */%>
+      <% if (Number(t.comment_count)) { %><span title="<%= t.newComments ? 'New comments' : 'Comments' %>"<%~ t.newComments ? ' class="has-new"' : '' %>>💬 <%= t.comment_count %><% if (t.newComments) { %><span class="new-dot" aria-hidden="true"></span><span class="visually-hidden"> new</span><% } %></span><% } %>
       <% if (it.view === "inbox") { %>
         <a href="/sort?task=<%= t.id %>">Sort</a>
       <% } else if (!done && (t.list === "waiting" || t.list === "someday")) { %>

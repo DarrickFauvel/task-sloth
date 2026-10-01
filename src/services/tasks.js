@@ -24,7 +24,7 @@ const TASK_SELECT = `
          (SELECT group_concat(g.name, ' ') FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id) AS tag_names,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id) AS item_count,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id AND c.checked = 1) AS item_done,
-         (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id) AS comment_count,
+         (SELECT COUNT(*) FROM comments m WHERE m.task_id = t.id AND m.deleted_at IS NULL) AS comment_count,
          (SELECT COUNT(*) FROM task_photos ph WHERE ph.task_id = t.id AND ph.item_id IS NULL) AS photo_count,
          (SELECT json_group_array(ph.id) FROM (SELECT id FROM task_photos WHERE task_id = t.id AND item_id IS NULL ORDER BY created_at, id LIMIT 3) ph) AS photo_ids,
          wt.title AS waiting_task_title, wt.status AS waiting_task_status,
@@ -380,15 +380,18 @@ export async function addComment(actor, taskId, body) {
   body = String(body ?? "").trim().slice(0, 4000);
   if (!body) throw new HttpError(400, "Comment is empty");
   await getTask(actor.householdId, taskId);
+  const id = newId();
   await db.batch([
-    { sql: "INSERT INTO comments (id, task_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)", args: [newId(), taskId, actor.id, body, now()] },
+    { sql: "INSERT INTO comments (id, task_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)", args: [id, taskId, actor.id, body, now()] },
     activityStatement(actor.householdId, actor.id, taskId, "commented", { excerpt: body.slice(0, 80) }),
   ]);
   changed(actor.householdId, taskId);
+  return id;
 }
 
+/** A task's comments, oldest first, without deleted ones (see src/services/comments.js for the rest). */
 export const listComments = (taskId) =>
-  db.all("SELECT * FROM comments WHERE task_id = ? ORDER BY created_at", [taskId]);
+  db.all("SELECT * FROM comments WHERE task_id = ? AND deleted_at IS NULL ORDER BY created_at, id", [taskId]);
 
 /** How long a deleted task is kept restorable. After that its photos are purged (see purgeDeletedTaskPhotos). */
 export const RESTORE_DAYS = 14;
