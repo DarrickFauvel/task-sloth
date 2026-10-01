@@ -1,21 +1,35 @@
 <% layout("/layout", { title: "Activity" }) %>
-<%/* What everyone in the household did over the last two weeks, newest first, one group per day. */%>
+<%/* What the household did over the last two weeks, newest first: one card per day (header band like the rest of
+     the app), each line tidied by buildActivity (src/web/activity-page.js): bursts of edits are one line saying
+     what changed. "Everyone | You | Sam" narrows it to one person (?who=, plain links). */%>
 <a class="back" href="/">← All tasks</a>
 <h1>Activity</h1>
-<p class="hint">Everything that happened in <%= it.household %> over the last <%= it.days %> days.</p>
-<% if (!it.activity.days.length) { %>
-  <p class="empty">Nothing has happened in the last <%= it.days %> days.</p>
-<% } %>
-<% it.activity.days.forEach((d) => { %>
-  <h3 class="group"><%= d.label %> <span class="count"><%= d.entries.length %></span></h3>
-  <ul class="activity">
-    <% d.entries.forEach((e) => { %>
-      <li>
-        <% if (e.actor) { %><%~ include("/partials/avatar", { user: e.actor }) %><% } else { %><span class="avatar activity-system" aria-hidden="true">↻</span><% } %>
-        <span class="activity-text"><%= e.text %><% if (e.title) { %> <% if (e.href) { %><a href="<%= e.href %>">“<%= e.title %>”</a><% } else { %><s>“<%= e.title %>”</s><% } %><% } %></span>
-        <time class="hint"><%= e.time %></time>
-      </li>
+<p class="hint">What happened in <%= it.household %> over the last <%= it.days %> days. A few quick edits to a task show as one line.</p>
+<% if (it.activity.people.length) { %>
+  <nav class="pills activity-people" aria-label="Whose activity">
+    <% it.activity.people.forEach((p) => { %>
+      <a class="pill<%= p.on ? ' is-on' : '' %>" href="/activity<%= p.id ? `?who=${p.id}` : '' %>"<%~ p.on ? ' aria-current="page"' : '' %>><%= p.label %></a>
     <% }) %>
-  </ul>
-<% }) %>
-<% if (it.activity.capped) { %><p class="hint">Showing the latest <%= it.activity.count %>.</p><% } %>
+  </nav>
+<% } %>
+<% if (!it.activity.days.length) { %>
+  <p class="empty"><%= it.activity.people.some((p) => p.on && p.id) ? "Nothing from them" : "Nothing has happened" %> in the last <%= it.days %> days.</p>
+<% } %>
+<div class="activity-days">
+  <% it.activity.days.forEach((d) => { %>
+    <section class="panel activity-day">
+      <h2 class="card-title"><%= d.label %> <span class="count"><%= d.entries.length %></span></h2>
+      <ul class="activity">
+        <% d.entries.forEach((e) => { %>
+          <li>
+            <% if (e.actor) { %><%~ include("/partials/avatar", { user: e.actor }) %><% } else { %><span class="avatar activity-system" aria-hidden="true">↻</span><% } %>
+            <span class="activity-text"><%= e.text %><% if (e.title) { %> <% if (e.href) { %><a href="<%= e.href %>">“<%= e.title %>”</a><% } else { %><s>“<%= e.title %>”</s><% } %><% } %>
+              <% if (e.detail) { %><span class="activity-detail hint"><%= e.detail %></span><% } %></span>
+            <time class="hint"><%= e.time %></time>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+  <% }) %>
+</div>
+<% if (it.activity.capped) { %><p class="hint">Showing the latest <%= it.activity.count %> changes.</p><% } %>
