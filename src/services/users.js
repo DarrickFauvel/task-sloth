@@ -1,5 +1,6 @@
 import { db, newId, now } from "../db/client.js";
 import { encrypt, hashPassword, verifyPassword } from "../lib/crypto.js";
+import { checkNewPassword } from "../lib/passwords.js";
 import { cancelEmailChange, requestEmailChange } from "./email-confirm.js";
 import { HttpError } from "../lib/http.js";
 
@@ -157,9 +158,7 @@ function cleanEmail(email) {
 export function validateSignup({ username, email, password }) {
   username = cleanUsername(username);
   email = cleanEmail(email);
-  password = String(password ?? "");
-  if (password.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
-  if (password.length > 200) throw new HttpError(400, "Password must be at most 200 characters");
+  password = checkNewPassword(password);
   return { username, email, password };
 }
 
@@ -186,21 +185,31 @@ export async function createPasswordUser(input) {
 }
 
 /**
- * Changes a password account's username and email, after checking its current password (so a phone
+ * Changes a password account's username and email (and, if one is typed, its password), after checking its current password (so a phone
  * left signed in can't be used to take the account over). Google and dev accounts have neither to change.
  * A new username applies at once. A new email only starts a change: it's confirmed by a link sent to it
  * (see email-confirm.js), and the account keeps signing in with the old one until then. Typing the current
  * email back in cancels a pending change.
  * Throws a 400 with a message for the form; `wrongPassword` is set when that was the problem.
- * @returns {Promise<{ usernameChanged: boolean, pendingEmail: string | null, cancelledEmail: boolean }>}
+ * @returns {Promise<{ usernameChanged: boolean, pendingEmail: string | null, cancelledEmail: boolean, passwordChanged: boolean }>}
  */
-export async function updateSignIn(userId, { username, email, password }) {
+export async function updateSignIn(userId, { username, email, password, newPassword = "", newPasswordAgain = "", keepSession = null }) {
   const user = await db.get("SELECT * FROM users WHERE id = ?", [userId]);
   if (!user?.password_hash) throw new HttpError(400, "You sign in with Google, so there's no username or email to change here");
   username = cleanUsername(username);
   email = cleanEmail(email);
+  // A new password is optional; when one is typed, it's checked before anything else changes.
+  const changingPassword = Boolean(String(newPassword ?? "") || String(newPasswordAgain ?? ""));
+  if (changingPassword) newPassword = checkNewPassword(newPassword, newPasswordAgain);
   if (!(await verifyPassword(String(password ?? ""), user.password_hash))) {
     throw Object.assign(new HttpError(400, "That isn't your current password"), { wrongPassword: true });
+  }
+  // Every other device is signed out (whoever knew the old one shouldn't stay in); this one stays.
+  if (changingPassword) {
+    await db.batch([
+      { sql: "UPDATE users SET password_hash = ? WHERE id = ?", args: [await hashPassword(newPassword), userId] },
+      { sql: "DELETE FROM sessions WHERE user_id = ? AND id IS NOT ?", args: [userId, keepSession] },
+    ]);
   }
   const usernameChanged = username !== user.username;
   const emailChanged = email !== user.email.toLowerCase();
@@ -221,11 +230,11 @@ export async function updateSignIn(userId, { username, email, password }) {
   }
   if (emailChanged) {
     await requestEmailChange({ ...user, username }, email);
-    return { usernameChanged, pendingEmail: email, cancelledEmail: false };
+    return { usernameChanged, pendingEmail: email, cancelledEmail: false, passwordChanged: changingPassword };
   }
   const cancelledEmail = Boolean(user.pending_email);
   if (cancelledEmail) await cancelEmailChange(userId);
-  return { usernameChanged, pendingEmail: null, cancelledEmail };
+  return { usernameChanged, pendingEmail: null, cancelledEmail, passwordChanged: changingPassword };
 }
 
 // Compared against when no account matches, so a wrong username takes as long as a wrong password.

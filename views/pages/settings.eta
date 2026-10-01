@@ -163,6 +163,15 @@
             <input type="email" name="email" value="<%= f.email %>" required maxlength="254" autocomplete="email">
             <small class="hint"><%= u.email_verified_at && !u.pending_email ? "✓ Confirmed. " : "" %>A new email changes once you open the link we send to it.</small>
           </label>
+          <%/* Optional: blank keeps the password. "Type it again" shows once something's typed (CSS :has on the
+               placeholder), and a change signs out your other devices (see updateSignIn). */%>
+          <label class="field"><span>New password <span class="hint">(optional)</span></span>
+            <input type="password" name="newPassword" minlength="8" maxlength="200" autocomplete="new-password" placeholder=" ">
+            <small class="hint">Leave it blank to keep your password. At least 8 characters; your other devices get signed out.</small>
+          </label>
+          <label class="field new-password-again">Type it again
+            <input type="password" name="newPasswordAgain" minlength="8" maxlength="200" autocomplete="new-password">
+          </label>
           <label class="field">Current password
             <%/* After an error the page reloads at the top; focusing here scrolls back to the form and its message. */%>
             <input type="password" name="password" required autocomplete="current-password"<%~ it.signIn && it.error ? " autofocus" : "" %>>

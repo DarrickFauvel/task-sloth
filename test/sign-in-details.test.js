@@ -22,7 +22,7 @@ after(() => rmSync(dir, { recursive: true, force: true }));
 
 test("with the right password, the username changes at once and a new email waits to be confirmed", async () => {
   const result = await updateSignIn(sam, { username: "sammy", email: " Sammy@Example.com ", password: "correct horse" });
-  assert.deepEqual(result, { usernameChanged: true, pendingEmail: "sammy@example.com", cancelledEmail: false });
+  assert.deepEqual(result, { usernameChanged: true, pendingEmail: "sammy@example.com", cancelledEmail: false, passwordChanged: false });
   const u = await getUser(sam);
   assert.equal(u.username, "sammy");
   assert.equal(u.email, "sam@example.com", "the old email stays until the new one is confirmed");
@@ -35,7 +35,7 @@ test("with the right password, the username changes at once and a new email wait
 
 test("typing the current email back in cancels a pending change", async () => {
   const result = await updateSignIn(sam, { username: "sammy", email: "sam@example.com", password: "correct horse" });
-  assert.deepEqual(result, { usernameChanged: false, pendingEmail: null, cancelledEmail: true });
+  assert.deepEqual(result, { usernameChanged: false, pendingEmail: null, cancelledEmail: true, passwordChanged: false });
   assert.equal((await getUser(sam)).pending_email, null);
 });
 
@@ -51,6 +51,24 @@ test("a wrong password changes nothing and is flagged", async () => {
 test("someone else's username or email is refused, whatever the case", async () => {
   await assert.rejects(updateSignIn(sam, { username: "ALEX", email: "sammy@example.com", password: "correct horse" }), /username is taken/);
   await assert.rejects(updateSignIn(sam, { username: "sammy", email: "Alex@example.com", password: "correct horse" }), /already an account/);
+});
+
+test("a new password, typed twice, replaces the old one and signs out every other device", async () => {
+  const signIn = { username: "sammy", email: "sam@example.com", password: "correct horse" };
+  await assert.rejects(updateSignIn(sam, { ...signIn, newPassword: "battery staple", newPasswordAgain: "battery stapel" }), /don't match/);
+  await assert.rejects(updateSignIn(sam, { ...signIn, newPassword: "short", newPasswordAgain: "short" }), /at least 8/);
+  await assert.rejects(updateSignIn(sam, { ...signIn, username: "renamed", password: "wrong", newPassword: "battery staple", newPasswordAgain: "battery staple" }), /current password/);
+  assert.equal((await getUser(sam)).username, "sammy", "nothing changed on a failed try");
+  assert.equal(await verifyLogin("sammy", "correct horse"), sam);
+
+  await db.run("INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('here', ?, '2099-01-01', '2026-01-01'), ('phone', ?, '2099-01-01', '2026-01-01')", [sam, sam]);
+  const result = await updateSignIn(sam, { ...signIn, newPassword: "battery staple", newPasswordAgain: "battery staple", keepSession: "here" });
+  assert.equal(result.passwordChanged, true);
+  assert.equal(await verifyLogin("sammy", "battery staple"), sam);
+  assert.equal(await verifyLogin("sammy", "correct horse"), null);
+  assert.deepEqual((await db.all("SELECT id FROM sessions WHERE user_id = ?", [sam])).map((r) => r.id), ["here"]);
+  // Back, so later tests still sign in with the old one.
+  await updateSignIn(sam, { ...signIn, password: "battery staple", newPassword: "correct horse", newPasswordAgain: "correct horse", keepSession: "here" });
 });
 
 test("bad values are refused before the password is even checked", async () => {

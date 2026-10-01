@@ -10,6 +10,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { db, now } from "../db/client.js";
 import { hashPassword } from "../lib/crypto.js";
+import { checkNewPassword } from "../lib/passwords.js";
 import { HttpError } from "../lib/http.js";
 import { renderEmail } from "../lib/email-layout.js";
 import { sendMail } from "../lib/mail.js";
@@ -230,10 +231,7 @@ export async function describeResetLink(token) {
 export async function resetPassword(token, password, again) {
   const row = await usableLink(token);
   if (!row || row.purpose !== "reset") throw new HttpError(400, "That link has expired or was already used");
-  password = String(password ?? "");
-  if (password.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
-  if (password.length > 200) throw new HttpError(400, "Password must be at most 200 characters");
-  if (password !== String(again ?? "")) throw new HttpError(400, "The two passwords don't match");
+  password = checkNewPassword(password, again);
   const ts = now();
   await db.batch([
     { sql: "UPDATE email_tokens SET used_at = ? WHERE user_id = ? AND purpose = 'reset' AND used_at IS NULL", args: [ts, row.user_id] },
