@@ -65,6 +65,7 @@ export function activityParts(a, { membersById, meId }) {
     case "recurred": return { actor: null, action: null, sentence: "Next occurrence scheduled for" };
     case "unblocked": return { actor: null, action: null, sentence: "Ready to go:" };
     case "snoozed": return did("snoozed");
+    case "reset": return did(a.actor_id === meId ? "did your weekly reset" : "did their weekly reset");
     default: return did(a.verb);
   }
 }

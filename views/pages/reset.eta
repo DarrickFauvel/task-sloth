@@ -1,0 +1,58 @@
+<% layout("/layout", { title: "Weekly reset" }) %>
+<%/* The weekly reset (src/web/reset-page.js): a start screen, one screen per step, and a finish screen. Each step is
+     a card like the rest of the app; its task list (partials/reset-step) re-renders in place after each answer. */%>
+<% if (it.start) { %>
+  <a class="back" href="/?view=mine">← Mine</a>
+  <h1>Weekly reset</h1>
+  <p class="hint">About ten minutes, once a week, to get your tasks back to something you can trust: nothing loose, nothing quietly late, nothing stuck.<%= it.last ? ` Your last one was ${it.last.toLowerCase()}.` : "" %></p>
+  <section class="panel reset-card">
+    <h2 class="card-title"><span class="emoji" aria-hidden="true">🧹</span> Five quick steps</h2>
+    <ol class="reset-steps">
+      <% it.steps.forEach((s) => { %><li><strong><%= s.title %></strong> <span class="hint"><%= s.hint %></span></li><% }) %>
+    </ol>
+    <p class="hint">Skip any step. Every answer saves straight away.</p>
+  </section>
+  <form method="post" action="/reset/start" class="reset-nav"><button class="button primary">Start</button></form>
+
+<% } else if (it.finished) { const s = it.summary;
+     // Only what happened: "You finished 2 and updated 3 tasks."
+     const done = [s.finished && `finished ${s.finished}`, s.changed && `updated ${s.changed}`, s.deleted && `cleared out ${s.deleted}`].filter(Boolean);
+     const total = s.finished + s.changed + s.deleted; %>
+  <section class="empty-state">
+    <p class="empty-icon emoji" aria-hidden="true">🎉</p>
+    <h1>All set for the week</h1>
+    <p><%= done.length
+      ? `You ${done.length > 1 ? `${done.slice(0, -1).join(", ")} and ${done.at(-1)}` : done[0]} ${total === 1 ? "task" : "tasks"}.`
+      : "Everything was already in order." %> See you next week.</p>
+    <a class="button primary" href="/?view=mine">Back to my tasks</a>
+  </section>
+
+<% } else { const v = it.view; const s = v.step; %>
+  <nav class="reset-top">
+    <a class="back" href="<%= v.prev ? `/reset/${v.prev}` : '/reset' %>">← Back</a>
+    <span class="hint">Step <%= v.number %> of <%= v.total %></span>
+    <a class="back" href="<%= v.next ? `/reset/${v.next}` : '/reset' %>"<%~ v.next ? '' : ' hidden' %>>Skip</a>
+  </nav>
+  <section class="panel reset-card" aria-labelledby="reset-title">
+    <h2 class="card-title" id="reset-title"><span class="emoji" aria-hidden="true"><%= s.icon %></span> <%= s.title %></h2>
+    <p class="hint"><%= s.hint %></p>
+    <% if (s.key === "inbox") { %>
+      <% if (v.inboxCount) { %>
+        <p><strong><%= v.inboxCount %></strong> <%= v.inboxCount === 1 ? "thing is" : "things are" %> waiting to be sorted.</p>
+        <a class="button primary" href="/sort">Sort my inbox</a>
+      <% } else { %>
+        <p class="empty">Your inbox is empty.</p>
+      <% } %>
+    <% } else { %>
+      <%~ include("/partials/reset-step", { view: v, labels: it.labels }) %>
+    <% } %>
+  </section>
+  <%~ include("/partials/flash", {}) %>
+  <div class="reset-nav">
+    <% if (v.next) { %>
+      <a class="button<%= s.key === 'inbox' && v.inboxCount ? '' : ' primary' %>" href="/reset/<%= v.next %>"><%= s.key === "inbox" && v.inboxCount ? "Skip for now" : "Next" %></a>
+    <% } else { %>
+      <form method="post" action="/reset/finish"><button class="button primary">Finish</button></form>
+    <% } %>
+  </div>
+<% } %>

@@ -12,7 +12,7 @@ export async function getHouseholdForUser(userId) {
   if (!household) return null;
   const members = await db.all(
     `SELECT u.id, u.name, u.email, u.avatar_url, u.avatar_photo_at, u.color, u.google_list_id, u.google_sync_error,
-            (u.google_refresh_token IS NOT NULL) AS google_connected
+            (u.google_refresh_token IS NOT NULL) AS google_connected, m.joined_at
        FROM users u JOIN memberships m ON m.user_id = u.id
       WHERE m.household_id = ? ORDER BY m.joined_at`,
     [household.id],

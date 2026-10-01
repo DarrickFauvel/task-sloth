@@ -1,0 +1,36 @@
+<%/* One reset step's tasks, each with its answers (see resetStepView). Re-rendered in place after an answer.
+     "Keep" just takes the row off the screen (nothing to save); "Pick a date" opens the date picker and saves on
+     change. Without script every answer is a plain submit, and Keep and the date picker's button stay hidden. */%>
+<% const v = it.view; const L = it.labels; %>
+<div id="reset-step">
+  <% if (!v.tasks.length) { %>
+    <p class="empty"><%= v.step.empty %></p>
+  <% } else { %>
+    <ul class="reset-list">
+      <% let lastDay = null; v.tasks.forEach((t) => { %>
+        <% if (t.day && t.day !== lastDay) { lastDay = t.day; %><li class="reset-day"><h3 class="group"><%= t.day %></h3></li><% } %>
+        <li class="reset-row">
+          <div class="reset-row-head">
+            <a class="reset-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
+            <% if (t.note || t.shared) { %><span class="hint"><%= [t.note, t.shared && "Up for grabs"].filter(Boolean).join(" · ") %></span><% } %>
+          </div>
+          <form class="pills reset-answers" method="post" action="/reset/<%= v.step.key %>/<%= t.id %>">
+            <% t.answers.forEach((a) => { %>
+              <% if (a === "keep") { %>
+                <button type="button" class="pill" style="display: none" data-show="true" data-on:click="el.closest('li').remove()"><%= L[a] %></button>
+              <% } else if (a === "date") { %>
+                <label class="pill reset-date" data-on:click="evt.target === el.querySelector('input') || (evt.preventDefault(), el.querySelector('input').showPicker?.())"><span><%= L[a] %></span>
+                  <input type="date" name="date" class="visually-hidden" aria-label="New date for “<%= t.title %>”"
+                         data-on:change="el.value && @post('/reset/<%= v.step.key %>/<%= t.id %>?do=date', {contentType: 'form'})"></label>
+              <% } else { %>
+                <button class="pill<%= a === 'delete' ? ' is-danger' : '' %>" name="do" value="<%= a %>"
+                        data-on:click__prevent="@post('/reset/<%= v.step.key %>/<%= t.id %>?do=<%= a %>', {contentType: 'form'})"><%= L[a] %></button>
+              <% } %>
+            <% }) %>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+    <% if (v.more) { %><p class="hint">And <%= v.more %> more in <a href="/?view=someday">Maybe later</a>.</p><% } %>
+  <% } %>
+</div>
