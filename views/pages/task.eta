@@ -16,7 +16,7 @@
     <div class="bar photos-bar">
       <h2>Photos</h2>
       <task-photo action="/tasks/<%= t.id %>/photos" class="photo-buttons">
-        <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden">📷 Take photo</label>
+        <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden"><span class="emoji" aria-hidden="true">📷</span> Take photo</label>
         <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
         <p class="hint" role="status" hidden></p>
       </task-photo>

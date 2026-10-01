@@ -13,19 +13,21 @@ const REPEAT_PRESETS = [
 /** The "Blocked by" choice that means "a new task, named in the field below" (task ids are 16 characters, so it can't clash). */
 export const NEW_BLOCKER = "new";
 
+/** The edit form's list chips. Only the picked list's hint shows. */
 const LIST_OPTIONS = [
-  { value: "inbox", label: "Inbox" },
-  { value: "todo", label: "To do" },
-  { value: "waiting", label: "Waiting on" },
-  { value: "someday", label: "Maybe later" },
+  { value: "inbox", label: "Inbox", hint: "Just jotted down. Only you see it until you sort it." },
+  { value: "todo", label: "To do", hint: "Ready to do. Everyone in the household can see it." },
+  { value: "waiting", label: "Waiting on", hint: "Someone or something else has to happen first." },
+  { value: "someday", label: "Maybe later", hint: "Not now, but you don't want to forget it." },
 ];
 
 /**
  * Shapes views/partials/task-edit.eta: the task plus the choices for each group of chips.
  * `today` gives the quick-date chips; `userId` lets the Who chips say "Me"; `openTasks` are the
  * tasks it could be blocked by (this one and its own dependents are left out by the caller's list).
+ * `focus` is the field a tap on the task page asked for (see task-head.eta); anything else is ignored.
  */
-export function editFormView(task, { members, projects, contexts = [], today = null, userId = null, openTasks = [] }) {
+export function editFormView(task, { members, projects, contexts = [], today = null, userId = null, openTasks = [], focus = null }) {
   const current = parseRule(task.recurrence);
   const currentRepeat = current ? JSON.stringify(current) : "";
   const repeats = REPEAT_PRESETS.map((rule) => ({
@@ -39,6 +41,7 @@ export function editFormView(task, { members, projects, contexts = [], today = n
   const tags = task.tag_names ? task.tag_names.split(" ").sort().join(" ") : "";
   return {
     task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS, userId,
+    focus: Object.hasOwn(FIELD_LABELS, focus) ? focus : null,
     blockers: openTasks.filter((o) => o.id !== task.id).map((o) => ({ id: o.id, title: o.title })),
     quickDates: today ? quickDates(today) : [],
     priorities: [{ value: 1, label: "High" }, { value: 0, label: "Normal" }, { value: -1, label: "Low" }],
@@ -70,3 +73,13 @@ export function editInput(body) {
       : {}),
   };
 }
+
+/** What each edit-form field is called in its "… saved" toast (the form's own labels, shortened). */
+const FIELD_LABELS = {
+  title: "Name", notes: "Notes", dueDate: "Date", dueTime: "Time", recurrence: "Repeat", assigneeId: "Who does it",
+  context: "Where / how", projectId: "Project", tags: "Tags", list: "List", waitingOn: "Waiting on",
+  waitingTaskId: "What it waits for", newBlocker: "What it waits for", priority: "Priority",
+};
+
+/** The toast after the edit form saves one field as you go: "Priority saved", or just "Saved". */
+export const savedMessage = (field) => (Object.hasOwn(FIELD_LABELS, field) ? `${FIELD_LABELS[field]} saved` : "Saved");

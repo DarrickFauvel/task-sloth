@@ -1,31 +1,37 @@
 <% const t = it.task; const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
-<header id="task-head" class="task-head<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>">
-  <%/* Phone numbers in the title and notes are tap-to-call links. */%>
-  <h1 class="task-title"><%~ include("/partials/phone-text", { parts: t.titleParts }) %></h1>
+<%/* Tap to edit: each detail opens the edit form scrolled to its field (?focus=<field>); plain links without script.
+     The title and notes do too, except a tap on a phone number in them, which still calls. */%>
+<% const editUrl = (field) => `/tasks/${t.id}/edit?focus=${field}`;
+   const edit = (field) => `href="${editUrl(field)}" data-on:click__prevent="@get('${editUrl(field)}')" title="Change this"`;
+   const editOnTap = (field) => `data-on:click="evt.target.closest('a') || @get('${editUrl(field)}')"`; %>
+<header id="task-head" class="task-head<%= done ? ' is-done' : '' %><%= t.priority > 0 ? ' is-high' : '' %>" data-show="!$editing">
+  <%/* Phone numbers in the title and notes are tap-to-call links. Hidden while the edit form is open, which has its own title and Save. */%>
+  <h1 class="task-title tap-edit" <%~ editOnTap("title") %>><%~ include("/partials/phone-text", { parts: t.titleParts }) %></h1>
   <span class="meta">
     <% if (done) { %><span>Done</span><% } %>
-    <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
-    <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
-    <% if (!done && t.list === "inbox") { %><span>📥 In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
-    <% if (t.waitingLabel) { %><span>⏳ Waiting on <%= t.waitingLabel %></span><% } %>
-    <% if (t.blockedBy && !done) { %><span class="blocked">⏳ Blocked until “<%= t.blockedBy %>” is done</span><% } %>
-    <% if (!done && t.list === "someday") { %><span>💭 Maybe later</span><% } %>
-    <% if (t.priority < 0) { %><span>Low priority</span><% } %>
+    <% if (t.dueLabel) { %><a class="meta-edit due <%= t.dueState %>" <%~ edit("dueDate") %>><%= t.dueText %></a><% } %>
+    <% if (t.repeats) { %><a class="meta-edit" <%~ edit("recurrence") %>><span class="emoji" aria-hidden="true">↻</span> <%= t.repeats %></a><% } %>
+    <% if (!done && t.list === "inbox") { %><span><span class="emoji" aria-hidden="true">📥</span> In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
+    <% if (t.waitingLabel) { %><a class="meta-edit" <%~ edit("waitingOn") %>><span class="emoji" aria-hidden="true">⏳</span> Waiting on <%= t.waitingLabel %></a><% } %>
+    <% if (t.blockedBy && !done) { %><a class="meta-edit blocked" <%~ edit("waitingTaskId") %>><span class="emoji" aria-hidden="true">⏳</span> Blocked until “<%= t.blockedBy %>” is done</a><% } %>
+    <% if (!done && t.list === "someday") { %><a class="meta-edit" <%~ edit("list") %>><span class="emoji" aria-hidden="true">💭</span> Maybe later</a><% } %>
+    <% if (t.priority < 0) { %><a class="meta-edit" <%~ edit("priority") %>>Low priority</a><% } %>
     <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
     <%~ include("/partials/context-tags", { t }) %>
     <% if (t.assignee) { %>
-      <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>
-    <% } else if (!done) { %><span>Up for grabs</span><% } %>
+      <a class="meta-edit who" <%~ edit("assigneeId") %>><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></a>
+    <% } else if (!done) { %><a class="meta-edit" <%~ edit("assigneeId") %>>Up for grabs</a><% } %>
   </span>
   <% if (t.blocking.length && !done) { %>
-    <p class="holding-up">🔗 Holding up <%= t.blocking.map((b) => `“${b}”`).join(", ") %>. They'll be ready to go once this is done.</p>
+    <p class="holding-up"><span class="emoji" aria-hidden="true">🔗</span> Holding up <%= t.blocking.map((b) => `“${b}”`).join(", ") %>. They'll be ready to go once this is done.</p>
   <% } %>
-  <% if (t.notes) { %><p class="notes"><%~ include("/partials/phone-text", { parts: t.notesParts }) %></p><% } %>
+  <% if (t.notes) { %><p class="notes tap-edit" <%~ editOnTap("notes") %>><%~ include("/partials/phone-text", { parts: t.notesParts }) %></p><% } %>
   <div class="actions">
     <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">
       <input type="hidden" name="back" value="task">
       <button class="button<%= done ? '' : ' primary' %>"><%= done ? "Reopen" : "Mark done" %></button>
     </form>
     <a class="button" href="/tasks/<%= t.id %>/edit" data-show="!$editing" data-on:click__prevent="@get('/tasks/<%= t.id %>/edit')">Edit</a>
+    <span class="hint">or tap a detail to change it</span>
   </div>
 </header>

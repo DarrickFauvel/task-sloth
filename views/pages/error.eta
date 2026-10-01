@@ -1,6 +1,6 @@
 <% layout("/layout", { title: String(it.status) }) %>
 <section class="empty-state">
-  <p class="empty-icon" aria-hidden="true"><%= it.status === 404 ? "🔍" : "⚠️" %></p>
+  <p class="empty-icon emoji" aria-hidden="true"><%= it.status === 404 ? "🔍" : "⚠️" %></p>
   <h1><%= it.status === 404 ? "Page not found" : it.message %></h1>
   <p class="hint"><%= it.status === 404 ? "That link doesn't lead anywhere." : `Error ${it.status}` %></p>
   <a class="button primary" href="/">Back to my tasks</a>

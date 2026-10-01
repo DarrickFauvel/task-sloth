@@ -1,8 +1,9 @@
 <!doctype html>
 <%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js.
-     it.you is the signed-in member's color: the accent follows it (see --you in app.css). */%>
+     it.you is the signed-in member's color: the accent follows it (see --you in app.css).
+     it.icons is "off" when someone turned icons off in Settings (the icons cookie): .emoji hides. */%>
 <% const you = /^#[0-9a-f]{6}$/i.test(it.you ?? "") ? it.you : null; %>
-<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ it.icons === "off" ? ' data-icons="off"' : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -49,6 +50,13 @@
     // circle (see ::view-transition-new in app.css). Used by the menu's toggle and Settings > Appearance.
     const darkQuery = matchMedia("(prefers-color-scheme: dark)");
     const shownTheme = (choice) => choice ?? (darkQuery.matches ? "dark" : "light");
+    // Icons on or off (Settings > Appearance): saves the choice and hides or shows the decorative emoji at once.
+    function setIcons(on) {
+      if (on) delete document.documentElement.dataset.icons;
+      else document.documentElement.dataset.icons = "off";
+      document.cookie = on ? "icons=; path=/; max-age=0; samesite=lax" : "icons=off; path=/; max-age=31536000; samesite=lax";
+      document.querySelectorAll("[data-icons-choice]").forEach((b) => b.classList.toggle("is-on", b.dataset.iconsChoice === (on ? "on" : "off")));
+    }
     function setTheme(choice, origin) {
       const root = document.documentElement;
       const next = shownTheme(choice);
