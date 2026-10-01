@@ -49,3 +49,8 @@ test("who picks whose rows: others (and nobody's), everyone, or one person", () 
   assert.equal(lines(buildActivity(rows, { ...ctx, who: "everyone" })).length, 3);
   assert.deepEqual(lines(buildActivity(rows, { ...ctx, who: "u1" })).map(([t]) => t), ["You added"]);
 });
+
+test("a comment shows its start under the line", () => {
+  const days = buildActivity([row(9, "commented", { actor_id: "u2", detail: { excerpt: "Got the blue one" } })], ctx);
+  assert.deepEqual(lines(days), [["Sam commented on", "“Got the blue one”"]]);
+});

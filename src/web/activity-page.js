@@ -78,22 +78,25 @@ export function buildActivity(rows, { membersById, userId, timeZone, today, who 
     const key = parts.sentence ? Symbol() : `${a.actor_id}|${a.task_id}|${ymd}`;
     let line = lines.get(key);
     if (!line) {
-      line = { row: a, parts, actions: [], fields: [], time: time.format(at) };
+      line = { row: a, parts, actions: [], fields: [], time: time.format(at), excerpt: null };
       lines.set(key, line);
       days.get(ymd).lines.push(line);
     }
     // Going back in time, so each earlier action goes in front. One of a kind is enough, placed where it first happened.
     if (parts.action) line.actions = [parts.action, ...line.actions.filter((x) => x !== parts.action)];
     line.fields.unshift(...fields);
+    // The newest comment's start, under "commented on" (rows go newest first, so the first one seen).
+    if (a.verb === "commented" && !line.excerpt && a.detail?.excerpt) line.excerpt = a.detail.excerpt;
   }
 
   return [...days.values()].map((d) => ({
     label: d.label,
-    entries: d.lines.map(({ row: a, parts, actions, fields, time: at }) => {
+    entries: d.lines.map(({ row: a, parts, actions, fields, time: at, excerpt }) => {
       const changed = actions.includes("edited") ? fieldWords(fields) : "";
+      const detail = [changed && `Changed: ${changed}`, excerpt && `“${excerpt.length === 80 ? `${excerpt}…` : excerpt}”`].filter(Boolean).join(" · ");
       return {
         text: parts.sentence ?? `${parts.actor} ${joinActions(actions)}`,
-        detail: changed ? `Changed: ${changed}` : null,
+        detail: detail || null,
         title: a.task_title,
         // Deleted tasks (and rows whose task is gone) aren't linked.
         href: a.task_title && !a.task_deleted_at ? `/tasks/${a.task_id}` : null,

@@ -633,6 +633,24 @@ label.pill span { overflow-wrap: anywhere; }
 .checklist-mode { display: grid; gap: var(--space-2xs); margin: 0; }
 .checklist-mode .hint, .photos-empty { margin: 0; }
 .task-card .empty { padding: var(--space-m) 0 var(--space-2xs); }
+/* Comments: avatar, name and time, then the text; your own can be deleted. The box to write one sits below. */
+.comments { display: grid; gap: var(--space-s); }
+.comment-list { list-style: none; margin: 0; padding: 0; }
+.comment { display: flex; align-items: flex-start; gap: var(--space-s); padding: var(--space-s) 0; border-bottom: 1px solid var(--line); }
+.comment:last-child { border-bottom: 0; }
+.comment .avatar { width: 2rem; height: 2rem; flex: none; }
+.comment-body { flex: 1; min-width: 0; display: grid; gap: 0.15rem; }
+.comment-meta, .comment-text { margin: 0; }
+.comment-meta time { font-size: var(--step--1); margin-left: 0.3em; }
+.comment-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-text .phone-link { white-space: nowrap; }
+.comment form { margin: 0; }
+.comment-delete { font-size: var(--step--1); }
+.comment-form { display: grid; gap: var(--space-xs); margin: 0; }
+.comment-form .button { justify-self: end; min-width: 6rem; }
+/* On a task row: someone else commented since you last looked. */
+.has-new { color: var(--fg); font-weight: 600; }
+.new-dot { display: inline-block; width: 0.5em; height: 0.5em; margin-left: 0.25em; vertical-align: 0.15em; border-radius: 50%; background: var(--accent); }
 
 /* Photos: square thumbnails (or a note), then take or choose; each photo has a small × to delete it. */
 .photo-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
