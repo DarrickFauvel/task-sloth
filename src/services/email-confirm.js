@@ -2,17 +2,21 @@
 // - at sign-up (purpose "verify"): the account works straight away; confirming just marks the email as checked.
 // - on an email change (purpose "change"): the new address waits in users.pending_email and only replaces
 //   users.email once its link is followed; the old address gets a heads-up.
-// Links work once, for LINK_TTL_MS. Only a sha256 of each token is stored. Following a link shows a page with
-// a Confirm button (a POST), so mail scanners that open links can't use them up.
+// - for a forgotten password (purpose "reset"): the link opens a page to choose a new one (see resetPassword).
+// Links work once, for LINK_TTL_MS (a reset link for RESET_TTL_MS). Only a sha256 of each token is stored.
+// Following a link shows a page with a button or form (a POST), so mail scanners that open links can't use them up.
 
 import { createHash, randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { db, now } from "../db/client.js";
+import { hashPassword } from "../lib/crypto.js";
 import { HttpError } from "../lib/http.js";
 import { renderEmail } from "../lib/email-layout.js";
 import { sendMail } from "../lib/mail.js";
 
 export const LINK_TTL_MS = 24 * 3_600_000;
+/** A password reset link is good for an hour: it can take over the account, so it shouldn't linger. */
+export const RESET_TTL_MS = 3_600_000;
 
 const hash = (token) => createHash("sha256").update(String(token)).digest("hex");
 
@@ -27,17 +31,17 @@ export function maskEmail(email) {
 }
 
 /** Makes a fresh link for `email` (older unused links of the same purpose stop working) and returns its URL. */
-async function newLink(userId, email, purpose) {
+async function newLink(userId, email, purpose, { path = "/email/confirm", ttlMs = LINK_TTL_MS } = {}) {
   const token = randomBytes(32).toString("base64url");
   const ts = now();
   await db.batch([
     { sql: "UPDATE email_tokens SET used_at = ? WHERE user_id = ? AND purpose = ? AND used_at IS NULL", args: [ts, userId, purpose] },
     {
       sql: "INSERT INTO email_tokens (token_hash, user_id, email, purpose, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      args: [hash(token), userId, email, purpose, new Date(Date.now() + LINK_TTL_MS).toISOString(), ts],
+      args: [hash(token), userId, email, purpose, new Date(Date.now() + ttlMs).toISOString(), ts],
     },
   ]);
-  return `${config.baseUrl}/email/confirm?token=${token}`;
+  return `${config.baseUrl}${path}?token=${token}`;
 }
 
 /** Sends one email; if the mail server won't take it, says so in words a form can show. */
@@ -135,9 +139,11 @@ export async function cancelEmailChange(userId) {
 async function usableLink(token) {
   const row = token ? await db.get("SELECT * FROM email_tokens WHERE token_hash = ?", [hash(token)]) : null;
   if (!row || row.used_at || row.expires_at <= now()) return null;
-  const user = await db.get("SELECT id, email, pending_email FROM users WHERE id = ?", [row.user_id]);
-  // A change link is only good while that address is still the pending one (not cancelled or replaced).
-  if (!user || (row.purpose === "change" && user.pending_email !== row.email) || (row.purpose === "verify" && user.email !== row.email)) return null;
+  const user = await db.get("SELECT id, email, pending_email, password_hash FROM users WHERE id = ?", [row.user_id]);
+  // A change link is only good while that address is still the pending one (not cancelled or replaced);
+  // a verify or reset link while it's still the account's email (and, for a reset, it's still a password account).
+  if (!user || (row.purpose === "change" && user.pending_email !== row.email) || (row.purpose !== "change" && user.email !== row.email)) return null;
+  if (row.purpose === "reset" && !user.password_hash) return null;
   return row;
 }
 
@@ -153,13 +159,13 @@ export async function linkSent(userId, email) {
 /** For the page a link opens: which address it confirms, or null if the link is used, old or unknown. */
 export async function describeLink(token) {
   const row = await usableLink(token);
-  return row ? { email: row.email, purpose: row.purpose } : null;
+  return row && row.purpose !== "reset" ? { email: row.email, purpose: row.purpose } : null;
 }
 
 /** Follows a link: marks the email confirmed, or swaps in the pending one. Returns the confirmed address. */
 export async function confirmEmail(token) {
   const row = await usableLink(token);
-  if (!row) throw new HttpError(400, "That link has expired or was already used");
+  if (!row || row.purpose === "reset") throw new HttpError(400, "That link has expired or was already used");
   const ts = now();
   const used = { sql: "UPDATE email_tokens SET used_at = ? WHERE token_hash = ?", args: [ts, row.token_hash] };
   if (row.purpose === "verify") {
@@ -179,4 +185,60 @@ export async function confirmEmail(token) {
     throw err;
   }
   return row.email;
+}
+
+// --- Forgotten passwords ----------------------------------------------------------------
+
+/**
+ * "Forgot your password?": emails a reset link to the password account with this username or email. Says
+ * nothing about whether there is one (the page says the same either way), so it can't be used to find accounts.
+ */
+export async function requestPasswordReset(identifier) {
+  identifier = String(identifier ?? "").trim().slice(0, 254);
+  if (!identifier) return;
+  const column = identifier.includes("@") ? "email" : "username";
+  const user = await db.get(`SELECT * FROM users WHERE ${column} = ? COLLATE NOCASE AND password_hash IS NOT NULL`, [identifier]);
+  if (!user) return;
+  const link = await newLink(user.id, user.email, "reset", { path: "/password/reset", ttlMs: RESET_TTL_MS });
+  await deliver({
+    to: user.email,
+    subject: "Reset your Task Sloth password",
+    ...renderEmail({
+      preview: "Choose a new password for Task Sloth.",
+      heading: "Reset your password",
+      paragraphs: [`Hi ${user.name},`, `Someone asked to reset the password for **@${user.username}**. Tap the button to choose a new one.`],
+      button: { href: link, label: "Choose a new password" },
+      footnote: "The button works once, for the next hour. If you didn't ask for this, ignore this email: your password stays the same.",
+    }),
+  });
+}
+
+/** For the page a reset link opens: whose password it resets, or null if the link is used, old or unknown. */
+export async function describeResetLink(token) {
+  const row = await usableLink(token);
+  if (!row || row.purpose !== "reset") return null;
+  const user = await db.get("SELECT username FROM users WHERE id = ?", [row.user_id]);
+  return { username: user.username };
+}
+
+/**
+ * Sets a new password from a reset link: it's typed twice, and must be 8–200 characters. Following the link
+ * proves the email is theirs, so it's marked confirmed. Every session ends (the caller signs this browser back
+ * in), since whoever knew the old password shouldn't stay signed in. Throws a 400 with a message for the form.
+ * @returns {Promise<string>} the user id
+ */
+export async function resetPassword(token, password, again) {
+  const row = await usableLink(token);
+  if (!row || row.purpose !== "reset") throw new HttpError(400, "That link has expired or was already used");
+  password = String(password ?? "");
+  if (password.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
+  if (password.length > 200) throw new HttpError(400, "Password must be at most 200 characters");
+  if (password !== String(again ?? "")) throw new HttpError(400, "The two passwords don't match");
+  const ts = now();
+  await db.batch([
+    { sql: "UPDATE email_tokens SET used_at = ? WHERE user_id = ? AND purpose = 'reset' AND used_at IS NULL", args: [ts, row.user_id] },
+    { sql: "UPDATE users SET password_hash = ?, email_verified_at = COALESCE(email_verified_at, ?) WHERE id = ?", args: [await hashPassword(password), ts, row.user_id] },
+    { sql: "DELETE FROM sessions WHERE user_id = ?", args: [row.user_id] },
+  ]);
+  return row.user_id;
 }

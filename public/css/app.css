@@ -144,6 +144,7 @@ button.icon:focus-visible { opacity: 1; }
 /* The small brand line at the top of pages that don't have the full header. */
 .brand-line { margin: 0 0 var(--space-m); font-size: var(--step-2); font-weight: 700; }
 .panel-links { margin: var(--space-m) 0 0; text-align: center; font-size: var(--step--1); }
+.forgot-link { margin: calc(-1 * var(--space-xs)) 0 0; }
 /* Sign in, sign up and invite: one narrow centered column, even on a wide screen. */
 .brand-line, .brand-line ~ .panel, .brand-line ~ .panel-links { max-width: 26rem; margin-inline: auto; }
 .brand-line ~ .panel + .panel, .brand-line ~ .panel-links + .panel { margin-top: var(--space-m); }
