@@ -1078,6 +1078,8 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .activity-days { display: grid; gap: var(--space-m); margin-top: var(--space-m); }
 .activity-day h2 { font-size: var(--step-1); }
 .activity-day .count { font-weight: normal; color: var(--muted); }
+.activity-toggle { margin: var(--space-m) 0 0; text-align: center; font-size: var(--step--1); }
+.activity-toggle a { text-decoration: none; }
 .activity time { flex: none; font-size: var(--step--1); }
 
 /* --- Settings ----------------------------------------------------------------------------- */

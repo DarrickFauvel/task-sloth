@@ -33,27 +33,38 @@ export async function listActivity(householdId, { taskId, since, limit = 50 } = 
 }
 
 /** Human sentence for an activity row, e.g. "Sam reassigned “Groceries” to you". */
-export function describeActivity(a, { membersById, meId }) {
+export function describeActivity(a, ctx) {
+  const { actor, action, sentence } = activityParts(a, ctx);
+  return sentence ?? `${actor} ${action}`;
+}
+
+/**
+ * An activity row split into who and what, so several of one person's actions can share a sentence ("Sam added
+ * and completed …"): `actor` ("You", "Sam", "Google Tasks") and `action` ("added", "assigned to Sam"). Rows that
+ * aren't anyone's doing ("Ready to go:") have a whole `sentence` instead.
+ */
+export function activityParts(a, { membersById, meId }) {
   const who = (id) => (id === meId ? "you" : (membersById[id]?.name.split(" ")[0] ?? "someone"));
   const actor = a.actor_id ? who(a.actor_id).replace(/^you$/, "You") : "Google Tasks";
   const d = a.detail ?? {};
+  const did = (action) => ({ actor, action, sentence: null });
   switch (a.verb) {
-    case "created": return `${actor} added`;
-    case "completed": return `${actor} completed`;
-    case "reopened": return `${actor} reopened`;
+    case "created": return did("added");
+    case "completed": return did("completed");
+    case "reopened": return did("reopened");
     case "assigned":
-      if (!d.to) return `${actor} put up for grabs`;
-      if (d.to === a.actor_id) return `${actor} claimed`;
-      return `${actor} assigned to ${who(d.to)}`;
-    case "updated": return `${actor} edited`;
-    case "deleted": return `${actor} deleted`;
-    case "restored": return `${actor} restored`;
-    case "commented": return `${actor} commented on`;
-    case "photo": return `${actor} added a photo to`;
-    case "checklist": return `${actor} added ${d.count} item${d.count === 1 ? "" : "s"} to`;
-    case "recurred": return `Next occurrence scheduled for`;
-    case "unblocked": return `Ready to go:`;
-    case "snoozed": return `${actor} snoozed`;
-    default: return `${actor} ${a.verb}`;
+      if (!d.to) return did("put up for grabs");
+      if (d.to === a.actor_id) return did("claimed");
+      return did(`assigned to ${who(d.to)}`);
+    case "updated": return did("edited");
+    case "deleted": return did("deleted");
+    case "restored": return did("restored");
+    case "commented": return did("commented on");
+    case "photo": return did("added a photo to");
+    case "checklist": return did(`added ${d.count} item${d.count === 1 ? "" : "s"} to`);
+    case "recurred": return { actor: null, action: null, sentence: "Next occurrence scheduled for" };
+    case "unblocked": return { actor: null, action: null, sentence: "Ready to go:" };
+    case "snoozed": return did("snoozed");
+    default: return did(a.verb);
   }
 }

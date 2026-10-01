@@ -8,6 +8,7 @@ const ctx = { membersById, userId: "u1", timeZone: "UTC", today: "2026-10-01" };
 const row = (minute, verb, extra = {}) => ({
   verb, actor_id: "u1", task_id: "t1", task_title: "Paint", created_at: `2026-10-01T12:${String(minute).padStart(2, "0")}:00.000Z`, detail: {}, ...extra,
 });
+const edit = (minute, fields, extra) => row(minute, "updated", { detail: { fields }, ...extra });
 const lines = (days) => days.flatMap((d) => d.entries.map((e) => [e.text, e.detail]));
 
 test("fieldWords names the fields the way the form does", () => {
@@ -18,32 +19,33 @@ test("fieldWords names the fields the way the form does", () => {
   assert.equal(fieldWords([]), "");
 });
 
-test("a burst of edits is one line saying what changed", () => {
-  const days = buildActivity([row(40, "updated", { detail: { fields: ["list"] } }), row(35, "updated", { detail: { fields: ["due_date"] } }),
-    row(30, "updated", { detail: { fields: ["notes", "list"] } })], ctx);
-  assert.deepEqual(lines(days), [["You edited", "Changed: list, date and notes"]]);
-  assert.equal(days[0].entries[0].time, "12:40 PM");
+test("one line per person, task and day, its actions in order", () => {
+  const days = buildActivity([row(50, "completed"), edit(40, ["list"]), edit(20, ["due_date"]), row(10, "created")], ctx);
+  assert.deepEqual(lines(days), [["You added, edited and completed", "Changed: date and list"]]);
+  assert.equal(days[0].entries[0].time, "12:50 PM");
 });
 
-test("edits right after adding fold into the added line", () => {
-  const days = buildActivity([row(20, "updated", { detail: { fields: ["tags"] } }), row(10, "created")], ctx);
-  assert.deepEqual(lines(days), [["You added", "Then changed: tags"]]);
+test("people and tasks get their own lines", () => {
+  const days = buildActivity([row(5, "created", { actor_id: "u2" }), row(4, "created", { task_id: "t2", task_title: "Bulbs" }), row(3, "completed")], ctx);
+  assert.deepEqual(lines(days).map(([t]) => t), ["Sam added", "You added", "You completed"]);
 });
 
-test("edits far apart, by someone else, or around finishing stay separate", () => {
-  const apart = buildActivity([row(59, "updated", { detail: { fields: ["notes"] } }), row(0, "updated", { detail: { fields: ["notes"] } })].map((r, i) =>
-    i ? { ...r, created_at: "2026-10-01T11:00:00.000Z" } : r), ctx);
-  assert.equal(lines(apart).length, 2);
-  const others = buildActivity([row(5, "updated", { actor_id: "u2", detail: { fields: ["notes"] } }), row(4, "updated", { detail: { fields: ["notes"] } })], ctx);
-  assert.deepEqual(lines(others).map(([t]) => t), ["Sam edited", "You edited"]);
-  const done = buildActivity([row(9, "updated", { detail: { fields: ["notes"] } }), row(8, "completed"), row(7, "updated", { detail: { fields: ["notes"] } })], ctx);
-  assert.deepEqual(lines(done).map(([t]) => t), ["You edited", "You completed", "You edited"]);
-  const assigned = buildActivity([row(9, "updated", { detail: { fields: ["notes"] } }), row(8, "assigned", { detail: { to: "u2" } }),
-    row(7, "updated", { detail: { fields: ["due_date"] } })], ctx);
-  assert.deepEqual(lines(assigned), [["You edited", "Changed: notes and date"], ["You assigned to Sam", null]]);
+test("minor changes are left out unless all", () => {
+  const rows = [edit(9, ["notes", "tags"]), row(8, "checklist", { detail: { count: 3 } }), row(7, "recurred", { actor_id: null }), edit(6, ["notes", "due_date"])];
+  assert.deepEqual(lines(buildActivity(rows, ctx)), [["You edited", "Changed: date"]]);
+  const all = lines(buildActivity(rows, { ...ctx, all: true }));
+  assert.deepEqual(all, [["You edited and added 3 items to", "Changed: notes, date and tags"], ["Next occurrence scheduled for", null]]);
 });
 
-test("who keeps one person's rows", () => {
-  const days = buildActivity([row(5, "created", { actor_id: "u2", task_id: "t2" }), row(4, "created")], { ...ctx, who: "u2" });
-  assert.deepEqual(lines(days), [["Sam added", null]]);
+test("a delete that was undone is left out, with its restore", () => {
+  const rows = [row(9, "restored"), row(8, "deleted"), row(1, "created")];
+  assert.deepEqual(lines(buildActivity(rows, ctx)), [["You added", null]]);
+  assert.deepEqual(lines(buildActivity([row(8, "deleted"), row(1, "created")], ctx)), [["You added and deleted", null]]);
+});
+
+test("who picks whose rows: others (and nobody's), everyone, or one person", () => {
+  const rows = [row(9, "created", { actor_id: "u2", task_id: "t2" }), row(8, "unblocked", { actor_id: null, task_id: "t3" }), row(7, "created")];
+  assert.deepEqual(lines(buildActivity(rows, { ...ctx, who: "others" })).map(([t]) => t), ["Sam added", "Ready to go:"]);
+  assert.equal(lines(buildActivity(rows, { ...ctx, who: "everyone" })).length, 3);
+  assert.deepEqual(lines(buildActivity(rows, { ...ctx, who: "u1" })).map(([t]) => t), ["You added"]);
 });
