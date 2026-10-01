@@ -3,6 +3,7 @@
 <% if (it.emailNotice) { %><%~ include("/partials/email-notice", it.emailNotice) %><% } %>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
+  <script type="module" src="/js/list-nav.js"></script>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
   <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
   <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"
@@ -16,10 +17,15 @@
   </dialog>
   <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy).
        since/next let the stream skip re-sending what this page already shows (see /events); whenShown waits
-       out a prerender, so a page the browser only might open doesn't hold a stream. */%>
+       out a prerender, so a page the browser only might open doesn't hold a stream.
+       Switching lists (public/js/list-nav.js) opens a new stream for the new list, with no since, so it renders it
+       at once; a new @get from this element cancels the old stream. The signals follow, since the add box and the
+       rows' buttons post them. */%>
   <% const l = it.list; %>
   <div data-signals="{view: '<%= l.view %>', project: '<%= l.project ?? '' %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: '', renaming: '', renameText: ''}"
-       data-init="whenShown(() => @get('/events?<%= [it.listQueryString(l), `since=${it.renderedAt}`, l.refreshAt ? `next=${l.refreshAt}` : ''].filter(Boolean).join('&') %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
+       data-init="whenShown(() => @get('/events?<%= [it.listQueryString(l), `since=${it.renderedAt}`, l.refreshAt ? `next=${l.refreshAt}` : ''].filter(Boolean).join('&') %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))"
+       data-on:click__window="const n = window.listNav?.fromClick(evt); n && ($view = n.view, $project = n.project, $context = n.context, $tag = n.tag, @get('/events?' + n.query, {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))"
+       data-on:popstate__window="const n = window.listNav?.fromLocation(); n && ($view = n.view, $project = n.project, $context = n.context, $tag = n.tag, @get('/events?' + n.query, {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
     <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
       <input type="hidden" name="view" value="<%= l.view %>">
       <input type="hidden" name="project" value="<%= l.project ?? '' %>">
