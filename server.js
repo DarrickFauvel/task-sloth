@@ -22,6 +22,8 @@ import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NA
 import { hideDone } from "./src/web/hidden-done.js";
 import { doneTodayView } from "./src/web/done-today.js";
 import { nextPhraseIndex, phraseIndex, phraseText } from "./src/web/household-phrase.js";
+import { lastResetAt, recordReset, resetDue, resetSummary, snoozeReset } from "./src/services/reset.js";
+import { ANSWER_LABELS, RESET_STEPS, resetStepView } from "./src/web/reset-page.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
@@ -32,7 +34,7 @@ import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortc
 import { checklistView } from "./src/web/checklist.js";
 import { editFormView, editInput, savedMessage } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
-import { nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
+import { addDays, nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
 import { createTasksApi } from "./src/google/tasks-api.js";
 import { createSyncEngine } from "./src/sync/engine.js";
@@ -112,6 +114,11 @@ app.get("/healthz", (req, res) => res.type("text").send("ok"));
 const today = (req) => todayIn(req.cookies.tz);
 /** The viewer's date and wall-clock time, for due times (tasks due earlier today are overdue). */
 const clock = (req) => nowIn(req.cookies.tz);
+/** Whether Mine should suggest this person's weekly reset (see src/services/reset.js). */
+const resetDueFor = (req, membership) => {
+  const me = membership.members.find((m) => m.id === req.user.id);
+  return me ? resetDue(membership.household.id, me) : false;
+};
 const decorate = (req, task, membership = req.membership) => {
   const { today, time } = clock(req);
   return decorateTask(task, membership, today, time);
@@ -145,7 +152,7 @@ app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
   if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
   const list = req.membership
-    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req) })
+    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdLine: householdLine(req, res),
@@ -194,7 +201,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId)];
     }
-    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), ...clock(req) });
+    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
     scheduleDrop(list.refreshAt);
     return renderList(list, req.user.id, await doneToday(req, membership));
   };
@@ -257,7 +264,7 @@ async function sendTaskList(req, res, { flash, signals, grouping } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), ...clock(req) });
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) });
   const parts = renderList(list, req.user.id, await doneToday(req, req.membership));
   const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
@@ -358,6 +365,117 @@ app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
   await sendTaskList(req, res);
 });
 
+// --- Weekly reset ---------------------------------------------------------------------
+// Each person's step-by-step check-in (src/web/reset-page.js). Starting one sets reset_started (its start time, for
+// a day), so Sort my inbox can offer the way back and the last screen can say what got done since.
+
+/** When the reset in progress started (ms), or null. */
+const resetStarted = (req) => {
+  const at = Number(req.cookies.reset_started);
+  return Number.isFinite(at) && at > 0 && Date.now() - at < 86_400_000 ? at : null;
+};
+
+app.get("/reset", requireHousehold, async (req, res) => {
+  const last = await lastResetAt(req.actor.householdId, req.user.id);
+  render(res, "pages/reset", { start: true, steps: RESET_STEPS, last: last && relativeLabel(todayIn(req.cookies.tz, new Date(last)), today(req)) });
+});
+
+app.post("/reset/start", requireHousehold, (req, res) => {
+  res.append("Set-Cookie", `reset_started=${Date.now()}; Path=/; Max-Age=86400; SameSite=Lax`);
+  redirect(res, `/reset/${RESET_STEPS[0].key}`);
+});
+
+// "Not now" on Mine's reset card: hidden for a day (on this server; see snoozeReset).
+app.post("/reset/later", requireHousehold, async (req, res) => {
+  snoozeReset(req.user.id);
+  await sendTaskList(req, res);
+});
+
+app.post("/reset/finish", requireHousehold, async (req, res) => {
+  const started = resetStarted(req) ?? Date.now();
+  const summary = await resetSummary(req.actor.householdId, req.user.id, new Date(started).toISOString());
+  await recordReset(req.actor, summary);
+  res.append("Set-Cookie", "reset_started=; Path=/; Max-Age=0; SameSite=Lax");
+  redirect(res, `/reset/done?${new URLSearchParams({ f: summary.finished, c: summary.changed, d: summary.deleted })}`);
+});
+
+app.get("/reset/done", requireHousehold, (req, res) => {
+  const n = (k) => Math.max(0, Math.floor(Number(req.query[k]) || 0));
+  render(res, "pages/reset", { finished: true, summary: { finished: n("f"), changed: n("c"), deleted: n("d") } });
+});
+
+const resetStep = (req, step) => resetStepView({ step, userId: req.user.id, membership: req.membership, ...clock(req) });
+
+app.get("/reset/:step", requireHousehold, async (req, res) => {
+  const view = await resetStep(req, req.params.step);
+  if (!view) throw new HttpError(404, "Page not found");
+  render(res, "pages/reset", { view, labels: ANSWER_LABELS });
+});
+
+/** Datastar: re-render the step's list (and a toast). Plain form posts: back to the step. */
+async function sendResetStep(req, res, step, flash) {
+  if (!isDatastar(req)) return redirect(res, `/reset/${step}`);
+  const view = await resetStep(req, step);
+  await sse(req, res, (stream) => {
+    stream.patchElements(eta.render("partials/reset-step", { view, labels: ANSWER_LABELS }));
+    stream.patchElements(eta.render("partials/flash", flash ?? {}));
+  });
+}
+
+// One answer about one task: it saves through the usual task services, so the usual rules (and activity) apply.
+app.post("/reset/:step/:id", requireHousehold, async (req, res) => {
+  const { step, id } = req.params;
+  const answer = String(req.query.do ?? req.body.do ?? "");
+  const day = today(req);
+  const task = await getTask(req.actor.householdId, id);
+  // "Moved to tomorrow", "Moved to Fri", "Moved to Oct 8".
+  const moved = (date) => `Moved to ${relativeLabel(date, day).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}`;
+  let flash;
+  switch (answer) {
+    case "done":
+      await setDone(req.actor, id, true, { today: day });
+      flash = { message: `Finished “${task.title}”` };
+      break;
+    case "tomorrow": case "nextweek": {
+      const date = addDays(day, answer === "tomorrow" ? 1 : 7);
+      await updateTask(req.actor, id, { dueDate: date });
+      flash = { message: moved(date) };
+      break;
+    }
+    case "date": {
+      const date = String(req.body.date ?? "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, "Pick a date");
+      await updateTask(req.actor, id, { dueDate: date });
+      flash = { message: moved(date) };
+      break;
+    }
+    case "later":
+      await updateTask(req.actor, id, { list: "someday", dueDate: null, dueTime: null });
+      flash = { message: "Moved to Maybe later" };
+      break;
+    case "ready": case "start":
+      await updateTask(req.actor, id, { list: "todo", waitingTaskId: null });
+      flash = { message: "Back on To do" };
+      break;
+    case "claim":
+      await assignTask(req.actor, id, req.user.id);
+      flash = { message: `“${task.title}” is yours` };
+      break;
+    case "delete":
+      await deleteTask(req.actor, id);
+      flash = { message: `Deleted “${task.title}”`, undo: `/reset/${step}/${id}/restore` };
+      break;
+    default:
+      throw new HttpError(400, "Unknown answer");
+  }
+  await sendResetStep(req, res, step, flash);
+});
+
+app.post("/reset/:step/:id/restore", requireHousehold, async (req, res) => {
+  await restoreTask(req.actor, req.params.id);
+  await sendResetStep(req, res, req.params.step);
+});
+
 // --- Sorting the inbox ----------------------------------------------------------------
 // A plain HTML form, one task at a time: each answer saves and loads the next task.
 
@@ -374,6 +492,7 @@ async function renderSortPage(req, res, { taskId, after, error, pick = "", statu
     task: task && decorate(req, task),
     left: next.left,
     skipped: Boolean(after) && !task && next.left > 0,
+    resetting: Boolean(resetStarted(req)),
     choices: SORT_CHOICES,
     needsDetails: NEEDS_DETAILS,
     pick: NEEDS_DETAILS.includes(pick) ? pick : "",

@@ -1,18 +1,19 @@
 <% layout("/layout", { title: "Sort my inbox" }) %>
 <% if (!it.task) { %>
-  <a class="back" href="/?view=inbox">← Inbox</a>
+  <%/* Part of a weekly reset (it.resetting): the way back is to the reset, not the inbox. */%>
+  <a class="back" href="<%= it.resetting ? '/reset/inbox' : '/?view=inbox' %>">← <%= it.resetting ? "Weekly reset" : "Inbox" %></a>
   <section class="empty-state">
     <% if (it.skipped) { %>
       <p class="empty-icon emoji" aria-hidden="true">👍</p>
       <h1>That's the lot</h1>
       <p>You skipped <%= it.left %>. <%= it.left === 1 ? "It's" : "They're" %> still in your inbox for later.</p>
       <a class="button primary" href="/sort">Go through the skipped ones</a>
-      <a href="/">Back to my tasks</a>
+      <a href="<%= it.resetting ? '/reset/overdue' : '/' %>"><%= it.resetting ? "Back to your weekly reset" : "Back to my tasks" %></a>
     <% } else { %>
       <p class="empty-icon emoji" aria-hidden="true">🎉</p>
       <h1>All sorted</h1>
       <p>Your inbox is empty. Everything is where it belongs.</p>
-      <a class="button primary" href="/">Back to my tasks</a>
+      <a class="button primary" href="<%= it.resetting ? '/reset/overdue' : '/' %>"><%= it.resetting ? "Back to your weekly reset" : "Back to my tasks" %></a>
     <% } %>
   </section>
 <% } else { const t = it.task; const c = Object.fromEntries(it.choices.map((x) => [x.value, x])); %>
@@ -20,7 +21,7 @@
        Waiting on) open a small follow-up step in place of the tiles; the others save straight away.
        It's one plain form: every answer is a submit button, and Datastar only adds the follow-up steps. */%>
   <nav class="sort-top">
-    <a class="back" href="/?view=inbox">← Inbox</a>
+    <a class="back" href="<%= it.resetting ? '/reset/inbox' : '/?view=inbox' %>">← <%= it.resetting ? "Weekly reset" : "Inbox" %></a>
     <span class="sort-left"><span class="emoji" aria-hidden="true">📥</span> <%= it.left %> left to sort</span>
     <a class="back" href="/sort?after=<%= t.id %>">Skip</a>
   </nav>

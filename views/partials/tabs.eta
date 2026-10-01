@@ -26,6 +26,16 @@
   <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>
   <% if (inMore) { %><h2 class="view-title"><%= it.views[l.view] %></h2><% } %>
   <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
+  <%/* On Mine, once a week (see src/services/reset.js): the weekly reset. "Not now" hides it for a day. */%>
+  <% if (l.resetDue) { %>
+    <aside class="panel reset-nudge" aria-label="Weekly reset">
+      <p><strong>Time for your weekly reset?</strong> It's been a week. About ten minutes gets everything current.</p>
+      <div class="actions">
+        <a class="button" href="/reset">Start</a>
+        <form method="post" action="/reset/later" data-on:submit="@post('/reset/later')"><button class="link">Not now</button></form>
+      </div>
+    </aside>
+  <% } %>
   <%/* To-do tabs: group by date or by where/how, a cookie (see /list-grouping). It swaps the list in place;
        without script it's a plain form post. */%>
   <% if (l.canGroup) { %>

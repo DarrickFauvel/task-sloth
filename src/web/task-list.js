@@ -111,7 +111,7 @@ export function decorateTask(t, membership, today, time = null) {
  * `refreshAt` (ms since the epoch, or null) is when the list next changes on its own, so a live page can re-render
  * then: a finished task dropping off, and with `time`, a due time passing or midnight.
  */
-export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, time = null, now = Date.now() }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, time = null, resetDue = false, now = Date.now() }) {
   const householdId = membership.household.id;
   const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
@@ -134,7 +134,8 @@ export async function taskListView({ userId, membership, view, project: projectI
   const doneTimes = tasks.filter((t) => t.status === "done").map((t) => Date.parse(t.completed_at));
   const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...(time ? clockTicks(tasks, today, time, now) : [])];
   const refreshAt = refreshTimes.length ? Math.min(...refreshTimes) : null;
-  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
+  // Mine suggests the weekly reset when one is due (see src/services/reset.js); the caller works that out.
+  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
