@@ -4,7 +4,7 @@
      with the arrow keys, within its section. Checked items stay sunk at the bottom and have no grip. */%>
 <reorder-items>
   <% if (!total) { %>
-    <p class="empty">No items yet. Add some above.</p>
+    <p class="empty">No items yet. Type a few above, one per line or separated by commas.</p>
   <% } %>
   <% groups.forEach((g) => { %>
     <% if (g.name) { %><h3 class="group"><%= g.name %></h3><% } %>
