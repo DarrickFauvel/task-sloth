@@ -12,6 +12,8 @@ const REPEAT_PRESETS = [
 
 /** The "Blocked by" choice that means "a new task, named in the field below" (task ids are 16 characters, so it can't clash). */
 export const NEW_BLOCKER = "new";
+/** The Project choice that means "a new project, named in the field below". */
+export const NEW_PROJECT = "new";
 
 /** The edit form's list chips. Only the picked list's hint shows. */
 const LIST_OPTIONS = [
@@ -46,6 +48,8 @@ export function editFormView(task, { members, projects, contexts = [], today = n
   return {
     task, members, projects, contexts, repeats, currentRepeat, tags, lists: LIST_OPTIONS, userId, priorities,
     focus: focusField,
+    // New on every render, for ids that make a re-render replace (not morph) the selects; see task-edit.eta.
+    renderKey: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     blockers: openTasks.filter((o) => o.id !== task.id).map((o) => ({ id: o.id, title: o.title })),
     quickDates: today ? quickDates(today) : [],
     // The folded "More" card (project, tags, priority): one line saying what's set, and open when any of it
@@ -64,6 +68,8 @@ export function editFormView(task, { members, projects, contexts = [], today = n
 /**
  * Maps the edit form's fields to updateTask input. Blank selects and dates clear the field.
  * `contextName` is the context as typed (blank clears it); the caller turns it into a contextId.
+ * "➕ New project…" sends `projectName` instead of a projectId (resolveNames creates it, or reuses one by that
+ * name); with no name typed yet, the project is left as it is.
  */
 export function editInput(body) {
   return {
@@ -72,7 +78,9 @@ export function editInput(body) {
     dueDate: body.dueDate || null,
     dueTime: body.dueTime || null,
     assigneeId: body.assigneeId || null,
-    projectId: body.projectId || null,
+    ...(body.projectId === NEW_PROJECT
+      ? (String(body.newProject ?? "").trim() ? { projectName: String(body.newProject).trim() } : {})
+      : { projectId: body.projectId || null }),
     priority: body.priority,
     recurrence: body.recurrence || null,
     contextName: String(body.context ?? "").replace(/\s+/g, " ").trim(),
@@ -91,7 +99,7 @@ export function editInput(body) {
 const FIELD_LABELS = {
   title: "Name", notes: "Notes", dueDate: "Date", dueTime: "Time", recurrence: "Repeat", assigneeId: "Who does it",
   context: "Where / how", projectId: "Project", tags: "Tags", list: "List", waitingOn: "Waiting on",
-  waitingTaskId: "What it waits for", newBlocker: "What it waits for", priority: "Priority",
+  waitingTaskId: "What it waits for", newBlocker: "What it waits for", priority: "Priority", newProject: "Project",
 };
 
 /** The toast after the edit form saves one field as you go: "Priority saved", or just "Saved". */

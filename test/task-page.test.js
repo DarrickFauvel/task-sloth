@@ -91,3 +91,13 @@ test("editFormView folds More (project, tags, priority) unless something in it i
   assert.equal(editFormView({ priority: 0 }, { ...ctx, projects, focus: "priority" }).more.open, true);
   assert.equal(editFormView({ priority: 0 }, { ...ctx, projects, focus: "dueDate" }).more.open, false);
 });
+
+test("editInput: picking a project, none, or a new one by name", () => {
+  assert.equal(editInput({ projectId: "p1" }).projectId, "p1");
+  assert.equal(editInput({ projectId: "" }).projectId, null);
+  const created = editInput({ projectId: "new", newProject: "  Paint the hallway " });
+  assert.equal(created.projectName, "Paint the hallway");
+  assert.ok(!("projectId" in created));
+  const unnamed = editInput({ projectId: "new", newProject: " " });
+  assert.ok(!("projectId" in unnamed) && !("projectName" in unnamed));
+});
