@@ -121,14 +121,22 @@ export const listBlockedBy = (householdId, taskId) =>
     [householdId, taskId],
   );
 
-/** Statements that unblock everything this task was holding up (it was finished or deleted). */
+/**
+ * Statements that unblock everything this task was holding up (it was finished or deleted). Anything that was
+ * also on the Waiting list goes back to To do, since what it was waiting for is now done.
+ */
 async function releaseStatements(actor, taskId, actorId) {
   const blocked = await listBlockedBy(actor.householdId, taskId);
   const ts = now();
+  const backToTodo = (col, value) => `${col} = CASE WHEN list = 'waiting' THEN ${value} ELSE ${col} END`;
   return {
     ids: blocked.map((b) => b.id),
     statements: blocked.flatMap((b) => [
-      { sql: "UPDATE tasks SET waiting_task_id = NULL, updated_at = ? WHERE id = ?", args: [ts, b.id] },
+      {
+        sql: `UPDATE tasks SET waiting_task_id = NULL, ${backToTodo("waiting_on", "NULL")}, ${backToTodo("waiting_since", "NULL")},
+                ${backToTodo("list", "'todo'")}, updated_at = ? WHERE id = ?`,
+        args: [ts, b.id],
+      },
       activityStatement(actor.householdId, actorId, b.id, "unblocked", { by: taskId }),
     ]),
   };

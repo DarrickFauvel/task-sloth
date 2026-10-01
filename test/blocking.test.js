@@ -46,6 +46,18 @@ test("finishing the blocker unblocks what it held up", async () => {
   assert.ok(verbs.some((v) => v.verb === "unblocked"));
 });
 
+test("finishing the blocker moves a task off the Waiting list, back to To do", async () => {
+  const a = await createTask(me, { title: "get the quote" });
+  const b = await createTask(me, { title: "book the roofer", list: "waiting", waitingOn: "the quote", waitingTaskId: a });
+  const c = await createTask(me, { title: "pick shingles", list: "someday", waitingTaskId: a });
+  await setDone(me, a, true);
+  const t = await getTask("h1", b);
+  assert.equal(t.list, "todo");
+  assert.equal(t.waiting_on, null);
+  assert.equal(t.waiting_since, null);
+  assert.equal((await getTask("h1", c)).list, "someday", "other lists stay put");
+});
+
 test("deleting the blocker unblocks too", async () => {
   const a = await createTask(me, { title: "order part" });
   const b = await createTask(me, { title: "fix bike", waitingTaskId: a });
