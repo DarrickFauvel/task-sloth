@@ -611,6 +611,8 @@ button.link.danger { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) { .is-more .chevron { transition: none; } }
 .edit-group:has(input[name="list"][value="waiting"]:checked) .waiting-field { display: grid; }
 .edit-group:has(select[name="waitingTaskId"] option[value="new"]:checked) .new-blocker { display: grid; }
+.new-project { display: none; }
+.edit-group:has(select[name="projectId"] option[value="new"]:checked) .new-project { display: grid; }
 /* "Changes save as you go." on the left, Done on the right. */
 .edit-actions .hint { margin: 0; }
 .edit-actions .button { min-width: 8rem; }

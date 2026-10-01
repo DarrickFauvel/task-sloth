@@ -552,7 +552,9 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
     lastAutosave.set(key, seq);
   }
   const { newBlocker, ...input } = editInput(req.body);
+  const newProject = input.projectName;
   let flash = autosave ? { message: savedMessage(req.query.saved) } : undefined;
+
   // "Has to wait for: ➕ New task…" with no name yet: an autosave of another field leaves the blocker alone.
   if (autosave && newBlocker === "") delete input.waitingTaskId;
   // "Has to wait for: ➕ New task…": create the task that has to happen first (shortcuts work, it lands on
@@ -568,8 +570,10 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
   await updateTask(req.actor, req.params.id, await resolveNames(householdId, input));
   if (!autosave) return sendTaskHead(req, res, req.params.id, { flash, signals: { editing: false } });
   const task = await getTask(householdId, req.params.id);
-  // A new blocker re-renders the form, so it's picked in "Has to wait for" and the next save doesn't add it again.
-  const form = newBlocker ? eta.render("partials/task-edit", { form: await editView(req, task) }) : null;
+  // Its real name: one that already existed by that name is reused, whatever the case typed.
+  if (newProject) flash = { message: `Now in “${task.project_name ?? newProject}”` };
+  // A new blocker or project re-renders the form, so it's the one picked and the next save doesn't add it again.
+  const form = newBlocker || newProject ? eta.render("partials/task-edit", { form: await editView(req, task) }) : null;
   await sse(req, res, (stream) => {
     stream.patchElements(renderTaskHead(req, task));
     if (form) stream.patchElements(form);

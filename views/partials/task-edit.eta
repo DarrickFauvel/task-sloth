@@ -7,7 +7,7 @@
      to the bottom of the screen.
      Every change saves at once, like Settings: a choice when it's picked, text when you leave its box (or press
      Enter). Each save posts the whole form with ?saved=<field> (for the toast) and seq (so a late one can't undo a
-     newer one). It waits for a name before saving "➕ New task…", and skips a blank title (the browser says why).
+     newer one). It waits for a name before saving "➕ New task…" or "➕ New project…", and skips a blank title (the browser says why).
      Enter in a text box just leaves it (so it saves, and the form stays open). "Done" only closes the form: tapping
      it has already left the box you were in, which saved it. Without script, Done is the plain submit. On wider screens When and Who & where sit side by side. Field names are unchanged. */%>
 <div id="task-edit" data-show="$editing">
@@ -19,7 +19,7 @@
      : ""; %>
   <form class="edit" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})"
         data-on:keydown="evt.key === 'Enter' && evt.target.tagName === 'INPUT' && (evt.preventDefault(), evt.target.blur())"
-        data-on:change="const f = evt.target; f.name && f.name !== 'seq' && !(f.name === 'waitingTaskId' && f.value === 'new') && !(f.name === 'newBlocker' && !f.value.trim()) && el.reportValidity() && (el.elements.seq.value = Date.now(), @post('/tasks/<%= t.id %>/edit?saved=' + f.name, {contentType: 'form'}))">
+        data-on:change="const f = evt.target; f.name && f.name !== 'seq' && !(['waitingTaskId', 'projectId'].includes(f.name) && f.value === 'new') && !(['newBlocker', 'newProject'].includes(f.name) && !f.value.trim()) && el.reportValidity() && (el.elements.seq.value = Date.now(), @post('/tasks/<%= t.id %>/edit?saved=' + f.name, {contentType: 'form'}))">
     <input type="hidden" name="seq" value="">
     <section class="panel edit-main" aria-labelledby="edit-what">
       <h2 id="edit-what"><label for="edit-title"><span class="emoji" aria-hidden="true">📝</span> Task</label></h2>
@@ -95,7 +95,7 @@
       </label>
       <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
       <label class="edit-field">Has to wait for another task?
-        <select name="waitingTaskId"<%~ focus("waitingTaskId") %>>
+        <select name="waitingTaskId" id="edit-blocker-<%= f.renderKey %>"<%~ focus("waitingTaskId") %>>
           <option value="">No, ready when you are</option>
           <% f.blockers.forEach((b) => { %>
             <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
@@ -106,7 +106,7 @@
       </label>
       <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
       <label class="edit-field new-blocker">New task to do first
-        <input name="newBlocker" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
+        <input name="newBlocker" id="new-blocker-<%= f.renderKey %>" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
         <span class="hint">Shortcuts work here too. It goes on To do, in the same project as this one.</span>
       </label>
     </section>
@@ -119,13 +119,21 @@
         <span class="more-summary"><%= f.more.summary %></span></summary>
       <div class="edit-more">
         <label class="edit-field">Project
-          <select name="projectId"<%~ focus("projectId") %>>
+          <%/* Keyed per render (f.renderKey), so a re-render (after "➕ New project…") replaces the select: the browser
+               keeps a pick the user made on the old one. The same goes for the name box and "Has to wait for". */%>
+          <select name="projectId" id="edit-project-<%= f.renderKey %>"<%~ focus("projectId") %>>
             <option value="">No project</option>
             <% f.projects.forEach((p) => { %>
               <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
             <% }) %>
+            <option value="new">➕ New project…</option>
           </select>
           <span class="hint">A bigger thing this is part of, like “Paint the hallway”.</span>
+        </label>
+        <%/* Shown only while "➕ New project…" is picked (CSS :has). Saves when you leave the box, like the rest. */%>
+        <label class="edit-field new-project">New project name
+          <input name="newProject" id="new-project-<%= f.renderKey %>" maxlength="80" autocomplete="off" placeholder="e.g. Paint the hallway">
+          <span class="hint">If one by that name already exists, this task joins it.</span>
         </label>
         <label class="edit-field">Tags
           <input name="tags"<%~ focus("tags") %> value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
