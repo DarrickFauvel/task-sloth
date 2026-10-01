@@ -814,20 +814,24 @@ app.post("/list-grouping", requireUser, (req, res) => {
 });
 
 // Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.
+// Settings switches the theme in place, then posts here with ?theme= so it gets a "saved" toast back.
 app.post("/settings/theme", requireUser, (req, res) => {
-  const theme = String(req.body.theme ?? "");
+  const theme = String(req.body.theme ?? req.query.theme ?? "");
   res.append("Set-Cookie", ["light", "dark"].includes(theme)
     ? `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
     : "theme=; Path=/; Max-Age=0; SameSite=Lax");
+  if (isDatastar(req)) return sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: "Theme saved" })));
   redirect(res, "/settings?saved=theme");
 });
 
 // Icons on (no cookie) or off: hides the decorative emoji and menu icons (.emoji in app.css). Settings sets the
-// same cookie from the page (setIcons in the layout); this is for when script is off.
+// same cookie from the page (setIcons in the layout), then posts here with ?icons= for the toast; without script it's the form.
 app.post("/settings/icons", requireUser, (req, res) => {
-  res.append("Set-Cookie", req.body.icons === "off"
+  const off = (req.body.icons ?? req.query.icons) === "off";
+  res.append("Set-Cookie", off
     ? "icons=off; Path=/; Max-Age=31536000; SameSite=Lax"
     : "icons=; Path=/; Max-Age=0; SameSite=Lax");
+  if (isDatastar(req)) return sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: off ? "Icons hidden" : "Icons shown" })));
   redirect(res, "/settings?saved=icons");
 });
 
