@@ -83,9 +83,11 @@
                     data-on:click__prevent="setIcons(<%= value === 'on' %>)"><%= label %></button>
           <% }) %>
         </div>
-        <small class="hint">The little pictures beside headings, menus and buttons. Symbols in task rows (like ☑ 2/5) always show.</small>
+        <small class="hint">Hide the little pictures beside headings and menus. Task details like ☑ 2/5 stay.</small>
       </fieldset>
     </form>
+    <%/* Theme and icons are cookies, unlike name and color, which follow the account. */%>
+    <p class="hint">These are saved on this device.</p>
   </section>
 
   <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>
