@@ -30,7 +30,7 @@ import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
-import { editFormView, editInput } from "./src/web/task-page.js";
+import { editFormView, editInput, savedMessage } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
 import { nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
@@ -53,7 +53,7 @@ const appQr = {
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -99,6 +99,7 @@ app.use(async (req, res, next) => {
   req.membership = req.user ? await getHouseholdForUser(req.user.id) : null;
   res.locals.user = req.user;
   res.locals.theme = ["light", "dark"].includes(req.cookies.theme) ? req.cookies.theme : null;
+  res.locals.icons = req.cookies.icons === "off" ? "off" : null;
   res.locals.config = config;
   next();
 });
@@ -428,8 +429,10 @@ const renderTaskHead = (req, task, membership = req.membership) =>
 const blockerChoices = async (req) =>
   (await listTasks(req.actor.householdId, { status: "open" })).filter((t) => t.list !== "inbox" || t.creator_id === req.user.id);
 
-const editView = async (req, task) =>
+/** The edit form's data; `focus` is the field a tap on the task page asked to start in (?focus=). */
+const editView = async (req, task, focus = null) =>
   editFormView(task, {
+    focus,
     openTasks: await blockerChoices(req),
     today: today(req),
     userId: req.user.id,
@@ -441,7 +444,7 @@ const editView = async (req, task) =>
 async function renderTaskPage(req, res, { editing = false } = {}) {
   const checklist = await checklistView(req.actor.householdId, req.params.id);
   const task = decorate(req, checklist.task);
-  const form = editing ? await editView(req, checklist.task) : null;
+  const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   render(res, "pages/task", { task, checklist, form, photos, userId: req.user.id });
 }
@@ -513,20 +516,35 @@ app.get("/tasks/:id", requireHousehold, (req, res) => renderTaskPage(req, res));
 // Edit form: always rendered fresh, so it opens with whatever the task looks like now.
 app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
   if (!isDatastar(req)) return renderTaskPage(req, res, { editing: true });
-  const html = eta.render("partials/task-edit", { form: await editView(req, await getTask(req.actor.householdId, req.params.id)) });
+  const task = await getTask(req.actor.householdId, req.params.id);
+  const html = eta.render("partials/task-edit", { form: await editView(req, task, String(req.query.focus ?? "")) });
   await sse(req, res, (stream) => {
     stream.patchElements(html);
     stream.patchSignals(JSON.stringify({ editing: true }));
   });
 });
 
+/** The newest autosave applied per person and task, so one that arrives late can't undo a newer one. */
+const lastAutosave = new Map();
+
+// The edit form saves as you go: each change posts the whole form with ?saved=<field> and a seq (the
+// browser's clock), answered with a toast and the form left open. "Done" is a plain submit: it saves and closes.
 app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
   const { householdId } = req.actor;
+  const autosave = typeof req.query.saved === "string" && isDatastar(req);
+  if (autosave) {
+    const key = `${req.user.id}:${req.params.id}`;
+    const seq = Number(req.body.seq) || 0;
+    if (seq && seq <= (lastAutosave.get(key) ?? 0)) return sse(req, res, () => {});
+    lastAutosave.set(key, seq);
+  }
   const { newBlocker, ...input } = editInput(req.body);
-  let flash;
-  // "Blocked by: ➕ New task…": create the task that has to happen first (shortcuts work, it lands on
+  let flash = autosave ? { message: savedMessage(req.query.saved) } : undefined;
+  // "Has to wait for: ➕ New task…" with no name yet: an autosave of another field leaves the blocker alone.
+  if (autosave && newBlocker === "") delete input.waitingTaskId;
+  // "Has to wait for: ➕ New task…": create the task that has to happen first (shortcuts work, it lands on
   // To do, in this task's project unless a #project was typed), then block this one on it.
-  if (newBlocker !== undefined) {
+  else if (newBlocker !== undefined) {
     if (!newBlocker) throw new HttpError(400, "Name the task that has to happen first");
     const task = await getTask(householdId, req.params.id);
     const parsed = parseQuickAdd(newBlocker, await quickAddContext(req));
@@ -535,7 +553,15 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
     flash = { message: `Added “${blocker.title}”. This one waits on it.` };
   }
   await updateTask(req.actor, req.params.id, await resolveNames(householdId, input));
-  await sendTaskHead(req, res, req.params.id, { flash, signals: { editing: false } });
+  if (!autosave) return sendTaskHead(req, res, req.params.id, { flash, signals: { editing: false } });
+  const task = await getTask(householdId, req.params.id);
+  // A new blocker re-renders the form, so it's picked in "Has to wait for" and the next save doesn't add it again.
+  const form = newBlocker ? eta.render("partials/task-edit", { form: await editView(req, task) }) : null;
+  await sse(req, res, (stream) => {
+    stream.patchElements(renderTaskHead(req, task));
+    if (form) stream.patchElements(form);
+    stream.patchElements(eta.render("partials/flash", flash));
+  });
 });
 
 /** The task page's live checklist parts: its header (title, count, list/shopping switch) and the items. */
@@ -632,7 +658,7 @@ const renderSettings = async (req, res, { saved, error, signIn, status = 200 } =
 app.get("/settings", requireUser, (req, res) =>
   renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved",
     "email-pending": "Check your new email for a link to confirm it", "email-cancelled": "Email change cancelled",
-    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
+    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", icons: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -794,6 +820,15 @@ app.post("/settings/theme", requireUser, (req, res) => {
     ? `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
     : "theme=; Path=/; Max-Age=0; SameSite=Lax");
   redirect(res, "/settings?saved=theme");
+});
+
+// Icons on (no cookie) or off: hides the decorative emoji and menu icons (.emoji in app.css). Settings sets the
+// same cookie from the page (setIcons in the layout); this is for when script is off.
+app.post("/settings/icons", requireUser, (req, res) => {
+  res.append("Set-Cookie", req.body.icons === "off"
+    ? "icons=off; Path=/; Max-Age=31536000; SameSite=Lax"
+    : "icons=; Path=/; Max-Age=0; SameSite=Lax");
+  redirect(res, "/settings?saved=icons");
 });
 
 // --- Household ------------------------------------------------------------------------

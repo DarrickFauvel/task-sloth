@@ -13,7 +13,7 @@
 
 <div class="settings">
   <section class="panel" aria-labelledby="profile-title">
-    <h2 id="profile-title"><span aria-hidden="true">👤</span> Profile</h2>
+    <h2 id="profile-title"><span class="emoji" aria-hidden="true">👤</span> Profile</h2>
 
     <%/* <photo-picker> shrinks the picked image and saves it at once (it needs script); removing it is a plain
          form. Both sit outside the name/color form. */%>
@@ -59,7 +59,7 @@
   </section>
 
   <section class="panel" aria-labelledby="appearance-title">
-    <h2 id="appearance-title"><span aria-hidden="true">🎨</span> Appearance</h2>
+    <h2 id="appearance-title"><span class="emoji" aria-hidden="true">🎨</span> Appearance</h2>
     <form method="post" action="/settings/theme">
       <fieldset class="field">
         <legend>Theme</legend>
@@ -73,11 +73,24 @@
         <small class="hint">Also in the menu under your picture.</small>
       </fieldset>
     </form>
+    <form method="post" action="/settings/icons">
+      <fieldset class="field">
+        <legend>Icons</legend>
+        <div class="pills">
+          <% [["on", "Show"], ["off", "Hide"]].forEach(([value, label]) => { %>
+            <%/* Switches in place (setIcons in the layout); without script, it posts. */%>
+            <button name="icons" value="<%= value %>" data-icons-choice="<%= value %>" class="pill<%= (it.icons ?? 'on') === value ? ' is-on' : '' %>"
+                    data-on:click__prevent="setIcons(<%= value === 'on' %>)"><%= label %></button>
+          <% }) %>
+        </div>
+        <small class="hint">The little pictures beside headings, menus and buttons. Symbols in task rows (like ☑ 2/5) always show.</small>
+      </fieldset>
+    </form>
   </section>
 
   <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>
     <section class="panel" aria-labelledby="household-title">
-      <h2 id="household-title"><span aria-hidden="true">🏠</span> Household</h2>
+      <h2 id="household-title"><span class="emoji" aria-hidden="true">🏠</span> Household</h2>
       <%/* Only the person who set up the household can rename it. */%>
       <% if (m.ownerId === u.id) { %>
         <form method="post" action="/settings/household">
@@ -114,7 +127,7 @@
   <% } %>
 
   <section class="panel" aria-labelledby="account-title">
-    <h2 id="account-title"><span aria-hidden="true">🔑</span> Account</h2>
+    <h2 id="account-title"><span class="emoji" aria-hidden="true">🔑</span> Account</h2>
     <% if (u.username) { /* a password account: username and email are yours to change */ %>
       <% const f = it.signIn ?? { username: u.username, email: u.email }; %>
       <%/* Where the email stands. A new email only takes over once its link is opened (src/services/email-confirm.js).

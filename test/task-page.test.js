@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { editFormView, editInput } from "../src/web/task-page.js";
+import { editFormView, editInput, savedMessage } from "../src/web/task-page.js";
 
 const ctx = { members: [{ id: "u1", name: "Alice" }], projects: [] };
 const labels = (view) => view.repeats.map((r) => r.label);
@@ -66,4 +66,18 @@ test("editInput: picking a task to wait on, nothing, or a new task", () => {
   assert.equal(fresh.newBlocker, "patch the walls sat");
   assert.equal("waitingTaskId" in fresh, false);
   assert.equal("newBlocker" in editInput({ title: "x" }), false, "forms without the field leave it alone");
+});
+
+test("savedMessage names the field that saved, and falls back to Saved", () => {
+  assert.equal(savedMessage("priority"), "Priority saved");
+  assert.equal(savedMessage("dueDate"), "Date saved");
+  assert.equal(savedMessage("toString"), "Saved");
+  assert.equal(savedMessage(""), "Saved");
+});
+
+test("editFormView keeps a known focus field and drops anything else", () => {
+  assert.equal(editFormView({}, { ...ctx, focus: "priority" }).focus, "priority");
+  assert.equal(editFormView({}, { ...ctx, focus: "__proto__" }).focus, null);
+  assert.equal(editFormView({}, { ...ctx, focus: "" }).focus, null);
+  assert.equal(editFormView({}, ctx).focus, null);
 });

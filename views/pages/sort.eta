@@ -3,13 +3,13 @@
   <a class="back" href="/?view=inbox">← Inbox</a>
   <section class="empty-state">
     <% if (it.skipped) { %>
-      <p class="empty-icon" aria-hidden="true">👍</p>
+      <p class="empty-icon emoji" aria-hidden="true">👍</p>
       <h1>That's the lot</h1>
       <p>You skipped <%= it.left %>. <%= it.left === 1 ? "It's" : "They're" %> still in your inbox for later.</p>
       <a class="button primary" href="/sort">Go through the skipped ones</a>
       <a href="/">Back to my tasks</a>
     <% } else { %>
-      <p class="empty-icon" aria-hidden="true">🎉</p>
+      <p class="empty-icon emoji" aria-hidden="true">🎉</p>
       <h1>All sorted</h1>
       <p>Your inbox is empty. Everything is where it belongs.</p>
       <a class="button primary" href="/">Back to my tasks</a>
@@ -21,7 +21,7 @@
        It's one plain form: every answer is a submit button, and Datastar only adds the follow-up steps. */%>
   <nav class="sort-top">
     <a class="back" href="/?view=inbox">← Inbox</a>
-    <span class="sort-left">📥 <%= it.left %> left to sort</span>
+    <span class="sort-left"><span class="emoji" aria-hidden="true">📥</span> <%= it.left %> left to sort</span>
     <a class="back" href="/sort?after=<%= t.id %>">Skip</a>
   </nav>
   <form class="sort" method="post" action="/sort/<%= t.id %>" data-signals="{pick: '<%= it.pick %>', when: ''}">
@@ -42,7 +42,7 @@
         <% it.choices.forEach((x) => { const later = it.needsDetails.includes(x.value); %>
           <button name="choice" value="<%= x.value %>" class="sort-tile<%= x.value === 'delete' ? ' is-delete' : '' %>"
                   <%~ later ? `data-on:click__prevent="$pick = '${x.value}'"` : '' %>>
-            <span class="tile-icon" aria-hidden="true"><%= x.icon %></span>
+            <span class="tile-icon emoji" aria-hidden="true"><%= x.icon %></span>
             <strong><%= x.label %></strong>
             <span class="hint"><%= x.short %></span>
           </button>
@@ -52,7 +52,7 @@
 
     <%/* Follow-up steps. Enter in a field saves that step (requestSubmit with its button). */%>
     <section class="sort-step" data-show="$pick === 'todo'"<%~ it.pick === 'todo' ? '' : ' style="display: none"' %>>
-      <h2><span aria-hidden="true"><%= c.todo.icon %></span> <%= c.todo.label %></h2>
+      <h2><span class="emoji" aria-hidden="true"><%= c.todo.icon %></span> <%= c.todo.label %></h2>
       <p class="hint">Both optional.</p>
       <label>Where / how
         <input name="context" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone"
@@ -73,7 +73,7 @@
     </section>
 
     <section class="sort-step" data-show="$pick === 'date'"<%~ it.pick === 'date' ? '' : ' style="display: none"' %>>
-      <h2><span aria-hidden="true"><%= c.date.icon %></span> <%= c.date.label %></h2>
+      <h2><span class="emoji" aria-hidden="true"><%= c.date.icon %></span> <%= c.date.label %></h2>
       <div class="pills" role="group" aria-label="Quick dates">
         <% it.quickDates.forEach((d) => { %>
           <button type="button" class="pill" data-class:is-on="$when === '<%= d.date %>'" data-on:click="$when = '<%= d.date %>'"><%= d.label %></button>
@@ -86,7 +86,7 @@
 
     <section class="sort-step" data-show="$pick === 'waiting'"<%~ it.pick === 'waiting' ? '' : ' style="display: none"' %>
              data-effect="$pick === 'waiting' && setTimeout(() => document.getElementById('waiting-on').focus())">
-      <h2><span aria-hidden="true"><%= c.waiting.icon %></span> <%= c.waiting.label %></h2>
+      <h2><span class="emoji" aria-hidden="true"><%= c.waiting.icon %></span> <%= c.waiting.label %></h2>
       <label>Who or what?
         <input id="waiting-on" name="waitingOn" maxlength="200" autocomplete="off" placeholder="e.g. the plumber, a reply from Mom"
                data-on:keydown="evt.key === 'Enter' && (evt.preventDefault(), el.form.requestSubmit(document.getElementById('save-waiting')))">

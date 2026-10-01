@@ -1,115 +1,143 @@
 <%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing.
      It sits outside #task-head, so live updates never touch a form that's being filled in.
-     Grouped like the rest of the app (When, Who, Where…), with chips instead of dropdowns where the
-     choices are few, and Save/Cancel pinned to the bottom of the screen. Field names are unchanged. */%>
+     Four cards: what it is, when, who and where, and which list it's on. They're the same plain .panel cards as
+     Settings (the other screen that saves as you go), heading inside. Each field has a small label and a
+     hint that says what it does; chips instead of dropdowns where the choices are few. Done is pinned
+     to the bottom of the screen.
+     Every change saves at once, like Settings: a choice when it's picked, text when you leave its box (or press
+     Enter). Each save posts the whole form with ?saved=<field> (for the toast) and seq (so a late one can't undo a
+     newer one). It waits for a name before saving "➕ New task…", and skips a blank title (the browser says why).
+     Enter in a text box just leaves it (so it saves, and the form stays open). "Done" only closes the form: tapping
+     it has already left the box you were in, which saved it. Without script, Done is the plain submit. On wider screens When and Who & where sit side by side. Field names are unchanged. */%>
 <div id="task-edit" data-show="$editing">
-<% if (it.form) { const f = it.form; const t = f.task; const checked = (on) => (on ? " checked" : ""); %>
-  <form class="edit" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})">
-    <section class="edit-main">
-      <label for="edit-title" class="hint">Task</label>
-      <input id="edit-title" class="edit-title" name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off">
-      <textarea name="notes" rows="2" maxlength="10000" aria-label="Notes" placeholder="Add notes…"><%= t.notes %></textarea>
+<% if (it.form) { const f = it.form; const t = f.task; const checked = (on) => (on ? " checked" : "");
+   /* The field a tap on the task page asked for (f.focus): scrolled to the middle and focused once the form shows
+      (a chip group focuses its picked chip). */
+   const focus = (name) => f.focus === name
+     ? ` data-init="requestAnimationFrame(() => { const c = el.matches('input, select, textarea') ? el : (el.querySelector('input:checked') ?? el.querySelector('input, select')); el.scrollIntoView({block: 'center'}); c?.focus({preventScroll: true}) })"`
+     : ""; %>
+  <form class="edit" method="post" action="/tasks/<%= t.id %>/edit" data-on:submit="@post('/tasks/<%= t.id %>/edit', {contentType: 'form'})"
+        data-on:keydown="evt.key === 'Enter' && evt.target.tagName === 'INPUT' && (evt.preventDefault(), evt.target.blur())"
+        data-on:change="const f = evt.target; f.name && f.name !== 'seq' && !(f.name === 'waitingTaskId' && f.value === 'new') && !(f.name === 'newBlocker' && !f.value.trim()) && el.reportValidity() && (el.elements.seq.value = Date.now(), @post('/tasks/<%= t.id %>/edit?saved=' + f.name, {contentType: 'form'}))">
+    <input type="hidden" name="seq" value="">
+    <section class="panel edit-main" aria-labelledby="edit-what">
+      <h2 id="edit-what"><label for="edit-title"><span class="emoji" aria-hidden="true">📝</span> Task</label></h2>
+      <input id="edit-title" class="edit-title"<%~ focus("title") %> name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off">
+      <textarea name="notes"<%~ focus("notes") %> rows="2" maxlength="10000" aria-label="Notes" placeholder="Add notes, a phone number, a link…"><%= t.notes %></textarea>
     </section>
 
-    <section class="edit-group">
-      <h3><span aria-hidden="true">📅</span> When</h3>
-      <div class="pills" role="group" aria-label="Quick dates">
-        <% f.quickDates.forEach((d) => { %>
-          <button type="button" class="pill" data-on:click="el.form.elements.dueDate.value = '<%= d.date %>'"><%= d.label %></button>
-        <% }) %>
-        <button type="button" class="pill" data-on:click="el.form.elements.dueDate.value = ''; el.form.elements.dueTime.value = ''">No date</button>
+    <section class="panel edit-group is-when" aria-labelledby="edit-when">
+      <h2 id="edit-when"><span class="emoji" aria-hidden="true">📅</span> When</h2>
+      <div class="edit-field">
+        <div class="pills" role="group" aria-label="Quick dates">
+          <% f.quickDates.forEach((d) => { %>
+            <button type="button" class="pill" data-on:click="const d = el.form.elements.dueDate; d.value = '<%= d.date %>'; d.dispatchEvent(new Event('change', {bubbles: true}))"><%= d.label %></button>
+          <% }) %>
+          <button type="button" class="pill" data-on:click="const e = el.form.elements; e.dueDate.value = ''; e.dueTime.value = ''; e.dueDate.dispatchEvent(new Event('change', {bubbles: true}))">No date</button>
+        </div>
+        <div class="edit-row is-when">
+          <label>Date <input type="date"<%~ focus("dueDate") %> name="dueDate" value="<%= t.due_date ?? '' %>"></label>
+          <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
+        </div>
+        <p class="hint">Date and time are both optional. With a time, it turns red once that time has passed.</p>
       </div>
-      <div class="edit-row is-when">
-        <label>Date <input type="date" name="dueDate" value="<%= t.due_date ?? '' %>"></label>
-        <label>Time <input type="time" name="dueTime" value="<%= t.due_time ?? '' %>"></label>
-      </div>
-      <fieldset class="pills">
+      <fieldset class="edit-field"<%~ focus("recurrence") %>>
         <legend>Repeats</legend>
-        <% f.repeats.forEach((r) => { %>
-          <label class="pill"><input type="radio" name="recurrence" value="<%= r.value %>"<%~ checked(r.value === f.currentRepeat) %>><span><%= r.label %></span></label>
-        <% }) %>
+        <div class="pills">
+          <% f.repeats.forEach((r) => { %>
+            <label class="pill"><input type="radio" name="recurrence" value="<%= r.value %>"<%~ checked(r.value === f.currentRepeat) %>><span><%= r.label %></span></label>
+          <% }) %>
+        </div>
+        <p class="hint">When you finish a repeating task, the next one shows up by itself.</p>
       </fieldset>
     </section>
 
-    <section class="edit-group">
-      <h3><span aria-hidden="true">👤</span> Who</h3>
-      <fieldset class="pills">
-        <legend class="visually-hidden">Who does it</legend>
-        <% f.members.forEach((m) => { %>
-          <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>"<%~ checked(m.id === t.assignee_id) %>><span><%= m.id === f.userId ? "Me" : m.name %></span></label>
-        <% }) %>
-        <label class="pill"><input type="radio" name="assigneeId" value=""<%~ checked(!t.assignee_id) %>><span>Anyone</span></label>
+    <section class="panel edit-group is-who" aria-labelledby="edit-who">
+      <h2 id="edit-who"><span class="emoji" aria-hidden="true">👤</span> Who &amp; where</h2>
+      <fieldset class="edit-field"<%~ focus("assigneeId") %>>
+        <legend>Who does it</legend>
+        <div class="pills">
+          <% f.members.forEach((m) => { %>
+            <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>"<%~ checked(m.id === t.assignee_id) %>><span><%= m.id === f.userId ? "Me" : m.name %></span></label>
+          <% }) %>
+          <label class="pill"><input type="radio" name="assigneeId" value=""<%~ checked(!t.assignee_id) %>><span>Anyone</span></label>
+        </div>
+        <p class="hint">“Anyone” puts it on Up for grabs, for whoever gets to it first.</p>
       </fieldset>
-    </section>
-
-    <section class="edit-group">
-      <h3><span aria-hidden="true">📍</span> Where / how <span class="hint">· and tags</span></h3>
-      <div class="edit-row is-stacked">
-        <label>Where / how
-          <input name="context" value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone">
-        </label>
-        <label>Tags
-          <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
-        </label>
-      </div>
+      <label class="edit-field">Where / how
+        <input name="context"<%~ focus("context") %> value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone, computer">
+        <span class="hint">Where you'll be, or what you need, to do it. Lists can group tasks by this.</span>
+      </label>
       <datalist id="contexts">
         <% f.contexts.forEach((c) => { %><option value="<%= c.name %>"></option><% }) %>
       </datalist>
-    </section>
-
-    <section class="edit-group">
-      <h3><span aria-hidden="true">📥</span> List</h3>
-      <fieldset class="pills">
-        <legend class="visually-hidden">Which list it's on</legend>
-        <% f.lists.forEach((o) => { %>
-          <label class="pill"><input type="radio" name="list" value="<%= o.value %>"<%~ checked(o.value === t.list) %>><span><%= o.label %></span></label>
-        <% }) %>
-      </fieldset>
-      <%/* Shown only while "Waiting on" is picked (CSS :has, no script). */%>
-      <label class="waiting-field">Waiting on who or what?
-        <input name="waitingOn" value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
-      </label>
-      <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
-      <label>Blocked by another task
-        <select name="waitingTaskId">
-          <option value="">Nothing, ready when you are</option>
-          <% f.blockers.forEach((b) => { %>
-            <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
+      <label class="edit-field">Project
+        <select name="projectId">
+          <option value="">No project</option>
+          <% f.projects.forEach((p) => { %>
+            <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
           <% }) %>
-          <option value="new">➕ New task…</option>
         </select>
-        <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
       </label>
-      <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
-      <label class="new-blocker">New task to do first
-        <input name="newBlocker" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
-        <span class="hint">Shortcuts work here too. It goes on To do, in the same project as this one.</span>
+      <label class="edit-field">Tags
+        <input name="tags" value="<%= f.tags %>" maxlength="300" autocomplete="off" placeholder="e.g. errand kids">
+        <span class="hint">Words to find it by, separated by spaces.</span>
       </label>
     </section>
 
-    <section class="edit-group">
-      <h3><span aria-hidden="true">❗</span> Priority</h3>
-      <fieldset class="pills">
-        <legend class="visually-hidden">Priority</legend>
-        <% f.priorities.forEach((p) => { %>
-          <label class="pill"><input type="radio" name="priority" value="<%= p.value %>"<%~ checked(Number(t.priority) === p.value) %>><span><%= p.label %></span></label>
-        <% }) %>
-      </fieldset>
-    </section>
-
-    <section class="edit-group">
-      <h3><span aria-hidden="true">📁</span> Project</h3>
-      <select name="projectId" aria-label="Project">
-        <option value="">No project</option>
-        <% f.projects.forEach((p) => { %>
-          <option value="<%= p.id %>"<%~ p.id === t.project_id ? " selected" : "" %>><%= p.emoji %> <%= p.name %></option>
-        <% }) %>
-      </select>
+    <section class="panel edit-group is-list" aria-labelledby="edit-list">
+      <h2 id="edit-list"><span class="emoji" aria-hidden="true">📥</span> List &amp; priority</h2>
+      <%/* Two columns on wider screens: the list (and who it's waiting on) and priority; then what it waits for. */%>
+      <div class="edit-col">
+        <fieldset class="edit-field"<%~ focus("list") %>>
+          <legend>Which list</legend>
+          <div class="pills">
+            <% f.lists.forEach((o) => { %>
+              <label class="pill"><input type="radio" name="list" value="<%= o.value %>"<%~ checked(o.value === t.list) %>><span><%= o.label %></span></label>
+            <% }) %>
+          </div>
+          <%/* Only the hint for the picked list shows (CSS :has, no script). */%>
+          <% f.lists.forEach((o) => { %>
+            <p class="hint list-hint" data-list="<%= o.value %>"><%= o.hint %></p>
+          <% }) %>
+        </fieldset>
+        <%/* Shown only while "Waiting on" is picked (CSS :has, no script). */%>
+        <label class="edit-field waiting-field">Waiting on who or what?
+          <input name="waitingOn"<%~ focus("waitingOn") %> value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
+        </label>
+        <fieldset class="edit-field"<%~ focus("priority") %>>
+          <legend>Priority</legend>
+          <div class="pills">
+            <% f.priorities.forEach((p) => { %>
+              <label class="pill"><input type="radio" name="priority" value="<%= p.value %>"<%~ checked(Number(t.priority) === p.value) %>><span><%= p.label %></span></label>
+            <% }) %>
+          </div>
+          <p class="hint">High goes first among tasks due the same day.</p>
+        </fieldset>
+      </div>
+      <div class="edit-col">
+        <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
+        <label class="edit-field">Has to wait for another task?
+          <select name="waitingTaskId"<%~ focus("waitingTaskId") %>>
+            <option value="">No, ready when you are</option>
+            <% f.blockers.forEach((b) => { %>
+              <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
+            <% }) %>
+            <option value="new">➕ New task…</option>
+          </select>
+          <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
+        </label>
+        <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>
+        <label class="edit-field new-blocker">New task to do first
+          <input name="newBlocker" maxlength="300" autocomplete="off" placeholder="e.g. patch the walls sat">
+          <span class="hint">Shortcuts work here too. It goes on To do, in the same project as this one.</span>
+        </label>
+      </div>
     </section>
 
     <div class="edit-actions">
-      <a class="button" href="/tasks/<%= t.id %>" data-on:click__prevent="$editing = false">Cancel</a>
-      <button class="button primary">Save</button>
+      <p class="hint">Changes save as you go.</p>
+      <button class="button primary" data-on:click__prevent="$editing = false">Done</button>
     </div>
   </form>
 <% } %>

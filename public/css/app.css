@@ -152,6 +152,8 @@ button.icon:focus-visible { opacity: 1; }
 .empty-state h1 { margin: 0; }
 .empty-state p { margin: 0; }
 .empty-icon { font-size: 3rem; line-height: 1; }
+/* Icons off (Settings > Appearance): decorative emoji and menu icons hide; the words beside them stay. */
+[data-icons="off"] .emoji { display: none; }
 .offline-logo { width: 7rem; height: 7rem; } /* public/offline.html */
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
@@ -173,7 +175,7 @@ button.icon:focus-visible { opacity: 1; }
 }
 .brand-zzz span:nth-child(2) { font-size: 0.62em; left: 0.48em; bottom: 0.48em; }
 .brand-zzz span:nth-child(3) { font-size: 0.7em; left: 0.86em; bottom: 0.86em; }
-.brand:focus-visible .brand-zzz span, .brand:hover .brand-zzz span /* TEMP: hover for testing */ { animation: zzz 3s ease-in-out infinite; }
+.brand:focus-visible .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
 /* The same 3-second doze, then 17 seconds awake, starting 20 seconds after the page loads. */
 .app-header .brand-zzz span { animation: zzz-every-20s 20s ease-in-out 20s infinite; }
 .app-header .brand-zzz span:nth-child(2) { animation-delay: 20.45s; }
@@ -396,6 +398,8 @@ main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom
   display: grid; justify-items: center; padding: 0 var(--space-m); pointer-events: none;
 }
 body:has(.bottom-nav) .toasts { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
+/* And above the edit form's Done bar while it's open (data-show hides #task-edit with an inline display: none). */
+body:has(#task-edit:not([style*="none"]) .edit-actions) .toasts { bottom: calc(var(--tap) + 2 * var(--space-s) + var(--space-xs) + env(safe-area-inset-bottom)); }
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: var(--space-2xs) var(--space-s); flex-wrap: wrap;
   width: min(100%, 26rem); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
@@ -528,15 +532,31 @@ button.link.danger { color: var(--danger); }
 .task-head.is-done h1 { text-decoration: line-through; color: var(--muted); }
 .task-head.is-high h1::before { content: "! "; color: var(--danger); }
 .task-head .actions { margin-top: var(--space-s); }
+/* Tap to edit: the details keep their own look (overdue red, today's accent) and take the --tap box of .meta a;
+   a pointer shows a soft tint under whatever a click would edit. */
+.meta a.meta-edit { color: inherit; text-decoration: none; border-radius: 0.3em; }
+.meta a.meta-edit.overdue { color: var(--danger); }
+.meta a.meta-edit.today { color: var(--accent); }
+.tap-edit { cursor: pointer; border-radius: 0.3em; }
+@media (hover: hover) {
+  .meta a.meta-edit:hover, .tap-edit:hover { background: var(--tint); box-shadow: 0 0 0 0.2em var(--tint); }
+}
+.task-head .actions .hint { margin: 0; }
+/* The task page's details wrap onto several lines and nearly all are tappable, so the --tap boxes of .meta a would
+   cover the line above. Here the lines get room between them instead, and each box fills half of it, so none overlap. */
+.task-head .meta { row-gap: var(--space-s); line-height: 1.6; }
+.task-head .meta a::after { top: calc(var(--space-s) / -2); bottom: calc(var(--space-s) / -2); }
+/* And clear of what follows: the boxes on the last line reach half a gap down. */
+.task-head .meta + * { margin-top: var(--space-s); }
 .notes { white-space: pre-wrap; color: var(--muted); }
 
-/* Edit form: the title and notes, then grouped sections of chips, with Save/Cancel pinned to the bottom. */
-.edit { display: grid; gap: var(--space-s); margin-bottom: var(--space-m); }
-.edit-main {
-  display: grid; gap: var(--space-2xs); padding: var(--space-m); border-radius: var(--radius-lg);
-  background: var(--tint); border: 1px solid var(--tint-line);
-}
-.edit-main .hint { font-size: var(--step--2); }
+/* Edit form: the title and notes, then grouped sections of chips, with Done pinned to the bottom (changes save as you go).
+   Each section is a plain .panel card with its heading inside, sized and spaced like Settings' cards. */
+.edit { display: grid; gap: var(--space-m); margin: var(--space-s) 0 var(--space-m); }
+.edit h2 { font-size: var(--step-1); }
+.edit-main { gap: var(--space-2xs); }
+.edit-main > h2 { margin-bottom: var(--space-s); }
+.edit-main > h2 label { display: inline; font: inherit; color: inherit; }
 .edit-title {
   min-height: 0; padding: 0.1rem 0; border: 0; border-bottom: 1px dashed transparent; border-radius: 0;
   font-size: var(--step-2); font-weight: 650; line-height: 1.25; background: none;
@@ -544,29 +564,46 @@ button.link.danger { color: var(--danger); }
 .edit-title:focus { outline: none; border-bottom-color: var(--accent); }
 .edit-main textarea { min-height: 0; padding: var(--space-2xs) 0; border: 0; border-radius: 0; background: none; font-size: var(--step--1); }
 .edit-main textarea:focus { outline: none; }
-.edit-group { display: grid; gap: var(--space-xs); padding: var(--space-s) var(--space-m) var(--space-m); border: 1px solid var(--line); border-radius: var(--radius-lg); }
-.edit-group h3 { margin: 0; font-size: var(--step-0); }
-.edit-group h3 .hint { font-weight: normal; }
-.edit-group legend { padding: 0; margin-bottom: var(--space-2xs); font-size: var(--step--1); color: var(--muted); width: 100%; }
-.edit-group fieldset { margin: 0; padding: 0; border: 0; }
+/* Each card holds a few features: a label (or legend) in the text color, the control, then a muted hint that
+   says what it does. Features are split by the same hairline as the task list's rows, with --feature-gap on
+   either side of it. */
+.edit { --feature-gap: var(--space-m); }
+.edit-group, .edit-col { display: grid; align-content: start; gap: var(--feature-gap); }
+.edit-field {
+  display: grid; gap: var(--space-xs); min-width: 0; margin: 0; padding: 0; border: 0;
+  font-size: var(--step--1); font-weight: 600; color: var(--fg);
+}
+/* ~ rather than +, so a hidden field or the datalist in between doesn't drop a line. */
+.edit-field ~ .edit-field, .edit-col + .edit-col { padding-top: var(--feature-gap); border-top: 1px solid var(--line); }
+/* Floated, a legend is laid out as an ordinary grid item instead of on the fieldset's border, so it sits under the divider. */
+.edit-field legend { float: left; padding: 0; }
+.edit-field :is(.pills, input, select, .hint) { font-weight: normal; }
+/* Date and Time are parts of one feature, so they're labeled like hints, not like features. */
+.edit-row label { font-weight: normal; color: var(--muted); }
+.edit-field :is(input, select) { color: var(--fg); font-size: var(--step-0); }
+.edit-field .hint { margin: calc(var(--space-2xs) - var(--space-xs)) 0 0; font-size: var(--step--2); line-height: 1.4; }
 .edit-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
-/* The date picker needs more room than the time; text fields stack on phones so hints aren't cut off. */
-.edit-row.is-when { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
-.edit-row.is-stacked { grid-template-columns: 1fr; }
-.edit-row label { font-size: var(--step--1); color: var(--muted); }
-.edit-row input { color: var(--fg); font-size: var(--step-0); }
-.waiting-field { display: none; font-size: var(--step--1); color: var(--muted); }
-.waiting-field input { color: var(--fg); font-size: var(--step-0); }
+/* Date and time side by side when the card has room, stacked when it doesn't (the date picker needs ~9rem). */
+.edit-row.is-when { grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); }
+.edit-row input { width: 100%; min-width: 0; }
+.edit-row label { display: grid; gap: var(--space-2xs); }
+.list-hint { display: none; }
+.edit-field:has([value="inbox"]:checked) .list-hint[data-list="inbox"],
+.edit-field:has([value="todo"]:checked) .list-hint[data-list="todo"],
+.edit-field:has([value="waiting"]:checked) .list-hint[data-list="waiting"],
+.edit-field:has([value="someday"]:checked) .list-hint[data-list="someday"] { display: block; }
+.waiting-field, .new-blocker { display: none; }
 .edit-group:has(input[name="list"][value="waiting"]:checked) .waiting-field { display: grid; }
-.new-blocker { display: none; font-size: var(--step--1); color: var(--muted); }
-.new-blocker input { color: var(--fg); font-size: var(--step-0); }
 .edit-group:has(select[name="waitingTaskId"] option[value="new"]:checked) .new-blocker { display: grid; }
+/* "Changes save as you go." on the left, Done on the right. */
+.edit-actions .hint { margin: 0; }
+.edit-actions .button { min-width: 8rem; }
 .edit-actions {
-  position: sticky; bottom: 0; z-index: 1; display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-xs);
+  position: sticky; bottom: 0; z-index: 1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-s);
   margin: 0 calc(-1 * var(--space-m)); padding: var(--space-s) var(--space-m) max(var(--space-s), env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); border-top: 1px solid var(--line);
 }
-/* A utility, so it wins over any component rule (like .edit-group legend's width). */
+/* A utility, so it wins over any component rule. */
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; margin: 0 !important; padding: 0 !important; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .edit fieldset { min-width: 0; }
 label.pill span { overflow-wrap: anywhere; }
@@ -743,9 +780,14 @@ label.pill span, button.pill {
   .bottom-nav, .view-title { display: none; }
   main:has(.bottom-nav) { padding-bottom: var(--space-l); }
   .quick-add { margin-inline: 0; padding-inline: 0; }
-  .edit-actions { margin-inline: 0; padding-inline: 0; grid-template-columns: auto auto; justify-content: end; }
-  .edit-actions .button { min-width: 7rem; }
-  .edit-row.is-stacked { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .edit-actions { margin-inline: 0; padding-inline: 0; }
+  /* When and Who & where side by side; the title and the list card span both columns. */
+  .edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .edit-main, .edit-group.is-list, .edit-actions { grid-column: 1 / -1; }
+  .edit-group.is-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-l); }
+  .edit-group.is-list > h2 { grid-column: 1 / -1; }
+  /* Side by side, the second column needs no line above it. */
+  .edit-group.is-list > .edit-col + .edit-col { padding-top: 0; border-top: 0; }
 }
 
 /* Hover only where there's a pointer that can hover; on touch these would stick after a tap. */
@@ -1056,6 +1098,29 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 .inline-field input { flex: 1; min-width: 0; }
 .panel .inline-field .button.primary { flex: none; width: auto; }
 .panel > p { margin: 0; }
+
+/* Cards on Settings and the edit form: the heading is a band across the card's top, a soft wash of your
+   accent fading into its second color, so each card reads as titled. The negative margins reach the card's edges
+   (its padding), and the top corners follow the card's, inside its 1px border. */
+:where(.settings, .edit) .panel {
+  /* The body gets a lighter wash of the same colors, fading out toward the bottom. */
+  background: linear-gradient(160deg, color-mix(in oklch, var(--accent) 5%, transparent), color-mix(in oklch, var(--accent-2) 3%, transparent) 45%, transparent 85%);
+}
+:where(.settings, .edit) .panel > h2 {
+  margin: calc(-1 * var(--space-m)) calc(-1 * var(--space-m)) 0;
+  padding: var(--space-s) var(--space-m);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+  border-bottom: 1px solid var(--tint-line);
+  background: linear-gradient(120deg, color-mix(in oklch, var(--accent) 14%, transparent), color-mix(in oklch, var(--accent-2) 8%, transparent) 60%, transparent);
+  position: relative; overflow: hidden;
+}
+/* The heading's icon is a big faded watermark at the band's right end, tilted a little and running off its top,
+   bottom and right edges (the band clips it). Icons off hides it like any .emoji. */
+:where(.settings, .edit) .panel > h2 .emoji {
+  position: absolute; right: -0.15em; top: 50%; translate: 0 -50%; rotate: -12deg;
+  font-size: 2.6em; line-height: 1; opacity: 0.22; pointer-events: none; user-select: none;
+  mask-image: linear-gradient(to right, transparent, #000 65%);
+}
 /* An email waiting to be confirmed: in Settings' Account card, and as a nudge under the home page's header. */
 .email-status, .email-notice {
   display: grid; gap: var(--space-2xs); padding: var(--space-xs) var(--space-s); border-radius: var(--radius);

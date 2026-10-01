@@ -7,10 +7,10 @@
     <h1>How Task Sloth works</h1>
     <p class="lead">Get things out of your head quickly, then put each one where it belongs, so the list you look at is only what you can actually do.</p>
     <ol class="overview">
-      <li><a href="#jot"><span aria-hidden="true">✏️</span>Jot</a></li>
-      <li><a href="#sort"><span aria-hidden="true">🗂️</span>Sort</a></li>
-      <li><a href="#do"><span aria-hidden="true">✅</span>Do</a></li>
-      <li><a href="#check-in"><span aria-hidden="true">🔄</span>Check in</a></li>
+      <li><a href="#jot"><span class="emoji" aria-hidden="true">✏️</span>Jot</a></li>
+      <li><a href="#sort"><span class="emoji" aria-hidden="true">🗂️</span>Sort</a></li>
+      <li><a href="#do"><span class="emoji" aria-hidden="true">✅</span>Do</a></li>
+      <li><a href="#check-in"><span class="emoji" aria-hidden="true">🔄</span>Check in</a></li>
     </ol>
   </header>
 
@@ -30,7 +30,7 @@
       <p>When you have a minute, tap <strong>Sort my inbox</strong>. It shows one thing at a time and asks <em>“What is this?”</em></p>
       <ul class="choice-tiles">
         <% it.choices.forEach((c) => { %>
-          <li><span class="tile-icon" aria-hidden="true"><%= c.icon %></span><strong><%= c.label %></strong><span class="hint"><%= c.short %></span></li>
+          <li><span class="tile-icon emoji" aria-hidden="true"><%= c.icon %></span><strong><%= c.label %></strong><span class="hint"><%= c.short %></span></li>
         <% }) %>
       </ul>
     </li>

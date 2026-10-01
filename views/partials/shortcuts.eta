@@ -4,7 +4,7 @@
 <div class="shortcut-groups">
   <% it.groups.forEach((g) => { %>
     <section class="shortcut-group">
-      <h3><span aria-hidden="true"><%= g.icon %></span> <%= g.title %><% if (g.note) { %> <span class="hint">· <%= g.note %></span><% } %></h3>
+      <h3><span class="emoji" aria-hidden="true"><%= g.icon %></span> <%= g.title %><% if (g.note) { %> <span class="hint">· <%= g.note %></span><% } %></h3>
       <% g.rows.forEach((r) => { %>
         <div class="shortcut-row<%= r.label ? '' : ' no-label' %>">
           <% if (r.label) { %><span class="shortcut-label"><%= r.label %></span><% } %>
