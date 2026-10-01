@@ -24,7 +24,7 @@ import { doneTodayView } from "./src/web/done-today.js";
 import { householdPhrase } from "./src/web/household-phrase.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
-import { addPhoto, getPhoto, PHOTO_MAX_BYTES, removePhoto } from "./src/services/photos.js";
+import { addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
@@ -75,6 +75,10 @@ onChange(({ householdId, taskId, fromGoogle }) => {
 const syncTimer = sync
   ? setInterval(() => sync.syncNow().catch((err) => console.error("sync failed", err)), config.google.syncIntervalMs)
   : null;
+
+// Photos of tasks deleted past the restore window, cleared from Cloudinary at startup and then hourly.
+const purgePhotos = () => purgeDeletedTaskPhotos().catch((err) => console.error("photo purge failed", err));
+const purgeTimer = photosConfigured() ? setInterval(purgePhotos, PURGE_INTERVAL_MS) : null;
 
 // --- App ------------------------------------------------------------------------------
 
@@ -907,11 +911,13 @@ const server = app.listen(config.port, () => {
   console.log(`task-sloth listening on ${config.baseUrl}`);
   if (!googleConfigured()) console.log("Google sign-in/sync disabled (GOOGLE_CLIENT_ID/SECRET not set)");
   if (!photosConfigured()) console.log("Task photos disabled (CLOUDINARY_URL not set)");
+  else purgePhotos();
   sync?.syncNow().catch((err) => console.error("sync failed", err));
 });
 
 const shutdown = () => {
   clearInterval(syncTimer);
+  clearInterval(purgeTimer);
   server.close(() => process.exit(0));
   server.closeAllConnections(); // SSE streams would otherwise hold the process open
 };

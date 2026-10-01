@@ -3,7 +3,7 @@ import { HttpError } from "../lib/http.js";
 import { destroyImage, uploadImage } from "../lib/cloudinary.js";
 import { activityStatement } from "./activity.js";
 import { changed } from "./changes.js";
-import { getTask } from "./tasks.js";
+import { getTask, restoreCutoff } from "./tasks.js";
 import { imageType } from "./users.js";
 
 /** The largest photo we take. The task page shrinks photos to 2000px in the browser, which is far smaller. */
@@ -49,4 +49,36 @@ export async function removePhoto(actor, photoId) {
   changed(actor.householdId);
   await destroyImage(photo.public_id).catch((err) => console.error("couldn't delete photo from Cloudinary", photo.public_id, err));
   return photo.task_id;
+}
+
+/** How often the server purges the photos of tasks deleted for good. */
+export const PURGE_INTERVAL_MS = 3_600_000;
+
+/**
+ * Deletes, from Cloudinary and then here, the photos of tasks (and templates) deleted longer ago than they
+ * can be restored. A housekeeping job across every household, so it isn't scoped to one. A photo whose
+ * delete fails keeps its row, so the next run tries it again; one Cloudinary no longer has counts as gone.
+ * Takes up to `limit` photos a run, oldest deletions first.
+ */
+export async function purgeDeletedTaskPhotos({ nowMs = Date.now(), limit = 200, log = console } = {}) {
+  const photos = await db.all(
+    `SELECT ph.id, ph.public_id FROM task_photos ph JOIN tasks t ON t.id = ph.task_id
+      WHERE t.deleted_at IS NOT NULL AND t.deleted_at <= ?
+      ORDER BY t.deleted_at, ph.id LIMIT ?`,
+    [restoreCutoff(nowMs), limit],
+  );
+  let purged = 0;
+  let failed = 0;
+  for (const photo of photos) {
+    try {
+      await destroyImage(photo.public_id);
+      await db.run("DELETE FROM task_photos WHERE id = ?", [photo.id]);
+      purged++;
+    } catch (err) {
+      failed++;
+      log.error("couldn't purge photo from Cloudinary", photo.public_id, err);
+    }
+  }
+  if (purged || failed) log.log(`purged ${purged} photo(s) of deleted tasks${failed ? `, ${failed} failed` : ""}`);
+  return { purged, failed };
 }

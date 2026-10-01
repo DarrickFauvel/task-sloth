@@ -385,10 +385,16 @@ export async function addComment(actor, taskId, body) {
 export const listComments = (taskId) =>
   db.all("SELECT * FROM comments WHERE task_id = ? ORDER BY created_at", [taskId]);
 
+/** How long a deleted task is kept restorable. After that its photos are purged (see purgeDeletedTaskPhotos). */
+export const RESTORE_DAYS = 14;
+
+/** The ISO time before which a deleted task can no longer be restored. */
+export const restoreCutoff = (nowMs = Date.now()) => new Date(nowMs - RESTORE_DAYS * 86_400_000).toISOString();
+
 export async function listDeleted(householdId) {
   return db.all(
     `${TASK_SELECT} WHERE t.household_id = ? AND t.deleted_at IS NOT NULL AND t.is_template = 0 AND t.deleted_at > ? ORDER BY t.deleted_at DESC LIMIT 30`,
-    [householdId, new Date(Date.now() - 30 * 86_400_000).toISOString()],
+    [householdId, restoreCutoff()],
   );
 }
 
