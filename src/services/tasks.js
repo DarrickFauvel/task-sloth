@@ -14,6 +14,9 @@ import { cleanTagName, ensureTags } from "./tags.js";
  */
 export const LISTS = ["inbox", "todo", "waiting", "someday"];
 
+/** Edits by a task's creator this soon after adding it aren't logged as activity (see updateTask). */
+export const SETUP_MS = 60_000;
+
 const TASK_SELECT = `
   SELECT t.*,
          p.name AS project_name, p.emoji AS project_emoji, p.color AS project_color,
@@ -258,7 +261,9 @@ export async function updateTask(actor, id, input, { fromGoogle = false } = {}) 
     statements.push(activityStatement(actor.householdId, actorId, id, "assigned", { from: task.assignee_id, to: diff.assignee_id }));
   }
   const updated = [...Object.keys(diff).filter((k) => k !== "assignee_id"), ...(tagsChanged ? ["tags"] : [])];
-  if (updated.length) {
+  // Filling a task in just after adding it is part of adding it, so the "added" line covers it.
+  const settingUp = actorId && task.creator_id === actorId && Date.now() - Date.parse(task.created_at) < SETUP_MS;
+  if (updated.length && !settingUp) {
     statements.push(activityStatement(actor.householdId, actorId, id, "updated", { fields: updated }));
   }
   await db.batch(statements);

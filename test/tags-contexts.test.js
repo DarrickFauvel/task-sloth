@@ -58,11 +58,22 @@ test("updateTask replaces tags and clears a context", async () => {
   assert.deepEqual(tagList(task), ["errand", "home"]);
   assert.equal(task.context_id, null);
 
-  // Only a tag change still counts as an edit.
+  // Only a tag change still counts as an edit (once the task is past being set up, see SETUP_MS).
+  await db.run("UPDATE tasks SET created_at = ? WHERE id = ?", [new Date(Date.now() - 5 * 60_000).toISOString(), id]);
   await updateTask(actor, id, { tags: [] });
   assert.deepEqual(tagList(await getTask("h1", id)), []);
   const verbs = await db.all("SELECT detail FROM activity WHERE task_id = ? AND verb = 'updated' ORDER BY created_at", [id]);
   assert.deepEqual(JSON.parse(verbs.at(-1).detail), { fields: ["tags"] });
+});
+
+test("edits just after adding a task aren't logged; later ones are", async () => {
+  const id = await createTask(actor, { title: "rake leaves" });
+  await updateTask(actor, id, { notes: "the front yard" });
+  const logged = () => db.all("SELECT verb FROM activity WHERE task_id = ? AND verb = 'updated'", [id]);
+  assert.equal((await logged()).length, 0);
+  await db.run("UPDATE tasks SET created_at = ? WHERE id = ?", [new Date(Date.now() - 5 * 60_000).toISOString(), id]);
+  await updateTask(actor, id, { notes: "and the back" });
+  assert.equal((await logged()).length, 1);
 });
 
 test("another household's context is rejected", async () => {

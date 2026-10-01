@@ -1,19 +1,20 @@
 <% layout("/layout", { title: "Activity" }) %>
 <%/* What the household did over the last two weeks, newest first: one card per day (header band like the rest of
-     the app), each line tidied by buildActivity (src/web/activity-page.js): bursts of edits are one line saying
-     what changed. "Everyone | You | Sam" narrows it to one person (?who=, plain links). */%>
+     the app), each line tidied by buildActivity (src/web/activity-page.js): one line per person, task and day, and
+     minor changes left out unless "Show every change" (?all=1). The chips pick whose: by default everyone but you
+     ("Sam" in a household of two), or Everyone, You, or one person (?who=, plain links). */%>
 <a class="back" href="/">← All tasks</a>
 <h1>Activity</h1>
-<p class="hint">What happened in <%= it.household %> over the last <%= it.days %> days. A few quick edits to a task show as one line.</p>
+<p class="hint">What happened in <%= it.household %> over the last <%= it.days %> days: one line per task each day.<%= it.activity.all ? "" : " Small changes, like notes, tags or checklist items, are left out." %></p>
 <% if (it.activity.people.length) { %>
   <nav class="pills activity-people" aria-label="Whose activity">
     <% it.activity.people.forEach((p) => { %>
-      <a class="pill<%= p.on ? ' is-on' : '' %>" href="/activity<%= p.id ? `?who=${p.id}` : '' %>"<%~ p.on ? ' aria-current="page"' : '' %>><%= p.label %></a>
+      <a class="pill<%= p.on ? ' is-on' : '' %>" href="<%= p.href %>"<%~ p.on ? ' aria-current="page"' : '' %>><%= p.label %></a>
     <% }) %>
   </nav>
 <% } %>
 <% if (!it.activity.days.length) { %>
-  <p class="empty"><%= it.activity.people.some((p) => p.on && p.id) ? "Nothing from them" : "Nothing has happened" %> in the last <%= it.days %> days.</p>
+  <p class="empty">Nothing<%= it.activity.all ? "" : " worth mentioning" %> in the last <%= it.days %> days.</p>
 <% } %>
 <div class="activity-days">
   <% it.activity.days.forEach((d) => { %>
@@ -32,4 +33,5 @@
     </section>
   <% }) %>
 </div>
+<p class="activity-toggle"><a href="<%= it.activity.toggleHref %>"><%= it.activity.all ? "Show only the main things" : "Show every change" %></a></p>
 <% if (it.activity.capped) { %><p class="hint">Showing the latest <%= it.activity.count %> changes.</p><% } %>
