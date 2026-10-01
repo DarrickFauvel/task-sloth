@@ -240,12 +240,13 @@ const renderList = (list, userId, doneToday) => [
   eta.render("partials/task-list", { ...list, userId, doneToday }),
 ];
 
-/** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list. */
-async function sendTaskList(req, res, { flash, signals } = {}) {
+/** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list.
+ *  `grouping` overrides the group cookie, for the request that has just changed it. */
+async function sendTaskList(req, res, { flash, signals, grouping } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: groupBy(req), ...clock(req) });
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), ...clock(req) });
   const parts = renderList(list, req.user.id, await doneToday(req, req.membership));
   const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
@@ -807,10 +808,12 @@ app.post("/settings/household", requireUser, async (req, res) => {
 });
 
 // Group Mine / Everyone / Up for grabs by date or by where/how, remembered on this device like the theme.
-app.post("/list-grouping", requireUser, (req, res) => {
-  const by = req.body.by === "where" ? "where" : "when";
+// The switch posts with Datastar (?by=, since the clicked button isn't sent) and gets just the list back, so
+// the page doesn't reload; without script it's a plain form post and a redirect.
+app.post("/list-grouping", requireHousehold, async (req, res) => {
+  const by = (req.body.by ?? req.query.by) === "where" ? "where" : "when";
   res.append("Set-Cookie", by === "where" ? "group=where; Path=/; Max-Age=31536000; SameSite=Lax" : "group=; Path=/; Max-Age=0; SameSite=Lax");
-  redirect(res, `/?${listQueryString(cleanListQuery(req.body))}`);
+  await sendTaskList(req, res, { grouping: by });
 });
 
 // Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.
