@@ -517,6 +517,9 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
 .rename-actions .button { padding-inline: var(--space-s); }
 .rename-actions a { margin-left: auto; }
 button.link.danger { color: var(--danger); }
+/* An outlined button for a destructive action (Delete on the task page); it never gets the filled look. */
+.button.is-danger { color: var(--danger); }
+@media (hover: hover) { .button.is-danger:hover { border-color: var(--danger); } }
 .rename-button { position: relative; z-index: 1; font-size: inherit; }
 .chip { color: inherit; text-decoration: none; }
 .chip.tag { color: var(--accent); }

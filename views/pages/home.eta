@@ -50,7 +50,7 @@
       <button class="button primary">Add</button>
     </form>
     <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
-    <%~ include("/partials/flash", {}) %>
+    <%~ include("/partials/flash", it.flash ?? {}) %>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id, doneToday: it.doneToday }) %>
   </div>
   <% if (it.photosEnabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>
