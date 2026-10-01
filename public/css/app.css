@@ -1145,6 +1145,7 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .settings .field > strong { font-size: var(--step-1); }
 .field-title { margin: 0; font-size: inherit; font-weight: normal; }
 .settings .sign-in-fields { gap: var(--space-s); }
+.sign-in-fields:has(input[name="newPassword"]:placeholder-shown) .new-password-again { display: none; }
 .field-title .count { color: var(--muted); }
 .swatches + .hint { margin-top: var(--space-2xs); }
 

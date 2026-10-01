@@ -842,7 +842,7 @@ const renderSettings = async (req, res, { saved, error, signIn, status = 200 } =
 app.get("/settings", requireUser, (req, res) =>
   renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved",
     "email-pending": "Check your new email for a link to confirm it", "email-cancelled": "Email change cancelled",
-    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", icons: "Appearance saved", household: "Household renamed" }[req.query.saved] }),
+    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", icons: "Appearance saved", password: "Password changed. Other devices are signed out.", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -867,7 +867,9 @@ app.post("/settings/sign-in", requireUser, async (req, res) => {
   }
   let result;
   try {
-    result = await updateSignIn(req.user.id, { ...signIn, password: req.body.password });
+    result = await updateSignIn(req.user.id, {
+      ...signIn, password: req.body.password, newPassword: req.body.newPassword, newPasswordAgain: req.body.newPasswordAgain, keepSession: req.user.session_id,
+    });
   } catch (err) {
     // 400: something to fix in the form; 502: the confirmation email couldn't be sent.
     if (!(err instanceof HttpError && [400, 502].includes(err.status))) throw err;
@@ -875,7 +877,7 @@ app.post("/settings/sign-in", requireUser, async (req, res) => {
     return renderSettings(req, res, { error: err.message, signIn, status: err.status });
   }
   accountFailures.reset(key);
-  const saved = result.pendingEmail ? "email-pending" : result.cancelledEmail ? "email-cancelled" : "sign-in";
+  const saved = result.pendingEmail ? "email-pending" : result.passwordChanged ? "password" : result.cancelledEmail ? "email-cancelled" : "sign-in";
   redirect(res, `/settings?saved=${saved}#account-title`);
 });
 
