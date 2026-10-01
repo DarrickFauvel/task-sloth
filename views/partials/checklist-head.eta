@@ -1,15 +1,19 @@
 <% const { task, done, total } = it; const shopping = task.list_mode === "shopping"; %>
-<%/* The checklist's header, above the add box. Its own part so live updates keep the count current. */%>
-<div id="checklist-head">
-<div class="bar">
-  <h2><%= shopping ? "Shopping list" : "Checklist" %><% if (total) { %> <span class="count"><%= done %>/<%= total %></span><% } %></h2>
-  <form method="post" action="/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>"
-        data-on:submit="@post('/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>')">
-    <button class="link"><%= shopping ? "Switch to checklist" : "Switch to shopping list" %></button>
+<%/* The checklist card's header band and its "List | Shopping list" choice, above the add box. Its own part so
+     live updates keep the count current. The hint says what the picked kind does; the drag tip shows once
+     there's something to drag (the empty state in partials/checklist explains how to add). */%>
+<div id="checklist-head" class="checklist-head">
+  <h2 id="checklist-title" class="card-title"><span class="emoji" aria-hidden="true"><%= shopping ? "🛒" : "☑️" %></span> <%= shopping ? "Shopping list" : "Checklist" %><% if (total) { %> <span class="count"><%= done %>/<%= total %></span><% } %></h2>
+  <form class="checklist-mode" method="post" action="/tasks/<%= task.id %>/mode/<%= shopping ? 'checklist' : 'shopping' %>">
+    <div class="pills" role="group" aria-label="Kind of list">
+      <% [["checklist", "List"], ["shopping", "Shopping list"]].forEach(([mode, label]) => { const on = (mode === "shopping") === shopping; %>
+        <% if (on) { %><button type="button" class="pill is-on" aria-pressed="true"><%= label %></button>
+        <% } else { %><button class="pill" aria-pressed="false" formaction="/tasks/<%= task.id %>/mode/<%= mode %>"
+                data-on:click__prevent="@post('/tasks/<%= task.id %>/mode/<%= mode %>')"><%= label %></button><% } %>
+      <% }) %>
+    </div>
+    <p class="hint"><%= shopping
+      ? "Sorted by store section, like Produce and Dairy. Start a line with “Bakery:” to pick one yourself."
+      : "Kept in the order you add things." %><% if (total > 1) { %> Drag ⠿ to reorder<%= shopping ? " within a section" : "" %>.<% } %></p>
   </form>
-</div>
-<%/* One line on what this mode does, so the switch explains itself. */%>
-<p class="hint checklist-hint"><%= shopping
-  ? "Sorted by store section, like Produce and Dairy. Start a line with “Bakery:” to choose a section yourself. Drag ⠿ to reorder within a section."
-  : "A simple list, in the order you add things. Drag ⠿ to reorder. A shopping list sorts items by store section instead." %></p>
 </div>

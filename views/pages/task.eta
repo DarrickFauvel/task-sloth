@@ -10,30 +10,37 @@
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>
 
-  <% if (it.photos.enabled) { %>
-    <%/* "Take photo" opens the camera on a phone (capture); "Choose" picks from the library, several at once.
-         <task-photo> shrinks each one and uploads it; the live update then shows it in #task-photos. */%>
-    <div class="bar photos-bar">
-      <h2>Photos</h2>
-      <task-photo action="/tasks/<%= t.id %>/photos" class="photo-buttons">
-        <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden"><span class="emoji" aria-hidden="true">📷</span> Take photo</label>
-        <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
-        <p class="hint" role="status" hidden></p>
-      </task-photo>
-    </div>
-    <%~ include("/partials/task-photos", it.photos) %>
-  <% } %>
+  <%/* The checklist, then photos: cards like the edit form's (header band, watermark icon), evenly spaced. Each
+       live-updated part (#checklist-head, #checklist, #task-photos) sits inside its card, so a re-render keeps it. */%>
+  <div class="task-cards">
+    <section class="panel task-card" aria-labelledby="checklist-title">
+      <%~ include("/partials/checklist-head", it.checklist) %>
+      <%/* Outside #checklist so a live re-render doesn't wipe what's being typed. Enter adds; Shift+Enter is a new line.
+           Add is outlined: Mark done is the page's one filled button. */%>
+      <form id="add-items" class="quick-add" method="post" action="/tasks/<%= t.id %>/items" data-on:submit="@post('/tasks/<%= t.id %>/items')">
+        <textarea name="items" data-bind:items rows="1" required maxlength="5000" aria-label="Add items"
+                  placeholder="Add items… e.g. “milk, eggs, 2x bread” or paste a list"
+                  data-on:keydown="evt.key === 'Enter' && !evt.shiftKey && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
+        <button class="button">Add</button>
+      </form>
+      <%~ include("/partials/checklist", it.checklist) %>
+    </section>
 
-  <%~ include("/partials/checklist-head", it.checklist) %>
-  <%/* Outside #checklist so a live re-render doesn't wipe what's being typed. Enter adds; Shift+Enter is a new line. */%>
-  <form id="add-items" class="quick-add" method="post" action="/tasks/<%= t.id %>/items" data-on:submit="@post('/tasks/<%= t.id %>/items')">
-    <textarea name="items" data-bind:items rows="1" required maxlength="5000" aria-label="Add items"
-              placeholder="Add items… e.g. “milk, eggs, 2x bread” or paste a list"
-              data-on:keydown="evt.key === 'Enter' && !evt.shiftKey && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
-    <button class="button primary">Add</button>
-  </form>
+    <% if (it.photos.enabled) { %>
+      <%/* "Take photo" opens the camera on a phone (capture); "Choose" picks from the library, several at once.
+           <task-photo> shrinks each one and uploads it; the live update then shows it in #task-photos. */%>
+      <section class="panel task-card" aria-labelledby="photos-title">
+        <h2 id="photos-title" class="card-title"><span class="emoji" aria-hidden="true">📷</span> Photos</h2>
+        <%~ include("/partials/task-photos", it.photos) %>
+        <task-photo action="/tasks/<%= t.id %>/photos" class="photo-buttons">
+          <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden">Take photo</label>
+          <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
+          <p class="hint" role="status" hidden></p>
+        </task-photo>
+      </section>
+    <% } %>
+  </div>
   <%~ include("/partials/flash", {}) %>
-  <%~ include("/partials/checklist", it.checklist) %>
   <p id="reorder-status" class="visually-hidden" role="status"></p>
 </div>
 <% if (it.photos.enabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>

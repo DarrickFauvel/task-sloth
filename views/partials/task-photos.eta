@@ -15,5 +15,7 @@
         </li>
       <% }) %>
     </ul>
+  <% } else { %>
+    <p class="hint photos-empty">No photos yet. Snap the receipt, a part number, or how it should look.</p>
   <% } %>
 </section>

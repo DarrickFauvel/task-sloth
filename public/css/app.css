@@ -608,14 +608,18 @@ button.link.danger { color: var(--danger); }
 .edit fieldset { min-width: 0; }
 label.pill span { overflow-wrap: anywhere; }
 
-#checklist-head { margin-top: var(--space-m); }
+/* The task page's cards (checklist, then photos), spaced like the edit form's. */
+.task-cards { display: grid; gap: var(--space-m); margin-top: var(--space-m); }
+.task-cards h2 { font-size: var(--step-1); }
+.checklist-head { display: grid; gap: var(--space-s); }
+.checklist-mode { display: grid; gap: var(--space-2xs); margin: 0; }
+.checklist-mode .hint, .photos-empty { margin: 0; }
+.task-card .empty { padding: var(--space-m) 0 var(--space-2xs); }
 
-/* Photos: take or choose above, square thumbnails below; each has a small × to delete it. */
-.photos-bar { margin-top: var(--space-m); flex-wrap: wrap; gap: var(--space-xs); }
-.photos-bar h2 { font-size: var(--step-1); margin: 0; }
+/* Photos: square thumbnails (or a note), then take or choose; each photo has a small × to delete it. */
 .photo-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
 .photo-buttons [role=status] { flex-basis: 100%; margin: 0; }
-.photo-grid { list-style: none; margin: var(--space-xs) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: var(--space-xs); }
+.photo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: var(--space-xs); }
 .photo-grid li { position: relative; }
 .photo-grid a { display: block; }
 .photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; background: var(--line); }
@@ -623,9 +627,7 @@ label.pill span { overflow-wrap: anywhere; }
 button.icon.photo-delete { position: relative; display: grid; place-items: center; min-width: 2rem; min-height: 2rem; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 1; }
 /* Drawn at 32px, tapped at 44px. */
 button.icon.photo-delete::after { content: ""; position: absolute; inset: calc((2rem - var(--tap)) / 2); }
-#checklist-head h2 { font-size: var(--step-1); margin: 0; }
-.checklist-hint { margin: var(--space-2xs) 0 0; }
-#add-items { position: static; margin: var(--space-xs) 0; padding: 0; }
+#add-items { position: static; margin: 0; padding: 0; background: none; }
 .item { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--line); }
 .item form { margin: 0; }
 .item-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -1099,14 +1101,14 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 .panel .inline-field .button.primary { flex: none; width: auto; }
 .panel > p { margin: 0; }
 
-/* Cards on Settings and the edit form: the heading is a band across the card's top, a soft wash of your
+/* Cards on Settings, the edit form and the task page (.card-title, for a heading not directly in its card): the heading is a band across the card's top, a soft wash of your
    accent fading into its second color, so each card reads as titled. The negative margins reach the card's edges
    (its padding), and the top corners follow the card's, inside its 1px border. */
-:where(.settings, .edit) .panel {
+:where(.settings, .edit, .task-cards) .panel {
   /* The body gets a lighter wash of the same colors, fading out toward the bottom. */
   background: linear-gradient(160deg, color-mix(in oklch, var(--accent) 5%, transparent), color-mix(in oklch, var(--accent-2) 3%, transparent) 45%, transparent 85%);
 }
-:where(.settings, .edit) .panel > h2 {
+:is(:where(.settings, .edit) .panel > h2, .card-title) {
   margin: calc(-1 * var(--space-m)) calc(-1 * var(--space-m)) 0;
   padding: var(--space-s) var(--space-m);
   border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
@@ -1116,7 +1118,7 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 }
 /* The heading's icon is a big faded watermark at the band's right end, tilted a little and running off its top,
    bottom and right edges (the band clips it). Icons off hides it like any .emoji. */
-:where(.settings, .edit) .panel > h2 .emoji {
+:is(:where(.settings, .edit) .panel > h2, .card-title) .emoji {
   position: absolute; right: -0.15em; top: 50%; translate: 0 -50%; rotate: -12deg;
   font-size: 2.6em; line-height: 1; opacity: 0.22; pointer-events: none; user-select: none;
   mask-image: linear-gradient(to right, transparent, #000 65%);
