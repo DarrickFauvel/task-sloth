@@ -159,28 +159,34 @@ button.icon:focus-visible { opacity: 1; }
 .brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
 .brand-mark { position: relative; display: flex; flex: none; }
 .brand-logo { width: 2.25em; height: 2.25em; flex: none; margin-block: -0.5em; }
-@media (hover: hover) { .brand:hover { text-decoration: none; } } /* the dozing sloth is the hover cue */
-/* Hovering the brand (or tabbing to it), the sloth dozes off: a staircase of three z's, small to big, rising
-   from just right of its face. They fade in one after another, linger, drift off, and start again for as long
-   as you stay. (Each z's position is in its own font size: about 0.3 and 0.6 of the brand's size across,
-   0.3 and 0.6 up.) */
-.brand-zzz { position: absolute; left: 78%; top: 0.8em; pointer-events: none; }
+@media (hover: hover) { .brand:hover { text-decoration: none; } }
+/* The sloth dozes off: a staircase of three z's, small to big, rising from just right of its face. They fade in
+   one after another, linger and drift off. Signed in, that happens every 20 seconds in the header; on the other
+   pages it plays while the brand has keyboard focus. (Each z's position is in its own font size: about 0.3 and
+   0.6 of the brand's size across, 0.3 and 0.6 up.) */
+.brand-zzz { position: absolute; left: 64%; top: 0.05em; pointer-events: none; }
 .brand-zzz span {
   position: absolute; left: 0; bottom: 0; opacity: 0;
   font-size: 0.5em; font-weight: 800; font-style: italic; line-height: 1; color: var(--accent);
 }
 .brand-zzz span:nth-child(2) { font-size: 0.62em; left: 0.48em; bottom: 0.48em; }
 .brand-zzz span:nth-child(3) { font-size: 0.7em; left: 0.86em; bottom: 0.86em; }
-@media (hover: hover) {
-  .brand:hover .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
-}
 .brand:focus-visible .brand-zzz span { animation: zzz 3s ease-in-out infinite; }
-.brand:is(:hover, :focus-visible) .brand-zzz span:nth-child(2) { animation-delay: 0.45s; }
-.brand:is(:hover, :focus-visible) .brand-zzz span:nth-child(3) { animation-delay: 0.9s; }
+/* The same 3-second doze, then 17 seconds awake, starting 20 seconds after the page loads. */
+.app-header .brand-zzz span { animation: zzz-every-20s 20s ease-in-out 20s infinite; }
+.app-header .brand-zzz span:nth-child(2) { animation-delay: 20.45s; }
+.app-header .brand-zzz span:nth-child(3) { animation-delay: 20.9s; }
+.brand:focus-visible .brand-zzz span:nth-child(2) { animation-delay: 0.45s; }
+.brand:focus-visible .brand-zzz span:nth-child(3) { animation-delay: 0.9s; }
 @keyframes zzz {
   0% { opacity: 0; translate: -0.15em 0.25em; }
   15%, 60% { opacity: 1; translate: 0 0; }
   80%, 100% { opacity: 0; translate: 0.1em -0.35em; }
+}
+@keyframes zzz-every-20s {
+  0% { opacity: 0; translate: -0.15em 0.25em; }
+  2.25%, 9% { opacity: 1; translate: 0 0; }
+  12%, 100% { opacity: 0; translate: 0.1em -0.35em; }
 }
 @media (prefers-reduced-motion: reduce) { .brand-zzz { display: none; } }
 /* The brand, with the household's name under the words "Task Sloth" (not the logo). The name is taken out of
