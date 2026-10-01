@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { createTask } from "../src/services/tasks.js";
-import { decorateTask, taskListView } from "../src/web/task-list.js";
+import { decorateTask, GROUP_HUES, taskListView } from "../src/web/task-list.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-test-"));
 const actor = { id: "u1", householdId: "h1" };
@@ -69,4 +69,14 @@ test("a finished task isn't called overdue", () => {
   const t = decorateTask({ title: "done", status: "done", due_date: today, due_time: "09:00" }, membership, today, time);
   assert.equal(t.dueText, "Today 09:00");
   assert.equal(t.dueState, "");
+});
+
+test("date groups keep their own colors: overdue red, today your accent, the rest set hues or plain", async () => {
+  await add("late", today, "12:00");
+  await add("now", today);
+  await add("soon", "2026-10-03");
+  await add("far", "2026-11-20");
+  await add("whenever");
+  const tones = Object.fromEntries((await list()).groups.map((g) => [g.label, g.tone ?? g.hue]));
+  assert.deepEqual(tones, { Overdue: "danger", Today: "accent", "This week": GROUP_HUES[1], Later: GROUP_HUES[3], "No date": "plain" });
 });

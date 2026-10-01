@@ -21,6 +21,8 @@
   <% } %>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <%/* Installable as an app; public/sw.js shows an offline page and caches styles, scripts and images. */%>
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/css/app.css">
   <script>
     document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
@@ -69,7 +71,11 @@
       const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + feather;
       root.style.setProperty("--theme-x", `${x}px`);
       root.style.setProperty("--theme-y", `${y}px`);
-      document.startViewTransition(apply).ready.then(() => {
+      // is-theming scopes the circle (see app.css) to this transition, not to page-to-page ones.
+      root.classList.add("is-theming");
+      const transition = document.startViewTransition(apply);
+      transition.finished.finally(() => root.classList.remove("is-theming"));
+      transition.ready.then(() => {
         root.animate(
           { "--theme-r": ["0px", `${radius}px`] },
           // fill: "forwards" holds the full circle until the browser removes the transition; without it
@@ -78,12 +84,37 @@
         );
       });
     }
+    // Runs fn now, or, on a page the browser is prerendering (see the speculation rules below), once it's
+    // actually shown, so a page someone might open doesn't start its live stream early.
+    function whenShown(fn) {
+      if (document.prerendering) document.addEventListener("prerenderingchange", () => fn(), { once: true });
+      else fn();
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js<%= it.dev ? '?dev=1' : '' %>").catch((err) => console.warn("service worker not registered", err));
+    }
     // The menu's light/dark item: switch to whichever isn't showing.
     function toggleTheme(origin) {
       setTheme(shownTheme(document.documentElement.dataset.theme) === "dark" ? "light" : "dark", origin);
     }
   </script>
   <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js"></script>
+  <%/* Prerender the app's own pages when someone looks set to open one (hovering a link for a moment, or
+       pressing it), so it shows at once. Only pages that are safe to load without being asked: not sign-out,
+       sign-in callbacks, email or invite links, or anything that isn't a page. */%>
+  <script type="speculationrules">
+    { "prerender": [{
+      "where": { "and": [
+        { "or": [
+          { "href_matches": { "pathname": "/" } }, { "href_matches": { "pathname": "/tasks/:id" } }, { "href_matches": { "pathname": "/tasks/:id/edit" } },
+          { "href_matches": { "pathname": "/activity" } }, { "href_matches": { "pathname": "/help" } }, { "href_matches": { "pathname": "/about" } },
+          { "href_matches": { "pathname": "/settings" } }, { "href_matches": { "pathname": "/sort" } }
+        ] },
+        { "not": { "selector_matches": "[data-no-prerender]" } }
+      ] },
+      "eagerness": "moderate"
+    }] }
+  </script>
 </head>
 <body>
   <main<%~ it.wide ? ' class="is-wide"' : "" %>>

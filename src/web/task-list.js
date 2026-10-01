@@ -27,7 +27,7 @@ export const NAV = {
     { view: "grabs", blurb: "Things nobody has taken yet" },
     { view: "waiting", blurb: "Needs someone else first" },
     { view: "someday", blurb: "Ideas for one day" },
-    { view: "done", blurb: "Finished in the last 8 hours" },
+    { view: "done", blurb: "Finished in the last 24 hours" },
   ],
 };
 
@@ -36,13 +36,13 @@ export const VIEW_HINTS = {
   inbox: "Anything you add without details lands here, so you can jot it down fast and sort it later. Only you see your inbox.",
   waiting: "Things that can't move yet: waiting on someone (a reply, a repair) or on another task to be done first.",
   someday: "Ideas you might get to one day, kept out of the way of today's list.",
-  done: "Everything finished in the last 8 hours. Older work is in Activity.",
+  done: "Everything finished in the last 24 hours. Older work is in Activity.",
 };
 
 /** A finished task stays on its list (ticked) this long, so a mis-tap is easy to undo. */
 export const LINGER_MS = 10 * 60_000;
 /** How far back the Done tab goes. */
-export const DONE_WINDOW_MS = 8 * 3_600_000;
+export const DONE_WINDOW_MS = 24 * 3_600_000;
 
 /**
  * Which list a quick-add goes on. Adding from the Waiting or Maybe-later tab puts it there;
@@ -137,23 +137,37 @@ export async function taskListView({ userId, membership, view, project: projectI
   const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
-  if (single) return { ...base, groups: tasks.length ? [{ label: single, tasks }] : [] };
+  if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
 
   // Grouping by where/how means nothing once the list is narrowed to one context, so it falls back to dates.
   const canGroup = !context;
-  if (canGroup && groupBy === "where") return { ...base, canGroup, groupBy, groups: groupByWhere(tasks) };
+  if (canGroup && groupBy === "where") return { ...base, canGroup, groupBy, groups: groupByWhere(tasks).map(withWhereTone) };
 
   const weekOut = addDays(today, 7);
   const groups = [
-    { label: "Overdue", test: (t) => t.pastDue },
-    { label: "Today", test: (t) => t.due_date === today && !t.pastDue },
-    { label: "This week", test: (t) => t.due_date && t.due_date > today && t.due_date <= weekOut },
-    { label: "Later", test: (t) => t.due_date && t.due_date > weekOut },
-    { label: "No date", test: (t) => !t.due_date },
+    { label: "Overdue", tone: "danger", test: (t) => t.pastDue },
+    { label: "Today", tone: "accent", test: (t) => t.due_date === today && !t.pastDue },
+    { label: "This week", hue: GROUP_HUES[1], test: (t) => t.due_date && t.due_date > today && t.due_date <= weekOut },
+    { label: "Later", hue: GROUP_HUES[3], test: (t) => t.due_date && t.due_date > weekOut },
+    { label: "No date", tone: "plain", test: (t) => !t.due_date },
   ]
-    .map(({ label, test }) => ({ label, tasks: tasks.filter(test) }))
+    .map(({ test, ...g }) => ({ ...g, tasks: tasks.filter(test) }))
     .filter((g) => g.tasks.length);
   return { ...base, canGroup, groupBy: "when", groups };
+}
+
+/**
+ * Group card colors (see .task-group in app.css): a tone ("accent" follows the viewer's color, "danger" is
+ * overdue, "plain" is grey), or an oklch hue. The hues skip the reds so nothing looks overdue.
+ */
+export const GROUP_HUES = [250, 195, 150, 80, 300, 325];
+
+/** A where/how group's color: picked from its context id, so a place keeps its color whatever else is listed. */
+export function withWhereTone(group) {
+  if (!group.contextId) return { ...group, tone: "plain" };
+  let h = 0;
+  for (const ch of group.contextId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { ...group, hue: GROUP_HUES[h % GROUP_HUES.length] };
 }
 
 const minutesOf = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));

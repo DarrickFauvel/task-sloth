@@ -16,6 +16,11 @@
             <button class="check" aria-label="<%= item.checked ? 'Uncheck' : 'Check' %> <%= item.text %>"><span aria-hidden="true">✓</span></button>
           </form>
           <% const label = item.quantity ? `${item.quantity} ${item.text}` : item.text; const renaming = `$itemRenaming === '${item.id}'`; %>
+          <%/* Its photo (say, which exact one to buy) opens in the photo viewer. */%>
+          <% if (it.photosEnabled && item.photo_id) { %>
+            <a class="item-photo" href="/photos/<%= item.photo_id %>/full" data-photos="self" data-show="!(<%= renaming %>)"
+               aria-label="Photo of <%= label %>"><img src="/photos/<%= item.photo_id %>/tiny" alt="" width="48" height="48" loading="lazy"></a>
+          <% } %>
           <span class="item-text" data-show="!(<%= renaming %>)"><% if (item.quantity) { %><span class="qty"><%= item.quantity %></span> <% } %><%= item.text %></span>
           <%/* Rename in place, like task rows. The typed text lives in $itemText, so a live update can't wipe it.
                On a shopping list the item re-sorts: see renamedCategory in src/services/checklist.js. */%>
@@ -28,8 +33,23 @@
               <button type="button" class="button" data-on:click="$itemRenaming = ''">Cancel</button>
               <button class="link danger" formaction="/items/<%= item.id %>/delete" formnovalidate
                       data-on:click__prevent="@post('/items/<%= item.id %>/delete')">Remove</button>
+              <% if (it.photosEnabled && item.photo_id) { %>
+                <button class="link danger" formaction="/photos/<%= item.photo_id %>/delete" formnovalidate
+                        data-on:click__prevent="confirm('Delete this photo?') && @post('/photos/<%= item.photo_id %>/delete')">Delete photo</button>
+              <% } %>
             </div>
           </form>
+          <%/* Take or pick its photo (<task-photo> shrinks and uploads it; a new one replaces the old). Without
+               capture, a phone offers the camera or the library. */%>
+          <% if (it.photosEnabled) { %>
+            <task-photo action="/items/<%= item.id %>/photo" class="item-photo-add" data-show="!(<%= renaming %>)">
+              <label class="icon" title="<%= item.photo_id ? 'Change photo' : 'Add a photo' %>">
+                <input type="file" accept="image/*" class="visually-hidden" aria-label="<%= item.photo_id ? 'Change the photo of' : 'Add a photo of' %> “<%= label %>”">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              </label>
+              <span role="status" class="item-photo-status" hidden></span>
+            </task-photo>
+          <% } %>
           <button type="button" class="icon rename-button" aria-label="Rename “<%= label %>”" title="Rename"
                   data-label="<%= label %>" data-show="!(<%= renaming %>)"
                   data-on:click="$itemText = el.dataset.label; $itemRenaming = '<%= item.id %>'; setTimeout(() => { const i = document.getElementById('item-rename-<%= item.id %>'); i.focus(); i.select() })">

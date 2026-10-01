@@ -14,7 +14,7 @@ It's built on the ideas in *Getting Things Done*, but the app never uses GTD jar
 - **Private task photos** stored on Cloudinary as authenticated images, relayed by the app to household members only.
 - **Live updates** across everyone's open windows (server-sent events via Datastar).
 - **Done today.** A badge in the header counts what the household has finished today and cheers when a task is ticked off; the Done tab shows a dot per task in the color of whoever finished it.
-- **Recently done and Activity.** Finished tasks linger for 10 minutes, the Done tab shows the last 8 hours, and the Activity page shows the last 14 days.
+- **Recently done and Activity.** Finished tasks linger for 10 minutes, the Done tab shows the last 24 hours, and the Activity page shows the last 14 days.
 - **Accounts.** Username and password sign-up with email confirmation, optional Google sign-in, invite links and a QR code for joining a household, avatar photos, member colors, and light/dark themes.
 - **Google Tasks sync (optional).** Two-way sync between each member's tasks and a "Task Sloth" list in their Google Tasks.
 - **Mobile first**, with a bottom nav on phones.

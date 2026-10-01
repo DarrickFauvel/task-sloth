@@ -4,11 +4,20 @@
 /** @type {((change: { householdId: string, taskId?: string, fromGoogle?: boolean }) => void)[]} */
 const listeners = [];
 
+// When each household last changed (ms), so a live stream can tell whether the page it's attached to is
+// already current. Before any change since the server started, that's the start: a page from before a
+// restart might have missed something.
+const startedAt = Date.now();
+/** @type {Map<string, number>} */
+const changedAt = new Map();
+export const lastChangedAt = (householdId) => changedAt.get(householdId) ?? startedAt;
+
 export function onChange(fn) {
   listeners.push(fn);
 }
 
 export function changed(householdId, taskId, { fromGoogle = false } = {}) {
+  changedAt.set(householdId, Date.now());
   for (const fn of listeners) {
     try {
       fn({ householdId, taskId, fromGoogle });

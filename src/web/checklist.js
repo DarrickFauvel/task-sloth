@@ -1,3 +1,4 @@
+import { photosConfigured } from "../config.js";
 import { getTask } from "../services/tasks.js";
 import { groupItems, listItems } from "../services/checklist.js";
 
@@ -10,5 +11,6 @@ export async function checklistView(householdId, taskId) {
     groups: items.length ? groupItems(items, task.list_mode) : [],
     done: items.filter((i) => i.checked).length,
     total: items.length,
+    photosEnabled: photosConfigured(),
   };
 }

@@ -1,6 +1,7 @@
 // The photo viewer (views/partials/photo-viewer.eta). Tapping a link with data-photos opens it:
 //   data-photos="<url>"  a JSON list of the task's photos, [{ full, tiny }] (a task row's thumbnail stack), or
-//   data-photos=""        the photos are the page's own [data-photos] links, in order (task page thumbnails).
+//   data-photos=""        the photos are the page's own [data-photos] links, in order (task page thumbnails), or
+//   data-photos="self"    just this link's photo (a checklist item's).
 // data-index says which photo to start on: on the tapped element inside the link (one thumbnail of a
 // row's stack), else on the link itself. Arrows, the arrow keys, swiping and the thumbnail strip along the
 // bottom move between photos; ×, Esc and tapping outside the photo close it. The opening and each change of
@@ -18,6 +19,7 @@ document.addEventListener("click", async (e) => {
   e.preventDefault();
   const source = link.dataset.photos;
   const start = Number(e.target.closest("[data-index]")?.dataset.index ?? 0);
+  if (source === "self") return open([{ full: link.href, tiny: link.querySelector("img")?.src ?? link.href }], 0);
   if (!source) {
     const links = [...document.querySelectorAll("a[data-photos='']")];
     return open(links.map((a) => ({ full: a.href, tiny: a.querySelector("img")?.src ?? a.href })), start);

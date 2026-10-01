@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Shown by the service worker (public/sw.js) when a page can't load because there's no connection.
+     Static, so it works from the cache: it follows the device's light or dark setting, not the theme cookie. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+  <title>Offline · Task Sloth</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <main>
+    <div class="empty-state">
+      <img class="offline-logo" src="/img/logo.png" alt="" width="192" height="192">
+      <h1>You're offline</h1>
+      <p>Task Sloth needs a connection to show your lists. Nothing you've saved is lost. It's all waiting for you when you're back online.</p>
+      <button type="button" class="button primary" onclick="location.reload()">Try again</button>
+    </div>
+  </main>
+  <script>
+    // Back online: try the page again on its own.
+    addEventListener("online", () => location.reload());
+  </script>
+</body>
+</html>

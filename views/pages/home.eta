@@ -14,10 +14,12 @@
       <form method="dialog"><button class="button">Close</button></form>
     </div>
   </dialog>
-  <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy). */%>
+  <%/* Live updates: retry 'always' also reconnects after the server ends the stream (e.g. a redeploy).
+       since/next let the stream skip re-sending what this page already shows (see /events); whenShown waits
+       out a prerender, so a page the browser only might open doesn't hold a stream. */%>
   <% const l = it.list; %>
   <div data-signals="{view: '<%= l.view %>', project: '<%= l.project ?? '' %>', context: '<%= l.context ?? '' %>', tag: '<%= l.tag ?? '' %>', quick: '', renaming: '', renameText: ''}"
-       data-init="@get('/events?<%= it.listQueryString(l) %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}})">
+       data-init="whenShown(() => @get('/events?<%= [it.listQueryString(l), `since=${it.renderedAt}`, l.refreshAt ? `next=${l.refreshAt}` : ''].filter(Boolean).join('&') %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
     <form id="quick-add" class="quick-add" method="post" action="/tasks" data-on:submit="@post('/tasks')">
       <input type="hidden" name="view" value="<%= l.view %>">
       <input type="hidden" name="project" value="<%= l.project ?? '' %>">

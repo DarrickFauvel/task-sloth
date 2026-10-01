@@ -16,17 +16,31 @@ export async function getPhoto(householdId, photoId) {
   return photo;
 }
 
+/** A task's own photos (not its checklist items'). */
 export async function listPhotos(householdId, taskId) {
-  return db.all("SELECT * FROM task_photos WHERE household_id = ? AND task_id = ? ORDER BY created_at, id", [householdId, taskId]);
+  return db.all("SELECT * FROM task_photos WHERE household_id = ? AND task_id = ? AND item_id IS NULL ORDER BY created_at, id", [householdId, taskId]);
+}
+
+/** Checks an upload is an image we take; returns its type. */
+function checkImage(bytes) {
+  const type = imageType(bytes);
+  if (!type) throw new HttpError(400, "That isn't a JPEG, PNG or WebP image");
+  if (bytes.length > PHOTO_MAX_BYTES) throw new HttpError(400, "That photo is too big");
+  return type;
+}
+
+/** Deletes images from Cloudinary after their rows are gone (a failure there only leaves an orphan behind). */
+export async function destroyImages(photos) {
+  for (const photo of photos) {
+    await destroyImage(photo.public_id).catch((err) => console.error("couldn't delete photo from Cloudinary", photo.public_id, err));
+  }
 }
 
 /** Uploads a photo to Cloudinary (one folder per household) and adds it to the task. */
 export async function addPhoto(actor, taskId, bytes) {
   const task = await getTask(actor.householdId, taskId);
-  const type = imageType(bytes);
-  if (!type) throw new HttpError(400, "That isn't a JPEG, PNG or WebP image");
-  if (bytes.length > PHOTO_MAX_BYTES) throw new HttpError(400, "That photo is too big");
-  const { n } = await db.get("SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ?", [task.id]);
+  const type = checkImage(bytes);
+  const { n } = await db.get("SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ? AND item_id IS NULL", [task.id]);
   if (Number(n) >= MAX_PHOTOS_PER_TASK) throw new HttpError(400, `A task can have up to ${MAX_PHOTOS_PER_TASK} photos`);
 
   const { publicId, width, height } = await uploadImage(bytes, type, { folder: `task-sloth/${actor.householdId}` });
@@ -42,12 +56,39 @@ export async function addPhoto(actor, taskId, bytes) {
   return id;
 }
 
-/** Removes a photo from the task, then from Cloudinary (a failure there only leaves an orphan behind). */
+/**
+ * Gives a checklist item its photo (an item has one: a new one replaces it). Same folder and checks as task
+ * photos; the old image is deleted from Cloudinary once the new one is saved.
+ */
+export async function addItemPhoto(actor, itemId, bytes) {
+  const item = await db.get(
+    `SELECT c.id, c.task_id FROM checklist_items c JOIN tasks t ON t.id = c.task_id
+      WHERE c.id = ? AND t.household_id = ? AND t.deleted_at IS NULL`,
+    [itemId, actor.householdId],
+  );
+  if (!item) throw new HttpError(404, "Item not found");
+  const type = checkImage(bytes);
+  const old = await db.all("SELECT public_id FROM task_photos WHERE item_id = ?", [item.id]);
+  const { publicId, width, height } = await uploadImage(bytes, type, { folder: `task-sloth/${actor.householdId}` });
+  const id = newId();
+  await db.batch([
+    { sql: "DELETE FROM task_photos WHERE item_id = ?", args: [item.id] },
+    {
+      sql: "INSERT INTO task_photos (id, household_id, task_id, item_id, public_id, width, height, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [id, actor.householdId, item.task_id, item.id, publicId, width ?? null, height ?? null, actor.id, now()],
+    },
+  ]);
+  changed(actor.householdId, item.task_id);
+  await destroyImages(old);
+  return id;
+}
+
+/** Removes a photo (a task's or an item's), then deletes it from Cloudinary. */
 export async function removePhoto(actor, photoId) {
   const photo = await getPhoto(actor.householdId, photoId);
   await db.run("DELETE FROM task_photos WHERE id = ?", [photo.id]);
   changed(actor.householdId);
-  await destroyImage(photo.public_id).catch((err) => console.error("couldn't delete photo from Cloudinary", photo.public_id, err));
+  await destroyImages([photo]);
   return photo.task_id;
 }
 

@@ -12,7 +12,7 @@ import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/goog
 import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, getUser, MEMBER_COLOR_NAMES, MEMBER_COLORS, removeAvatarPhoto, setAvatarPhoto, updateColor, updateName, updateProfile, updateSignIn, upsertDevUser, upsertGoogleUser, verifyLogin } from "./src/services/users.js";
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
-import { changed, onChange } from "./src/services/changes.js";
+import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
 import { assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
@@ -24,7 +24,7 @@ import { doneTodayView } from "./src/web/done-today.js";
 import { householdPhrase } from "./src/web/household-phrase.js";
 import { cancelEmailChange, confirmEmail, describeLink, emailConfirmed, isPasswordAccount, linkSent, resendConfirmation, sendVerifyEmail } from "./src/services/email-confirm.js";
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
-import { addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
+import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
@@ -53,7 +53,7 @@ const appQr = {
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, you: res.locals.user?.color, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -92,6 +92,8 @@ app.use(express.json({ limit: "256kb" }));
 
 // Every handler gets req.cookies, req.user (or null) and req.membership (household + members).
 app.use(async (req, res, next) => {
+  // Before anything is read: a page's live stream compares it with the household's last change (see /events).
+  res.locals.renderedAt = Date.now();
   req.cookies = parseCookies(req.headers.cookie);
   req.user = await loadSession(req.cookies);
   req.membership = req.user ? await getHouseholdForUser(req.user.id) : null;
@@ -152,9 +154,13 @@ const isNotFound = (err) => err instanceof HttpError && err.status === 404;
 
 // Live updates: the home page and task pages hold this stream open, and any change in the
 // household (from a member or from Google) re-renders the page's task list or checklist.
-// It's also sent on connect, so a reconnect catches up on whatever was missed.
+// It's also sent on connect, so a reconnect catches up on whatever was missed, unless the page says it's
+// current: `since` is when it was rendered and `next` its list's refreshAt. If nothing in the household has
+// changed since then and that time hasn't come, the page already shows what a render would, so skip it.
 app.get("/events", requireHousehold, async (req, res) => {
   const listQuery = cleanListQuery(req.query);
+  const since = Number(req.query.since) || 0;
+  const next = Number(req.query.next) || null;
   const taskId = typeof req.query.task === "string" ? req.query.task : null;
   const { householdId } = req.actor;
   // The task was deleted: 204 is the one response Datastar's retry: 'always' won't retry.
@@ -215,7 +221,9 @@ app.get("/events", requireHousehold, async (req, res) => {
 
     const unsubscribe = subscribe(householdId, refresh);
     const heartbeat = setInterval(() => res.write(": ping\n\n"), 25_000); // keeps proxies from idling us out
-    refresh();
+    const current = since > lastChangedAt(householdId) && (!next || next > Date.now());
+    if (!current) refresh();
+    else if (!taskId) scheduleDrop(next);
     await new Promise((resolve) => res.on("close", resolve));
     closed = true;
     unsubscribe();
@@ -577,6 +585,17 @@ app.post("/items/:id/uncheck", requireHousehold, async (req, res) => {
 
 app.post("/items/:id/delete", requireHousehold, async (req, res) => {
   await sendChecklist(req, res, await deleteItem(req.actor, req.params.id), { signals: { itemRenaming: "" } });
+});
+
+// An item's photo: the bytes as the body, like /tasks/:id/photos. A new one replaces the old; the live update shows it.
+app.post("/items/:id/photo", requireHousehold, express.raw({ type: "image/*", limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  try {
+    await addItemPhoto(req.actor, req.params.id, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return res.status(err.status).type("text").send(err.message);
+    throw err;
+  }
+  res.sendStatus(204);
 });
 
 // Drag (or arrow keys on the grip) to reorder within a section; see public/js/reorder-items.js.

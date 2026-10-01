@@ -10,16 +10,20 @@
       grabs: "Nothing up for grabs.",
       waiting: "Not waiting on anyone right now.",
       someday: "Nothing parked here yet. When an idea isn't for now, sort it into “Maybe later”.",
-      done: "Nothing finished in the last 8 hours.",
+      done: "Nothing finished in the last 24 hours.",
     }[it.view] %></p>
   <% } %>
   <% it.groups.forEach((g) => { %>
-    <%/* By date, or by where/how (each place's heading links to just its tasks). */%>
-    <h3 class="group <%= it.groupBy === 'when' && g.label === 'Overdue' ? 'overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.project ? { project: it.project } : {}), ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %> <span class="count"><%= g.tasks.length %></span></h3>
-    <ul class="tasks">
-      <% g.tasks.forEach((t) => { %>
-        <%~ include("/partials/task-row", { t, view: it.view, project: it.project, context: it.context, tag: it.tag, userId: it.userId }) %>
-      <% }) %>
-    </ul>
+    <%/* By date, or by where/how (each place's heading links to just its tasks). Each group is a card with its
+         heading sitting on the top border, like a fieldset's legend. */%>
+    <%/* Its color: a tone (accent, danger, plain) or a hue; see withWhereTone and GROUP_HUES. */%>
+    <section class="task-group<%= g.tone ? ` tone-${g.tone}` : '' %>"<% if (g.hue != null) { %> style="--hue: <%= g.hue %>"<% } %>>
+      <h3 class="group<%= g.tone === 'danger' ? ' overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.project ? { project: it.project } : {}), ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %> <span class="count"><%= g.tasks.length %></span></h3>
+      <ul class="tasks">
+        <% g.tasks.forEach((t) => { %>
+          <%~ include("/partials/task-row", { t, view: it.view, project: it.project, context: it.context, tag: it.tag, userId: it.userId }) %>
+        <% }) %>
+      </ul>
+    </section>
   <% }) %>
 </section>
