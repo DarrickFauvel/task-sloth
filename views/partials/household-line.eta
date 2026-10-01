@@ -1,0 +1,3 @@
+<%/* The line under the brand (see householdLine in server.js). Typed out when it's new; one already seen just shows
+     (data-typed tells <type-writer> it's done). The id changes with the line, so a new one replaces the element and types. */%>
+<p class="brand-household" id="household-line"><type-writer id="household-phrase-<%= it.line.index %>"<%~ it.line.animate ? "" : ' data-typed="true"' %>><%= it.line.text %></type-writer></p>

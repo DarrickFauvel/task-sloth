@@ -1,5 +1,5 @@
 <% layout("/layout") %>
-<%~ include("/partials/app-header", { user: it.user, membership: it.membership, phrase: it.householdPhrase, doneToday: it.doneToday }) %>
+<%~ include("/partials/app-header", { user: it.user, membership: it.membership, line: it.householdLine, doneToday: it.doneToday }) %>
 <% if (it.emailNotice) { %><%~ include("/partials/email-notice", it.emailNotice) %><% } %>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
