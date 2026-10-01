@@ -1052,12 +1052,19 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 .account dt { color: var(--muted); }
 .account dd { margin: 0; overflow-wrap: anywhere; }
 
+/* Going from page to page, the old page cross-fades into the new one instead of flashing blank (where the
+   browser supports cross-document view transitions; elsewhere pages just load). Quick, so it never feels slow. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-group(root) { animation-duration: 0.18s; }
+}
+
 /* Light/dark switch: toggleTheme() runs it as a view transition. The new theme grows out of the
    button as a circle with a wide feathered edge (a radial mask whose radius, --theme-r, is animated),
    so the two themes blend instead of meeting at a hard line. --theme-x/y are set on <html>. */
 @property --theme-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
-::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-::view-transition-new(root) {
+:root.is-theming::view-transition-old(root), :root.is-theming::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+:root.is-theming::view-transition-new(root) {
   --theme-feather: 12rem;
   mask-image: radial-gradient(circle at var(--theme-x, 50%) var(--theme-y, 0px),
     #000 max(0px, calc(var(--theme-r) - var(--theme-feather))), transparent var(--theme-r));
