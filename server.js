@@ -15,7 +15,7 @@ import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getIn
 import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
 import { completeInSession, endFocus, focusChoices, getFocus, resumeFocus, setAsideInSession, skipInSession, startFocus } from "./src/services/focus.js";
 import { focusPageView } from "./src/web/focus-page.js";
-import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
+import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, moveTask, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { addSpot, ensureContext, getContext, listContexts, listSpots, removeSpot } from "./src/services/contexts.js";
@@ -138,6 +138,9 @@ const doneToday = (req, membership) => doneTodayView({ membership, timeZone: req
  */
 const groupSwitches = new Map();
 const groupBy = (req) => groupSwitches.get(req.user?.session_id) ?? (req.cookies.group === "where" ? "where" : "when");
+/** View as a list (the default) or a board, the same way: a cookie, with switches made since kept per sign-in. */
+const layoutSwitches = new Map();
+const layoutOf = (req) => layoutSwitches.get(req.user?.session_id) ?? (req.cookies.layout === "board" ? "board" : "list");
 const isDatastar = (req) => req.get("datastar-request") === "true";
 
 /** The home page's nudge to confirm your email (or a pending new one), for password accounts; null if there's nothing to confirm. */
@@ -173,7 +176,7 @@ app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
   if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
   const list = req.membership
-    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })
+    ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdLine: householdLine(req, res),
@@ -231,7 +234,7 @@ app.get("/events", requireHousehold, async (req, res) => {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership)];
     }
-    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
+    const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
     scheduleDrop(list.refreshAt);
     return renderList(list, req.user.id, await doneToday(req, membership));
   };
@@ -299,11 +302,11 @@ const renderList = (list, userId, doneToday) => [
 
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list.
  *  `grouping` overrides the group cookie, for the request that has just changed it. */
-async function sendTaskList(req, res, { flash, signals, grouping, script } = {}) {
+async function sendTaskList(req, res, { flash, signals, grouping, layout, script } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
-  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) });
+  const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), layout: layout ?? layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) });
   const parts = renderList(list, req.user.id, await doneToday(req, req.membership));
   const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
@@ -413,6 +416,18 @@ app.post("/tasks/:id/start", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/stop", requireHousehold, async (req, res) => {
   await stopWorking(req.actor, req.params.id);
   await sendTaskList(req, res);
+});
+
+// The board: a card moved to another column (dragged, or "Move to"). Done says what it freed up, like the tick.
+app.post("/tasks/:id/move/:column", requireHousehold, async (req, res) => {
+  const unblocked = req.params.column === "done" ? await listBlockedBy(req.actor.householdId, req.params.id) : [];
+  const nextId = await moveTask(req.actor, req.params.id, req.params.column, { until: nextMidnight(req.cookies.tz).toISOString(), today: today(req) });
+  const next = nextId && (await getTask(req.actor.householdId, nextId));
+  const messages = [
+    next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
+    unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
+  ].filter(Boolean);
+  await sendTaskList(req, res, { flash: messages.length ? { message: messages.join(" · ") } : undefined });
 });
 
 app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
@@ -1196,6 +1211,14 @@ app.post("/list-grouping", requireHousehold, async (req, res) => {
   res.append("Set-Cookie", by === "where" ? "group=where; Path=/; Max-Age=31536000; SameSite=Lax" : "group=; Path=/; Max-Age=0; SameSite=Lax");
   groupSwitches.set(req.user.session_id, by);
   await sendTaskList(req, res, { grouping: by });
+});
+
+// View the to-do tabs as a list or a board (the "View as" switch), like Group by.
+app.post("/list-layout", requireHousehold, async (req, res) => {
+  const as = (req.body.as ?? req.query.as) === "board" ? "board" : "list";
+  res.append("Set-Cookie", as === "board" ? "layout=board; Path=/; Max-Age=31536000; SameSite=Lax" : "layout=; Path=/; Max-Age=0; SameSite=Lax");
+  layoutSwitches.set(req.user.session_id, as);
+  await sendTaskList(req, res, { layout: as });
 });
 
 // Light, dark, or match the device (no cookie). The ☀️/🌙 button sets the same cookie from the page.

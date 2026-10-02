@@ -7,6 +7,7 @@
   <script type="module" src="/js/near-you.js"></script>
   <script type="module" src="/js/quick-suggest.js"></script>
   <script type="module" src="/js/elapsed-time.js"></script>
+  <script type="module" src="/js/task-board.js"></script>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
   <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
   <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"

@@ -1480,6 +1480,47 @@ body:has(.landing) { overflow-x: clip; }
   .landing-hero::before, .demo-screen, .demo-ticking .check, .demo-ticking .check span, .demo-ticking .task-title, .demo-ticking .task-title > span { animation: none; }
 }
 
+/* --- Board (views/partials/task-board.eta) ----------------------------------------------- */
+/* Phones: one column at a time, a swipe apart, the next one peeking in at the edge. Wider screens: all four side
+   by side. Each column is a tinted card; each task a solid card in it. */
+.board {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 85%; gap: var(--space-s); align-items: start;
+  margin: var(--space-m) calc(-1 * var(--space-m)) 0; padding: 0 var(--space-m) var(--space-s);
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--space-m); overscroll-behavior-x: contain;
+}
+.board-col {
+  scroll-snap-align: start; display: grid; gap: var(--space-xs); align-content: start; min-height: 8rem;
+  padding: var(--space-s); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--tint);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.board-col.is-over { border-color: var(--accent); background: var(--tint-strong); }
+.board-head { margin: 0; font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.04em; color: color-mix(in oklch, var(--accent) 75%, var(--fg)); }
+.board-head .count { color: var(--muted); }
+.board-empty { margin: 0; }
+.board-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-xs); }
+.board-card {
+  display: grid; gap: 0.2rem; padding: var(--space-xs) var(--space-s);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
+  cursor: grab; box-shadow: 0 0.1rem 0.3rem rgb(0 0 0 / 0.05);
+}
+.board-card.is-dragging { opacity: 0.4; }
+.board-card.is-done .board-title { color: var(--muted); text-decoration: line-through; }
+.board-title { color: inherit; text-decoration: none; overflow-wrap: anywhere; font-weight: 500; }
+.board-card .meta { gap: 0 var(--space-xs); }
+.move summary { width: fit-content; min-height: var(--tap); display: flex; align-items: center; color: var(--accent); font-size: var(--step--1); cursor: pointer; list-style: none; }
+.move summary::-webkit-details-marker { display: none; }
+.move summary::after { content: " →"; white-space: pre; }
+.move[open] summary::after { content: " ↓"; }
+.move-to { display: flex; flex-wrap: wrap; gap: var(--space-2xs); padding-bottom: var(--space-2xs); }
+.move-to form { margin: 0; }
+/* On a big screen the page widens for a board, so four columns have room. */
+@media (min-width: 64rem) {
+  main:has(task-board) { max-width: 72rem; }
+}
+@media (min-width: 48rem) {
+  .board { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-inline: 0; padding-inline: 0; overflow: visible; }
+}
+
 /* --- Focus sessions (views/pages/focus.eta) --------------------------------------------- */
 /* The line at the top of the lists while someone's focusing, and "Focus on these" on a list narrowed to one
    project or place. */

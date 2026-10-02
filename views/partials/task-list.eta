@@ -14,7 +14,9 @@
     </form>
   <% } %>
   <% if (it.view === "done" && it.doneToday) { %><%~ include("/partials/done-today-dots", it.doneToday) %><% } %>
-  <% if (!it.groups.length && it.filterLabel) { %>
+  <% if (it.layout === "board") { %>
+    <%~ include("/partials/task-board", it) %>
+  <% } else if (!it.groups.length && it.filterLabel) { %>
     <p class="empty">No <%= it.view === "done" ? "finished" : "open" %> tasks for <%= it.filterLabel %> here.</p>
   <% } else if (!it.groups.length) { %>
     <p class="empty"><%= {

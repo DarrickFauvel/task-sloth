@@ -308,6 +308,26 @@ export async function startWorking(actor, id, { until }) {
   return { claimed: !task.assignee_id };
 }
 
+/**
+ * The board (View as: Board): moves a task to a column, doing what that means. "todo": back to the To do list,
+ * not started (reopening it if it was done); "doing": you start on it (from To do); "waiting": onto the Waiting
+ * list; "done": finished. Returns setDone's next repeat, if any.
+ */
+export async function moveTask(actor, id, column, { until, today } = {}) {
+  if (!["todo", "doing", "waiting", "done"].includes(column)) throw new HttpError(404, "Unknown column");
+  const task = await getTask(actor.householdId, id);
+  if (column === "done") return task.status === "done" ? null : setDone(actor, id, true, { today });
+  if (task.status === "done") await setDone(actor, id, false);
+  if (column === "waiting") return void (await updateTask(actor, id, { list: "waiting" }));
+  if (task.list !== "todo") await updateTask(actor, id, { list: "todo" });
+  if (column === "doing") return void (await startWorking(actor, id, { until }));
+  if (column === "todo") {
+    const now = await getTask(actor.householdId, id);
+    if (now.working_by) await stopWorking(actor, id);
+  }
+  return null;
+}
+
 /** Ends "working on now" for a task, whoever marked it. */
 export async function stopWorking(actor, id) {
   const task = await getTask(actor.householdId, id);

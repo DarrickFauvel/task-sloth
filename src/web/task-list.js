@@ -120,7 +120,7 @@ export function decorateTask(t, membership, today, time = null) {
  * `refreshAt` (ms since the epoch, or null) is when the list next changes on its own, so a live page can re-render
  * then: a finished task dropping off, and with `time`, a due time passing or midnight.
  */
-export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", today, time = null, resetDue = false, now = Date.now() }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", layout = "list", today, time = null, resetDue = false, now = Date.now() }) {
   const householdId = membership.household.id;
   const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
@@ -156,10 +156,17 @@ export async function taskListView({ userId, membership, view, project: projectI
     // Who's in a focus session (src/services/focus.js), and on a list narrowed to one project or place, whether
     // there's anything there to focus on.
     focusLines: await focusLines(householdId, membership, userId),
-    focusHere: await focusHere(userId, householdId, view, project, context) };
+    focusHere: await focusHere(userId, householdId, view, project, context),
+    // "View as": a list (the default) or a board (see boardColumns), on the to-do tabs.
+    canBoard: BOARD_VIEWS.has(view), layout: "list" };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
+
+  if (base.canBoard && layout === "board") {
+    const columns = await boardColumns({ householdId, userId, membership, view, project, context, tag, today, time, now });
+    return { ...base, layout: "board", columns, groups: [] };
+  }
 
   // What you're doing right now (one task at most) goes first, ahead of the dates or places. Others' stay in their
   // usual groups, with "Sam's on it".
@@ -182,6 +189,44 @@ export async function taskListView({ userId, membership, view, project: projectI
     .map(({ test, ...g }) => ({ ...g, tasks: rest.filter(test) }))
     .filter((g) => g.tasks.length);
   return { ...base, canGroup, groupBy: "when", groups: [...nowGroup, ...groups] };
+}
+
+/** The tabs that can be shown as a board: the to-do ones. */
+export const BOARD_VIEWS = new Set(["mine", "all", "grabs"]);
+
+/** The board's columns, in order, with what each means (shown when it's empty) and what moving a card there does. */
+export const BOARD_COLUMNS = [
+  { key: "todo", label: "To do", empty: "Nothing waiting to be started." },
+  { key: "doing", label: "Doing", empty: "Move a task here when you start it. Everyone sees you're on it." },
+  { key: "waiting", label: "Waiting on", empty: "Things stuck on someone else, or on another task, go here." },
+  { key: "done", label: "Done today", empty: "Move a task here when it's finished." },
+];
+
+/**
+ * The board (View as: Board): this tab's tasks by where they are. To do (not started, not blocked); Doing (someone's
+ * working on it now); Waiting on (the Waiting list, or blocked by another task); Done today (since midnight where
+ * you are, from `time`). The tab's who (Mine / Everyone / Up for grabs) and any project, place or tag apply to all four.
+ */
+export async function boardColumns({ householdId, userId, membership, view, project, context, tag, today, time = null, now = Date.now() }) {
+  const common = {
+    assigneeId: { mine: userId, all: undefined, grabs: null }[view],
+    projectId: project?.id, contextId: context?.id, tag: tag ?? undefined,
+  };
+  const decorate = (t) => decorateTask(t, membership, today, time);
+  const startOfMinute = now - (now % 60_000);
+  const midnight = time ? startOfMinute - minutesOf(time) * 60_000 : now - DONE_WINDOW_MS;
+  const [open, waiting, done] = await Promise.all([
+    listTasks(householdId, { ...common, status: "open", list: "todo" }),
+    listTasks(householdId, { ...common, status: "open", waiting: true }),
+    listTasks(householdId, { ...common, status: "done", completedSince: new Date(midnight).toISOString(), limit: 30 }),
+  ]).then((lists) => lists.map((l) => l.map(decorate)));
+  const tasks = {
+    todo: open.filter((t) => !t.worker && !t.blockedBy),
+    doing: open.filter((t) => t.worker),
+    waiting: waiting.filter((t) => !t.worker),
+    done,
+  };
+  return BOARD_COLUMNS.map((c) => ({ ...c, tasks: tasks[c.key] }));
 }
 
 /** A list narrowed to a project or a where/how offers a focus session on it, when there's something you could take on there. */
