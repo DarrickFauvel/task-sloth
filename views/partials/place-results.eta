@@ -9,7 +9,7 @@
     <ul class="place-options">
       <% s.results.forEach((p) => { %>
         <li>
-          <form method="post" action="/places/<%= it.id %>/pick" data-on:submit="@post('/places/<%= it.id %>/pick', {contentType: 'form'})">
+          <form method="post" action="/places/<%= it.id %>/pick" data-on:submit="@post('/places/<%= it.id %>/pick', {contentType: 'form'}); el.closest('dialog')?.close()">
             <input type="hidden" name="lat" value="<%= p.lat %>"><input type="hidden" name="lng" value="<%= p.lng %>"><input type="hidden" name="label" value="<%= p.label %>">
             <button class="place-option"><span class="emoji" aria-hidden="true">📍</span> <%= p.label %></button>
           </form>

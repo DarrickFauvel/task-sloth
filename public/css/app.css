@@ -1137,21 +1137,32 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .reset-nudge p, .near-banner p { margin: 0; }
 .reset-nudge .actions, .near-banner .actions { margin: 0; }
 .activity time { flex: none; font-size: var(--step--1); }
-/* The Where / how page: each where/how, its place, and a folded "Put it on the map". */
+/* The Where / how page: the where/hows on the map, each with its spots (address → map, × removes) and "Add a spot";
+   the rest as chips. Each opens its own sheet with "I'm here now" and an address search. */
+.places-page .settings + .settings { margin-top: var(--space-m); }
 .places { list-style: none; margin: 0; padding: 0; }
-.place { display: grid; gap: var(--space-2xs); padding: var(--space-s) 0; border-bottom: 1px solid var(--line); }
+.place { display: grid; gap: var(--space-xs); padding: var(--space-s) 0; border-bottom: 1px solid var(--line); }
+.place:first-child { padding-top: 0; }
 .place:last-child { border-bottom: 0; padding-bottom: 0; }
-.place-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs); }
+.place-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-xs); }
 .place-name { font-weight: 600; color: inherit; text-decoration: none; }
-.place-where { margin: 0; overflow-wrap: anywhere; }
-.spots { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2xs); }
-.spot { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-s); }
+.spots { list-style: none; margin: 0; padding: 0; display: grid; }
+.spot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); }
 .spot form { margin: 0; flex: none; }
-.place > .hint { margin: 0; }
-.place-set > summary { cursor: pointer; color: var(--accent); padding: var(--space-xs) 0; min-height: 2.75rem; display: flex; align-items: center; }
-.place-set-body { display: grid; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); }
-.place-set-body form, .place-set-body .field { margin: 0; }
-.place-set-body .hint { margin: 0; }
+.spot-where { flex: 1; min-width: 0; padding: var(--space-2xs) 0; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.spot-where:hover, .spot-where:focus-visible { color: var(--accent); }
+/* A quiet ×, with a full-size tap target. */
+.spot-remove { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--muted); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.spot-remove:hover, .spot-remove:focus-visible { color: var(--danger); background: var(--tint); }
+.add-spot { justify-self: start; }
+.place-sheet .sheet-body { gap: var(--space-m); justify-items: stretch; text-align: left; }
+.place-sheet .sheet-body::before { justify-self: center; }
+.place-sheet form[method=dialog] .button { width: 100%; }
+.place-sheet form, .place-sheet .field { margin: 0; }
+/* Sheets stretch their buttons; the search keeps its box wide and its button its own size. */
+.place-sheet .inline-field .button { flex: none; width: auto; min-width: 0; }
+.place-sheet .hint { margin: 0; }
 /* "I'm here now" needs its script; without it there's still the search. */
 here-button:not(:defined) { display: none; }
 here-button { display: grid; gap: var(--space-2xs); }
