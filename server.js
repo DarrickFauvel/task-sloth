@@ -6,6 +6,7 @@ import { config, googleConfigured, photosConfigured } from "./src/config.js";
 import { initDb } from "./src/db/client.js";
 import { migrate } from "./src/db/migrate.js";
 import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http.js";
+import { assetUrls, hashAssets } from "./src/lib/assets.js";
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
 import { beginGoogleLogin, completeGoogleLogin, safeNext } from "./src/auth/google-oauth.js";
@@ -59,10 +60,12 @@ const appQr = {
   svg: await QRCode.toString(appUrl, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#1d1b19", light: "#ffffff" } }),
 };
 
-const eta = new Eta({ views: dir("./views"), cache: config.isProduction });
+// Templates link to public/ files with asset("/css/app.css"), which adds the file's hash (src/lib/assets.js).
+const { asset, importMap } = assetUrls(hashAssets(dir("./public")));
+const eta = new Eta({ views: dir("./views"), cache: config.isProduction, asset, functionHeader: "const asset = this.config.asset;" });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 

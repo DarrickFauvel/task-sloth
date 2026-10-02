@@ -1,5 +1,5 @@
 <% layout("/layout", { title: "Where / how" }) %>
-<script type="module" src="/js/near-you-switch.js"></script>
+<script type="module" src="<%= asset("/js/near-you-switch.js") %>"></script>
 <%/* Settings-style cards: "Near you" on this device, then the where/hows on the map and the rest (partials/places-list),
      with a sheet each for adding a spot (partials/place-sheets; "I'm here now" is <here-button>, in near-you-switch.js). */%>
 <div class="settings-page places-page">

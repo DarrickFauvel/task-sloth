@@ -1,7 +1,7 @@
 <% layout("/layout", { title: null, wide: true, description: "A shared to-do list for your household. Jot things down in a second, sort them when you're ready, and see only what you can actually do." }) %>
 <%/* The front door for anyone not signed in (GET / without a session). It shows the app with its own pieces:
      the preview is real task-row markup and styles, made inert, so it stays in step with the app. */%>
-<script type="module" src="/js/type-writer.js"></script>
+<script type="module" src="<%= asset("/js/type-writer.js") %>"></script>
 <div class="landing">
   <header class="landing-bar">
     <%~ include("/partials/brand", {}) %>
@@ -25,7 +25,7 @@
     <figure class="landing-demo" aria-hidden="true">
       <div class="demo-screen">
         <div class="demo-top">
-          <img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192">
+          <img class="brand-logo" src="<%= asset("/img/logo.png") %>" alt="" width="192" height="192">
           <span class="done-badge"><span class="done-emoji is-fire"><span>🔥</span><span>🔥</span></span><span class="done-count">5</span></span>
           <span class="demo-avatars"><span class="avatar" style="--c: #6d5dfc">S</span><span class="avatar" style="--c: #e0763b">A</span></span>
         </div>
@@ -72,7 +72,7 @@
   </section>
 
   <section class="landing-cta">
-    <img class="landing-cta-logo" src="/img/logo.png" alt="" width="192" height="192">
+    <img class="landing-cta-logo" src="<%= asset("/img/logo.png") %>" alt="" width="192" height="192">
     <h2>Slow down. Still get it done.</h2>
     <p>Set up your household in a minute, then invite everyone else.</p>
     <a class="button primary" href="/signup">Create your household</a>
