@@ -108,8 +108,8 @@ export function buildActivity(rows, { membersById, userId, timeZone, today, who 
 }
 
 /**
- * The household's last ACTIVITY_DAYS days of activity (see buildActivity). `who` is from ?who=: "everyone",
- * "me", or a member id; otherwise it's what everyone else did (or everything, in a household of one). `all`
+ * The household's last ACTIVITY_DAYS days of activity (see buildActivity). `who` is from ?who=: "others",
+ * "everyone", or a member id; otherwise it's what you did (or everything, in a household of one). `all`
  * (?all=1) shows every change, minor ones too. `filters` are the page's chips and its "every change" link.
  */
 export async function activityView({ userId, membership, timeZone, today, who = null, all = false, now = Date.now() }) {
@@ -118,15 +118,15 @@ export async function activityView({ userId, membership, timeZone, today, who = 
   const membersById = Object.fromEntries(membership.members.map((m) => [m.id, m]));
   const others = membership.members.filter((m) => m.id !== userId);
   const firstName = (m) => m.name.split(" ")[0];
-  const choice = who === "everyone" || who === "me" || (others.some((m) => m.id === who)) ? who : others.length ? "others" : "everyone";
+  const choice = !others.length ? "everyone" : who === "everyone" || who === "others" || others.some((m) => m.id === who) ? who : "me";
   const href = (key, everything = all) => {
-    const q = new URLSearchParams({ ...(key !== "others" && others.length ? { who: key } : {}), ...(everything ? { all: "1" } : {}) }).toString();
+    const q = new URLSearchParams({ ...(key !== "me" && others.length ? { who: key } : {}), ...(everything ? { all: "1" } : {}) }).toString();
     return `/activity${q ? `?${q}` : ""}`;
   };
-  // "Sam | Everyone | You" in a household of two; "Others | Everyone | You | Sam | Kim" in a bigger one.
+  // "You | Sam | Everyone" in a household of two; "You | Others | Everyone | Sam | Kim" in a bigger one.
   const people = others.length
-    ? [{ key: "others", label: others.length === 1 ? firstName(others[0]) : "Others" }, { key: "everyone", label: "Everyone" },
-        { key: "me", label: "You" }, ...(others.length > 1 ? others.map((m) => ({ key: m.id, label: firstName(m) })) : [])]
+    ? [{ key: "me", label: "You" }, { key: "others", label: others.length === 1 ? firstName(others[0]) : "Others" }, { key: "everyone", label: "Everyone" },
+        ...(others.length > 1 ? others.map((m) => ({ key: m.id, label: firstName(m) })) : [])]
     : [];
   return {
     days: buildActivity(rows, { membersById, userId, timeZone, today, all, who: choice === "me" ? userId : choice }),
