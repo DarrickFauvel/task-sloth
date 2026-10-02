@@ -50,5 +50,5 @@
   </button>
   <form method="post" action="/logout"><button class="menu-item"><span class="menu-icon emoji" aria-hidden="true">↪</span> Sign out</button></form>
 </div>
-<% if (household) { %><script type="module" src="/js/type-writer.js"></script><% } %>
-<script type="module" src="/js/sticky-header.js"></script>
+<% if (household) { %><script type="module" src="<%= asset("/js/type-writer.js") %>"></script><% } %>
+<script type="module" src="<%= asset("/js/sticky-header.js") %>"></script>

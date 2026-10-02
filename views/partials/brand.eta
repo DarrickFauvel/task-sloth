@@ -1,3 +1,3 @@
 <%/* The Task Sloth brand: the logo and the name, linking home (the landing page when signed out, your lists when
      signed in). The sloth dozes off now and then: three z's float up from beside its head (see .brand-zzz in app.css). */%>
-<a class="brand" href="/"><span class="brand-mark"><img class="brand-logo" src="/img/logo.png" alt="" width="192" height="192"><span class="brand-zzz" aria-hidden="true"><span>z</span><span>z</span><span>z</span></span></span><span class="brand-name">Task Sloth</span></a>
+<a class="brand" href="/"><span class="brand-mark"><img class="brand-logo" src="<%= asset("/img/logo.png") %>" alt="" width="192" height="192"><span class="brand-zzz" aria-hidden="true"><span>z</span><span>z</span><span>z</span></span></span><span class="brand-name">Task Sloth</span></a>

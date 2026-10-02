@@ -24,7 +24,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <%/* Installable as an app; public/sw.js shows an offline page and caches styles, scripts and images. */%>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="<%= asset("/css/app.css") %>">
+  <%/* Gives a module's own imports (./lib/dates.js) the same versioned URLs as asset(); see src/lib/assets.js.
+       It has to come before any module script. */%>
+  <% if (it.importMap) { %><script type="importmap"><%~ it.importMap %></script><% } %>
   <script>
     document.cookie = `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}; path=/; max-age=31536000; samesite=lax`;
     // Toasts (views/partials/flash.eta): slide out, then leave the page.

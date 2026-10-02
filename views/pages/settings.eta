@@ -1,5 +1,5 @@
 <% layout("/layout", { title: "Settings" }) %>
-<script type="module" src="/js/photo-picker.js"></script>
+<script type="module" src="<%= asset("/js/photo-picker.js") %>"></script>
 <%/* Profile, appearance, household and account: one card each. Everything saves as you go (the name when you
      leave its box, a color or theme when you pick it, a photo once chosen); the household name is the only
      field with a Save button. A fieldset groups the choices that answer one question (photo, color, theme). */%>

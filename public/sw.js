@@ -2,19 +2,20 @@
 // Pages always come from the server, never from a cache: they hold the household's tasks, and they must be
 // current. With no connection, a page load shows /offline.html instead of the browser's error.
 // Styles, scripts and images are served from the cache and refreshed in the background (stale-while-
-// revalidate), so pages start faster. Registered with ?dev=1 outside production, where they come from the
+// revalidate), so pages start faster. Pages link to them with ?v=<hash of the file> (src/lib/assets.js), so
+// after a deploy a changed file has a new URL and comes from the network; older versions are dropped. Registered with ?dev=1 outside production, where they come from the
 // network first (an edited stylesheet shows on the next load, not the one after) and the cache only offline.
 // Live streams (/events), form posts, photos and avatars aren't touched.
 // Tapping a "Near you" notification (public/js/near-you.js) opens that place's tasks.
 
-const CACHE = "task-sloth-v2";
+const CACHE = "task-sloth-v3";
 const OFFLINE = "/offline.html";
 const PRECACHE = [OFFLINE, "/css/app.css", "/img/logo.png", "/favicon.png"];
 const DATASTAR = "https://cdn.jsdelivr.net/gh/starfederation/datastar@";
 const dev = new URL(self.location.href).searchParams.has("dev");
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 // Drop caches from older versions, and take over open pages straight away.
@@ -48,7 +49,10 @@ self.addEventListener("fetch", (event) => {
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(request);
       const fresh = fetch(request).then((res) => {
-        if (res.ok) cache.put(request, res.clone());
+        if (res.ok) {
+          cache.put(request, res.clone());
+          if (url.searchParams.has("v")) event.waitUntil(dropOtherVersions(cache, url));
+        }
         return res;
       });
       if (cached) {
@@ -59,6 +63,14 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+// Removes cached copies of the same file under another ?v=, once a new version is in.
+async function dropOtherVersions(cache, url) {
+  for (const old of await cache.keys()) {
+    const oldUrl = new URL(old.url);
+    if (oldUrl.origin === url.origin && oldUrl.pathname === url.pathname && oldUrl.search !== url.search) await cache.delete(old);
+  }
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
