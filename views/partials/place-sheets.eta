@@ -1,0 +1,35 @@
+<%/* One bottom sheet per where/how, opened by "Add a spot" or its chip (partials/places-list): "I'm here now" or an
+     address search. They sit outside #places-list, so re-rendering the list never touches an open sheet. Saving
+     a spot closes its sheet (the list comes back with the new spot and a toast). Closing it clears its search. Like every sheet, it ends with
+     Close.
+     Without script, a search reloads the page with its sheet open (not as a modal) to show the results. */%>
+<% it.rows.forEach((r) => { %>
+  <dialog id="sheet-<%= r.id %>" class="sheet place-sheet" aria-labelledby="sheet-<%= r.id %>-title" closedby="any"<%~ r.search ? " open" : "" %>
+          data-on:click="evt.target === el && el.close()"
+          data-on:close="el.querySelector('.place-results').replaceChildren(); el.querySelector('input[name=q]').value = ''">
+    <div class="sheet-body">
+      <h2 id="sheet-<%= r.id %>-title">Add a spot for @<%= r.name %></h2>
+      <%/* The browser's position fills lat/lng, then the form posts (see <here-button>; hidden until its script runs). */%>
+      <here-button>
+        <form method="post" action="/places/<%= r.id %>/here" data-on:submit="@post('/places/<%= r.id %>/here', {contentType: 'form'}); el.closest('dialog').close()">
+          <input type="hidden" name="lat"><input type="hidden" name="lng">
+          <button type="button" class="button">I'm here now</button>
+        </form>
+        <p class="hint" role="status" data-status>Standing at <%= r.name %>? Tap this to save where you are.</p>
+      </here-button>
+      <form class="place-search" method="post" action="/places/<%= r.id %>/search" data-on:submit="@post('/places/<%= r.id %>/search', {contentType: 'form'})">
+        <label class="field">Or search for it
+          <span class="inline-field">
+            <input type="search" name="q" value="<%= r.search?.query ?? '' %>" required maxlength="200" autocomplete="off" placeholder="<%= r.name %>, Main Street">
+            <button class="button">Search</button>
+          </span>
+        </label>
+        <%/* Filled by near-you-switch.js when this browser already shares its location, so nearby results come first. */%>
+        <input type="hidden" name="nearLat"><input type="hidden" name="nearLng">
+        <small class="hint">Search uses OpenStreetMap, so what you type is sent to them, with your rough area if this browser shares it, so nearby results come first.</small>
+      </form>
+      <%~ include("/partials/place-results", r) %>
+      <form method="dialog"><button class="button">Close</button></form>
+    </div>
+  </dialog>
+<% }) %>

@@ -92,12 +92,9 @@ navigator.permissions?.query({ name: "geolocation" }).then(async (perm) => {
   if (perm.state !== "granted") return;
   const p = await locate({ enableHighAccuracy: false, maximumAge: 10 * 60_000 }).catch(() => null);
   if (!p) return;
-  const fill = () => document.querySelectorAll(".place-search").forEach((f) => {
+  // The search forms are in the sheets, which are never re-rendered, so once is enough.
+  document.querySelectorAll(".place-search").forEach((f) => {
     f.elements.nearLat.value = p.coords.latitude.toFixed(1);
     f.elements.nearLng.value = p.coords.longitude.toFixed(1);
   });
-  fill();
-  // The list is re-rendered after a place is saved; fill the new forms too.
-  const list = document.getElementById("places-list");
-  if (list) new MutationObserver(fill).observe(list.parentElement, { childList: true, subtree: true });
 }).catch(() => {});

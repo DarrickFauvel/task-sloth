@@ -1,23 +1,24 @@
 /**
- * The Where / how page (views/pages/places.eta): every where/how, its spots on the map, and the ways to add one.
+ * The Where / how page (views/pages/places.eta): every where/how (`rows`, one add-a-spot sheet each), split into
+ * `onMap` (with their spots) and `offMap`.
  * `contexts` come from listContexts and `spots` from listSpots; `search` is an address search's outcome for one
  * where/how ({ contextId, query, results, error }), shown under that row. `timeZone` is the viewer's, for dates.
  */
 export function placesPageView(contexts, spots, search = null, timeZone = "UTC") {
   const savedOn = (iso) => (iso ? ` on ${dateFormat(timeZone).format(new Date(iso))}` : "");
-  return {
-    rows: contexts.map((cx) => {
-      const mine = spots.filter((s) => s.context_id === cx.id);
-      return {
-        id: cx.id,
-        name: cx.name,
-        openCount: Number(cx.open_count ?? 0),
-        isPlace: mine.length > 0,
-        spots: mine.map((s) => ({ id: s.id, text: s.label || `Saved where someone stood${savedOn(s.created_at)}`, mapHref: mapHref(s.lat, s.lng) })),
-        search: search?.contextId === cx.id ? search : null,
-      };
-    }),
-  };
+  const rows = contexts.map((cx) => {
+    const mine = spots.filter((s) => s.context_id === cx.id);
+    return {
+      id: cx.id,
+      name: cx.name,
+      openCount: Number(cx.open_count ?? 0),
+      isPlace: mine.length > 0,
+      spots: mine.map((s) => ({ id: s.id, text: s.label || `Saved where someone stood${savedOn(s.created_at)}`, mapHref: mapHref(s.lat, s.lng) })),
+      search: search?.contextId === cx.id ? search : null,
+    };
+  });
+  // The page shows where/hows on the map first, each with its spots, then the rest as chips.
+  return { rows, onMap: rows.filter((r) => r.isPlace), offMap: rows.filter((r) => !r.isPlace) };
 }
 
 /** "Oct 2": when an "I'm here now" spot was saved, so two of them can be told apart. An unknown zone falls back to UTC. */

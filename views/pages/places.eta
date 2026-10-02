@@ -1,7 +1,7 @@
 <% layout("/layout", { title: "Where / how" }) %>
 <script type="module" src="/js/near-you-switch.js"></script>
-<%/* Settings-style cards: "Near you" on this device, then every where/how with its place (partials/places-list).
-     Setting a place needs no script except "I'm here now" (<here-button>, in near-you-switch.js). */%>
+<%/* Settings-style cards: "Near you" on this device, then the where/hows on the map and the rest (partials/places-list),
+     with a sheet each for adding a spot (partials/place-sheets; "I'm here now" is <here-button>, in near-you-switch.js). */%>
 <div class="settings-page places-page">
 <a class="back" href="/settings">← Settings</a>
 <h1>Where / how</h1>
@@ -22,6 +22,7 @@
     </near-you-switch>
   </section>
 
-  <%~ include("/partials/places-list", it) %>
 </div>
+<%~ include("/partials/places-list", it) %>
 </div>
+<%~ include("/partials/place-sheets", it) %>
