@@ -1,5 +1,6 @@
-<%/* Every where/how (placesPageView in src/web/places-page.js), each with its place and a folded "Set its place":
-     "I'm here now" or an address search. Re-rendered after a place is saved or removed, which also folds it. */%>
+<%/* Every where/how (placesPageView in src/web/places-page.js), each with its spots on the map and a folded
+     "Put it on the map" / "Add another spot": "I'm here now" or an address search. Re-rendered after a spot is
+     added or removed, which also folds it. */%>
 <section class="panel" id="places-list" aria-labelledby="places-title">
   <h2 id="places-title"><span class="emoji" aria-hidden="true">🗺️</span> Your where / how</h2>
   <% if (!it.rows.length) { %>
@@ -13,12 +14,22 @@
           <span class="hint"><%= r.openCount === 1 ? "1 open task" : `${r.openCount} open tasks` %></span>
         </div>
         <% if (r.isPlace) { %>
-          <p class="place-where"><span class="emoji" aria-hidden="true">📍</span> <%= r.placeText %> · <a href="<%= r.mapHref %>" target="_blank" rel="noopener">See on map</a></p>
+          <ul class="spots">
+            <% r.spots.forEach((sp) => { %>
+              <li class="spot">
+                <span class="place-where"><span class="emoji" aria-hidden="true">📍</span> <%= sp.text %> · <a href="<%= sp.mapHref %>" target="_blank" rel="noopener">See on map</a></span>
+                <form method="post" action="/spots/<%= sp.id %>/remove" data-on:submit="@post('/spots/<%= sp.id %>/remove', {contentType: 'form'})">
+                  <button class="link danger" aria-label="Remove this spot for <%= r.name %>">Remove</button>
+                </form>
+              </li>
+            <% }) %>
+          </ul>
+          <% if (r.spots.length > 1) { %><p class="hint">Near you works at any of these.</p><% } %>
         <% } else { %>
           <p class="place-where hint">Not on the map. Leave it that way for things like @phone.</p>
         <% } %>
         <details class="place-set"<%~ r.search ? " open" : "" %>>
-          <summary><%= r.isPlace ? "Change its place" : "Put it on the map" %></summary>
+          <summary><%= r.isPlace ? "Add another spot" : "Put it on the map" %></summary>
           <div class="place-set-body">
             <%/* The browser's position fills lat/lng, then the form posts (see <here-button>; hidden until its script runs). */%>
             <here-button>
@@ -40,11 +51,6 @@
               <small class="hint">Search uses OpenStreetMap, so what you type is sent to them, with your rough area if this browser shares it, so nearby results come first.</small>
             </form>
             <%~ include("/partials/place-results", r) %>
-            <% if (r.isPlace) { %>
-              <form method="post" action="/places/<%= r.id %>/clear" data-on:submit="@post('/places/<%= r.id %>/clear', {contentType: 'form'})">
-                <button class="link danger">Take it off the map</button>
-              </form>
-            <% } %>
           </div>
         </details>
       </li>

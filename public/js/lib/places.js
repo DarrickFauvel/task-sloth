@@ -1,7 +1,7 @@
-// "Near you": which saved place (a where/how with a spot on the map) the phone is at. Shared by the server
-// (checking coordinates people send) and the browser (public/js/near-you.js); pure.
+// "Near you": which saved spot (a where/how's place on the map; a shop can have several) the phone is at.
+// Shared by the server (checking coordinates people send) and the browser (public/js/near-you.js); pure.
 //
-// You're near a place within NEAR_METERS of it, and stay near it until you're LEAVE_METERS away, so a
+// You're near a spot within NEAR_METERS of it, and stay near it until you're LEAVE_METERS away, so a
 // reading that wobbles at the edge doesn't keep flipping the banner (and the notification) on and off.
 
 export const NEAR_METERS = 200;

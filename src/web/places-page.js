@@ -1,35 +1,45 @@
 /**
- * The Where / how page (views/pages/places.eta): every where/how, whether it's a place, and the ways to set one.
- * `contexts` come from listContexts; `search` is an address search's outcome for one of them
- * ({ contextId, query, results, error }), shown under that row.
+ * The Where / how page (views/pages/places.eta): every where/how, its spots on the map, and the ways to add one.
+ * `contexts` come from listContexts and `spots` from listSpots; `search` is an address search's outcome for one
+ * where/how ({ contextId, query, results, error }), shown under that row. `timeZone` is the viewer's, for dates.
  */
-export function placesPageView(contexts, search = null) {
+export function placesPageView(contexts, spots, search = null, timeZone = "UTC") {
+  const savedOn = (iso) => (iso ? ` on ${dateFormat(timeZone).format(new Date(iso))}` : "");
   return {
-    rows: contexts.map((cx) => ({
-      id: cx.id,
-      name: cx.name,
-      openCount: Number(cx.open_count ?? 0),
-      isPlace: cx.place_lat != null,
-      placeText: cx.place_lat == null ? "" : cx.place_label || "Set where someone was standing",
-      mapHref: cx.place_lat == null ? "" : mapHref(cx.place_lat, cx.place_lng),
-      search: search?.contextId === cx.id ? search : null,
-    })),
+    rows: contexts.map((cx) => {
+      const mine = spots.filter((s) => s.context_id === cx.id);
+      return {
+        id: cx.id,
+        name: cx.name,
+        openCount: Number(cx.open_count ?? 0),
+        isPlace: mine.length > 0,
+        spots: mine.map((s) => ({ id: s.id, text: s.label || `Saved where someone stood${savedOn(s.created_at)}`, mapHref: mapHref(s.lat, s.lng) })),
+        search: search?.contextId === cx.id ? search : null,
+      };
+    }),
   };
+}
+
+/** "Oct 2": when an "I'm here now" spot was saved, so two of them can be told apart. An unknown zone falls back to UTC. */
+function dateFormat(timeZone) {
+  try {
+    return new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric" });
+  } catch {
+    return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+  }
 }
 
 export const mapHref = (lat, lng) => `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`;
 
 /**
- * What the home page's "Near you" (public/js/near-you.js) needs about each place: where it is, its name, how
- * many to-dos are there and a link to them. Places with nothing to do are left out: there's nothing to say.
+ * What the home page's "Near you" (public/js/near-you.js) needs about each spot: where it is, its where/how's id
+ * and name, how many to-dos are there and a link to them. Places with nothing to do are left out: there's nothing
+ * to say.
  */
 export const nearYouPlaces = (places) =>
   places
     .filter((p) => p.count > 0)
-    .map((p) => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, count: p.count, href: `/?view=all&context=${encodeURIComponent(p.id)}` }));
+    .map((p) => ({ id: p.id, contextId: p.context_id, name: p.name, lat: p.lat, lng: p.lng, count: p.count, href: `/?view=all&context=${encodeURIComponent(p.context_id)}` }));
 
-/** Where address searches lean towards when the browser didn't send a position: the household's first place. */
-export const searchNudge = (contexts) => {
-  const p = contexts.find((cx) => cx.place_lat != null);
-  return p ? { lat: p.place_lat, lng: p.place_lng } : null;
-};
+/** Where address searches lean towards when the browser didn't send a position: the household's first spot. */
+export const searchNudge = (spots) => (spots.length ? { lat: spots[0].lat, lng: spots[0].lng } : null);

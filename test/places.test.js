@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { createTask, setDone } from "../src/services/tasks.js";
-import { clearPlace, ensureContext, listContexts, listPlaces, setPlace } from "../src/services/contexts.js";
+import { addSpot, ensureContext, listPlaces, listSpots, MAX_SPOTS, removeSpot } from "../src/services/contexts.js";
 import { NOMINATIM_URL, searchPlaces, shortAddress } from "../src/services/geocode.js";
 import { nearYouPlaces, placesPageView, searchNudge } from "../src/web/places-page.js";
 import { cleanCoords, distanceMeters, LEAVE_METERS, nearestPlace, NEAR_METERS } from "../public/js/lib/places.js";
@@ -61,57 +61,72 @@ test("cleanCoords takes numbers in range, from strings too", () => {
   assert.equal(cleanCoords("abc", 0), null);
 });
 
-test("a where/how gets a place and loses it, within its household only", async () => {
+test("a where/how gets spots, one per branch; a second save at the same spot updates it", async () => {
   const target = await ensureContext("h1", "Target");
-  await setPlace("h1", target, { lat: "40.1", lng: "-75.2", label: "  Target,   Main Street " });
-  let cx = (await listContexts("h1")).find((c) => c.id === target);
-  assert.deepEqual([cx.place_lat, cx.place_lng, cx.place_label], [40.1, -75.2, "Target, Main Street"]);
+  assert.equal(await addSpot("h1", target, { lat: "40.1", lng: "-75.2", label: "  Target,   Main Street " }), "added");
+  assert.equal(await addSpot("h1", target, { lat: 40.3, lng: -75.2 }), "added", "another branch");
+  assert.deepEqual((await listSpots("h1")).map((sp) => [sp.lat, sp.lng, sp.label]), [[40.1, -75.2, "Target, Main Street"], [40.3, -75.2, null]]);
 
-  await setPlace("h1", target, { lat: 40.2, lng: -75.3 });
-  cx = (await listContexts("h1")).find((c) => c.id === target);
-  assert.equal(cx.place_label, null, "I'm here now has no address");
+  // 30 m from the first: the same shop, so it moves there instead of adding a third.
+  assert.equal(await addSpot("h1", target, { lat: 40.1 + 30 / 111_195, lng: -75.2 }), "updated");
+  const spots = await listSpots("h1");
+  assert.equal(spots.length, 2);
+  assert.equal(spots[0].label, null, "I'm here now has no address");
 
-  await assert.rejects(setPlace("h1", target, { lat: "x", lng: 1 }), /couldn't be read/);
-  await assert.rejects(setPlace("h2", target, { lat: 1, lng: 1 }), /not found/);
-  await assert.rejects(clearPlace("h2", target), /not found/);
+  await assert.rejects(addSpot("h1", target, { lat: "x", lng: 1 }), /couldn't be read/);
+  await assert.rejects(addSpot("h2", target, { lat: 1, lng: 1 }), /not found/);
+  await assert.rejects(removeSpot("h2", spots[0].id), /not found/);
+  assert.deepEqual(await listSpots("h2"), []);
 
-  await clearPlace("h1", target);
-  cx = (await listContexts("h1")).find((c) => c.id === target);
-  assert.equal(cx.place_lat, null);
+  await removeSpot("h1", spots[0].id);
+  assert.deepEqual((await listSpots("h1")).map((sp) => sp.id), [spots[1].id]);
+  await removeSpot("h1", spots[1].id);
 });
 
-test("listPlaces counts the open to-dos at each place, and Near you skips places with none", async () => {
+test("a where/how has at most MAX_SPOTS spots", async () => {
+  const cafe = await ensureContext("h1", "Cafe");
+  for (let i = 0; i < MAX_SPOTS; i++) await addSpot("h1", cafe, { lat: 10 + i * 0.01, lng: 10 });
+  await assert.rejects(addSpot("h1", cafe, { lat: 20, lng: 20 }), /already has 20 spots/);
+  for (const sp of await listSpots("h1")) await removeSpot("h1", sp.id);
+});
+
+test("listPlaces lists every spot with its where/how's open to-dos, and Near you skips ones with none", async () => {
   const store = await ensureContext("h1", "Hardware Store");
   const phone = await ensureContext("h1", "Phone");
-  await setPlace("h1", store, { lat: 40, lng: -75 });
+  await addSpot("h1", store, { lat: 40, lng: -75 });
+  await addSpot("h1", store, { lat: 41, lng: -75 });
   const nails = await createTask(actor, { title: "nails", contextId: store, list: "todo" });
   await createTask(actor, { title: "paint", contextId: store, list: "todo" });
   await createTask(actor, { title: "maybe a ladder", contextId: store, list: "someday" });
   await createTask(actor, { title: "glue", contextId: store, list: "todo", waitingTaskId: nails });
   await createTask(actor, { title: "call mum", contextId: phone, list: "todo" });
   let places = await listPlaces("h1");
-  assert.deepEqual(places.map((p) => [p.name, p.count]), [["Hardware Store", 2]], "not a place: not listed; blocked and Maybe later don't count");
+  assert.deepEqual(places.map((p) => [p.name, p.lat, p.count]), [["Hardware Store", 40, 2], ["Hardware Store", 41, 2]],
+    "not a place: not listed; blocked and Maybe later don't count");
 
   await setDone(actor, nails, true);
   places = await listPlaces("h1");
   assert.equal(places[0].count, 2, "glue isn't blocked any more; nails is done");
-  assert.deepEqual(nearYouPlaces(places), [{ id: store, name: "Hardware Store", lat: 40, lng: -75, count: 2, href: `/?view=all&context=${store}` }]);
+  assert.deepEqual(nearYouPlaces(places)[0], { id: places[0].id, contextId: store, name: "Hardware Store", lat: 40, lng: -75, count: 2, href: `/?view=all&context=${store}` });
   assert.deepEqual(nearYouPlaces([{ ...places[0], count: 0 }]), []);
 });
 
-test("placesPageView describes each where/how and attaches a search to its row", () => {
+test("placesPageView lists each where/how's spots and attaches a search to its row", () => {
   const view = placesPageView([
-    { id: "a", name: "Target", open_count: 3, place_lat: 40, place_lng: -75, place_label: "Target, Main Street" },
-    { id: "b", name: "Mall", open_count: 0, place_lat: 41, place_lng: -74, place_label: null },
-    { id: "c", name: "Phone", open_count: 1, place_lat: null, place_lng: null, place_label: null },
-  ], { contextId: "c", query: "x", results: [], error: "Nothing found" });
-  assert.deepEqual(view.rows.map((r) => [r.name, r.isPlace, r.placeText, r.search?.error ?? null]), [
-    ["Target", true, "Target, Main Street", null],
-    ["Mall", true, "Set where someone was standing", null],
-    ["Phone", false, "", "Nothing found"],
+    { id: "a", name: "Target", open_count: 3 },
+    { id: "c", name: "Phone", open_count: 1 },
+  ], [
+    { id: "s1", context_id: "a", lat: 40, lng: -75, label: "Target, Main Street" },
+    { id: "s2", context_id: "a", lat: 41, lng: -74, label: null, created_at: "2026-10-02T15:00:00.000Z" },
+  ], { contextId: "c", query: "x", results: [], error: "Nothing found" }, "America/New_York");
+  assert.deepEqual(view.rows.map((r) => [r.name, r.isPlace, r.spots.map((sp) => sp.text), r.search?.error ?? null]), [
+    ["Target", true, ["Target, Main Street", "Saved where someone stood on Oct 2"], null],
+    ["Phone", false, [], "Nothing found"],
   ]);
-  assert.match(view.rows[0].mapHref, /openstreetmap\.org\/\?mlat=40&mlon=-75/);
-  assert.deepEqual(searchNudge([{ place_lat: null }, { place_lat: 41, place_lng: -74 }]), { lat: 41, lng: -74 });
+  assert.match(placesPageView([{ id: "a", name: "T" }], [{ id: "s", context_id: "a", lat: 1, lng: 1, created_at: "2026-10-03T02:00:00.000Z" }], null, "America/New_York").rows[0].spots[0].text,
+    /on Oct 2$/, "late evening in New York is still the 2nd");
+  assert.match(view.rows[0].spots[0].mapHref, /openstreetmap\.org\/\?mlat=40&mlon=-75/);
+  assert.deepEqual(searchNudge([{ lat: 41, lng: -74 }, { lat: 1, lng: 1 }]), { lat: 41, lng: -74 });
   assert.equal(searchNudge([]), null);
 });
 
