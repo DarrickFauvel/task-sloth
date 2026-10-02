@@ -1,7 +1,7 @@
 <%/* it.form is the edit form data (see src/web/task-page.js), or null when not editing. Empty unless editing.
      It sits outside #task-head, so live updates never touch a form that's being filled in.
-     Five cards: what it is, when, who and where, where it stands (list and waiting), and a folded More (project,
-     tags, priority). They're the same plain .panel cards as
+     The task's name and notes on the page, then four cards: when, who and where, where it stands (list and
+     waiting), and a folded More (project, tags, priority). They're the same plain .panel cards as
      Settings (the other screen that saves as you go), heading inside. Each field has a small label and a
      hint that says what it does; chips instead of dropdowns where the choices are few. Done is pinned
      to the bottom of the screen.
@@ -22,11 +22,13 @@
         data-on:keydown="evt.key === 'Enter' && evt.target.tagName === 'INPUT' && (evt.preventDefault(), evt.target.blur())"
         data-on:change="const f = evt.target; f.name && f.name !== 'seq' && !(['waitingTaskId', 'projectId'].includes(f.name) && f.value === 'new') && !(['newBlocker', 'newProject'].includes(f.name) && !f.value.trim()) && el.reportValidity() && (el.elements.seq.value = Date.now(), @post('/tasks/<%= t.id %>/edit?saved=' + f.name, {contentType: 'form'}))">
     <input type="hidden" name="seq" value="">
-    <section class="panel edit-main" aria-labelledby="edit-what">
-      <h2 id="edit-what"><label for="edit-title"><span class="emoji" aria-hidden="true">📝</span> Task</label></h2>
+    <%/* The task itself, not a card: its name at page-title size with the notes under it, straight on the page, so
+         the cards below read as its details. */%>
+    <div class="edit-main">
+      <label for="edit-title" class="visually-hidden">Task name</label>
       <input id="edit-title" class="edit-title"<%~ focus("title") %> name="title" value="<%= t.title %>" required maxlength="300" autocomplete="off">
       <textarea name="notes"<%~ focus("notes") %> rows="2" maxlength="10000" aria-label="Notes" placeholder="Add notes, a phone number, a link…"><%= t.notes %></textarea>
-    </section>
+    </div>
 
     <section class="panel edit-group is-when" aria-labelledby="edit-when">
       <h2 id="edit-when"><span class="emoji" aria-hidden="true">📅</span> When</h2>
