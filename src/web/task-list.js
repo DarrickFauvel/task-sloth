@@ -2,10 +2,12 @@ import { inboxCount, isWorking, listTasks, tagList } from "../services/tasks.js"
 import { tasksWithNewComments } from "../services/comments.js";
 import { getContext, listContexts, listPlaces } from "../services/contexts.js";
 import { nearYouPlaces } from "./places-page.js";
+import { focusLines } from "./focus-page.js";
+import { focusChoices } from "../services/focus.js";
 import { getProject, listProjects } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
 import { cleanTagName, listTags } from "../services/tags.js";
-import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
+import { addDays, dueState, elapsedLabel, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { findPhones, splitPhones } from "../../public/js/lib/phone.js";
 
@@ -84,6 +86,8 @@ export function decorateTask(t, membership, today, time = null) {
     assignee: t.assignee_id ? member(t.assignee_id) : null,
     // Who's doing it right now ("working on now"), until they stop, finish it, or their day ends.
     worker: t.status === "open" && isWorking(t) ? member(t.working_by) : null,
+    // How long they've been on it ("12 min"), for the Working on now card.
+    workingFor: t.status === "open" && isWorking(t) ? elapsedLabel(Date.now() - Date.parse(t.working_since)) : "",
     dueLabel,
     // "Today 15:00 · overdue" once today's due time has passed.
     dueText: [dueLabel, t.due_date && t.due_time].filter(Boolean).join(" ") + (lateToday && t.status === "open" ? " · overdue" : ""),
@@ -148,15 +152,20 @@ export async function taskListView({ userId, membership, view, project: projectI
   const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
     // The household's places with something to do there, for "Near you" (public/js/near-you.js) on this device.
     nearYou: nearYouPlaces(await listPlaces(householdId)),
-    suggest: await suggestData(householdId, userId, membership, today) };
+    suggest: await suggestData(householdId, userId, membership, today),
+    // Who's in a focus session (src/services/focus.js), and on a list narrowed to one project or place, whether
+    // there's anything there to focus on.
+    focusLines: await focusLines(householdId, membership, userId),
+    focusHere: await focusHere(userId, householdId, view, project, context) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
 
-  // What people are doing right now goes first, ahead of the dates or places.
-  const working = tasks.filter((t) => t.worker);
-  const rest = tasks.filter((t) => !t.worker);
-  const nowGroup = working.length ? [{ label: "Working on now", hue: GROUP_HUES[2], tasks: working }] : [];
+  // What you're doing right now (one task at most) goes first, ahead of the dates or places. Others' stay in their
+  // usual groups, with "Sam's on it".
+  const working = tasks.filter((t) => t.worker?.id === userId).slice(0, 1);
+  const rest = tasks.filter((t) => !working.includes(t));
+  const nowGroup = working.length ? [{ label: "Working on now", hue: GROUP_HUES[2], working: true, tasks: working }] : [];
 
   // Grouping by where/how means nothing once the list is narrowed to one context, so it falls back to dates.
   const canGroup = !context;
@@ -173,6 +182,14 @@ export async function taskListView({ userId, membership, view, project: projectI
     .map(({ test, ...g }) => ({ ...g, tasks: rest.filter(test) }))
     .filter((g) => g.tasks.length);
   return { ...base, canGroup, groupBy: "when", groups: [...nowGroup, ...groups] };
+}
+
+/** A list narrowed to a project or a where/how offers a focus session on it, when there's something you could take on there. */
+async function focusHere(userId, householdId, view, project, context) {
+  if (!(project || context) || !["mine", "all", "grabs"].includes(view)) return null;
+  const choices = await focusChoices({ id: userId, householdId });
+  const found = project ? choices.projects.find((c) => c.id === project.id) : choices.contexts.find((c) => c.id === context.id);
+  return found ?? null;
 }
 
 /**

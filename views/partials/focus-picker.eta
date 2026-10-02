@@ -1,0 +1,16 @@
+<%/* What you could focus on (focusChoices in src/services/focus.js): each project and where/how with tasks you
+     could take on now, as chips that start a session. `it.contexts` alone on the Where / how page. */%>
+<% const pick = (c, label) => { %>
+  <form method="post" action="/focus/start" class="inline">
+    <input type="hidden" name="<%= c.kind === 'project' ? 'projectId' : 'contextId' %>" value="<%= c.id %>">
+    <button class="pill"><%= label %> <span class="count"><%= c.count %></span></button>
+  </form>
+<% } %>
+<% if (it.projects?.length) { %>
+  <h3 class="focus-pick-title">Projects</h3>
+  <div class="pills"><% it.projects.forEach((c) => pick(c, `${c.emoji ?? ""} ${c.name}`.trim())) %></div>
+<% } %>
+<% if (it.contexts?.length) { %>
+  <% if (it.projects) { %><h3 class="focus-pick-title">Where / how</h3><% } %>
+  <div class="pills"><% it.contexts.forEach((c) => pick(c, `@${c.name}`)) %></div>
+<% } %>

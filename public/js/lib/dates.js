@@ -84,6 +84,16 @@ export function relativeLabel(ymd, today) {
   return ymd.slice(0, 4) === today.slice(0, 4) ? label : `${label}, ${ymd.slice(0, 4)}`;
 }
 
+/** How long someone's been at something, from ms: "just started", "12 min", "1 h", "2 h 5 min". */
+export function elapsedLabel(ms) {
+  const minutes = Math.floor(Math.max(0, ms) / 60_000);
+  if (minutes < 1) return "just started";
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
 /** How long since a past date: "since today", "1 day", "5 days", "3 weeks". */
 export function sinceLabel(ymd, today) {
   const days = Math.max(0, daysBetween(ymd, today));

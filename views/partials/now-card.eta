@@ -1,0 +1,24 @@
+<%/* The Working on now card's task (your one task; see taskListView): bigger than a row, how long you've been on
+     it (<elapsed-time> keeps it ticking), and Done / Stop right there. Both outlined: Add is the screen's one
+     filled button. */%>
+<% const t = it.t; %>
+<div class="now-card" id="task-<%= t.id %>">
+  <a class="now-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
+  <span class="meta">
+    <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
+    <%~ include("/partials/context-tags", { t }) %>
+    <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
+    <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
+    <span class="now-for">On it for <elapsed-time since="<%= t.working_since %>"><%= t.workingFor %></elapsed-time></span>
+  </span>
+  <div class="now-actions">
+    <form method="post" action="/tasks/<%= t.id %>/done" data-on:submit="@post('/tasks/<%= t.id %>/done')">
+      <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
+      <button class="button"><span aria-hidden="true">✓</span> Done</button>
+    </form>
+    <form method="post" action="/tasks/<%= t.id %>/stop" data-on:submit="@post('/tasks/<%= t.id %>/stop')">
+      <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
+      <button class="button" title="Not doing it right now after all">Stop</button>
+    </form>
+  </div>
+</div>

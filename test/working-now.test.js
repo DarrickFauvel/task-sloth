@@ -9,7 +9,7 @@ import { createTask, getTask, isWorking, setDone, startWorking, stopWorking, upd
 import { taskListView } from "../src/web/task-list.js";
 import { buildActivity } from "../src/web/activity-page.js";
 import { listActivity } from "../src/services/activity.js";
-import { nextMidnight } from "../public/js/lib/dates.js";
+import { elapsedLabel, nextMidnight } from "../public/js/lib/dates.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-working-"));
 const me = { id: "u1", householdId: "h1" };
@@ -114,6 +114,15 @@ test("lists put what people are working on first, and re-render when it lapses",
     assert.ok(list.groups.slice(1).some((g) => g.tasks.some((t) => t.id === later)));
     assert.ok(list.refreshAt <= Date.parse(until));
   }
+  // Someone else's working task stays in its usual group; the card is only ever yours, one task.
+  const sams = await createTask(sam, { title: "sam doing it", dueDate: "2026-10-02" });
+  await startWorking(sam, sams, { until });
+  const mine = await taskListView({ userId: "u1", membership, view: "all", today: "2026-10-02" });
+  assert.deepEqual(mine.groups[0].tasks.map((t) => t.title), ["doing it"]);
+  const today = mine.groups.find((g) => g.label === "Today");
+  assert.equal(today.tasks.find((t) => t.id === sams).worker.id, "u2");
+  const theirs = await taskListView({ userId: "u2", membership, view: "all", today: "2026-10-02" });
+  assert.deepEqual(theirs.groups[0].tasks.map((t) => t.title), ["sam doing it"]);
   await db.run("UPDATE tasks SET working_until = ? WHERE id = ?", ["2000-01-01T00:00:00.000Z", now]);
   const lapsed = await taskListView({ userId: "u1", membership, view: "all", today: "2026-10-02" });
   assert.notEqual(lapsed.groups[0].label, "Working on now");
@@ -129,4 +138,8 @@ test("starting and stopping show in Activity only under every change", async () 
   const text = (all) => buildActivity(rows, { ...opts, all }).flatMap((d) => d.entries).map((e) => e.text).join(" | ");
   assert.ok(!text(false).includes("working on"));
   assert.match(text(true), /You started working on and stopped working on/);
+});
+
+test("how long you've been on it", () => {
+  assert.deepEqual([0, 59_000, 12 * 60_000, 60 * 60_000, 125 * 60_000].map(elapsedLabel), ["just started", "just started", "12 min", "1 h", "2 h 5 min"]);
 });

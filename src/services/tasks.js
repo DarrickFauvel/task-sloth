@@ -284,7 +284,7 @@ export const isWorking = (task, at = now()) => Boolean(task.working_by && task.w
 /**
  * "Working on now": marks a To do task as the one the actor is doing, until they stop, finish it, or `until`
  * (an ISO time, the end of their day). One at a time, so it ends any other task they were on. Nobody's task
- * becomes theirs; someone else's stays theirs (the actor is helping).
+ * becomes theirs; someone else's stays theirs (the actor is helping). Says whether it made it theirs.
  */
 export async function startWorking(actor, id, { until }) {
   const task = await getTask(actor.householdId, id);
@@ -305,6 +305,7 @@ export async function startWorking(actor, id, { until }) {
     activityStatement(actor.householdId, actor.id, id, "started"),
   ]);
   for (const o of [...others, { id }]) changed(actor.householdId, o.id);
+  return { claimed: !task.assignee_id };
 }
 
 /** Ends "working on now" for a task, whoever marked it. */

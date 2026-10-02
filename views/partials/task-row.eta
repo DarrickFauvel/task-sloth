@@ -48,7 +48,7 @@
           <button class="link" title="Take it off this list now. It's still in Done.">Hide</button>
         </form>
       <% } %>
-      <%/* "Working on now": Start puts it at the top of everyone's lists (one task each at a time); Stop takes it off.
+      <%/* "Working on now": Start puts it at the top of your lists and shows everyone you're on it (one task each at a time); Stop takes it off.
            Rows offer Start on your tasks and nobody's; helping with someone else's starts from its page. */%>
       <% const working = t.worker && t.worker.id === it.userId;
          const canStart = !t.worker && t.list === "todo" && !t.blockedBy && (!t.assignee || t.assignee.id === it.userId); %>

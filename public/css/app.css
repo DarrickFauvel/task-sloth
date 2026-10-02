@@ -344,24 +344,27 @@ button.icon:focus-visible { opacity: 1; }
 }
 @media (hover: hover) { .clear-input:hover { color: var(--fg); } }
 .quick-add button { flex: none; }
-/* Suggestions under the add box (public/js/quick-suggest.js): a card of big rows, the name on the left and
-   what it sets on the right. */
+/* Suggestions under the add box (public/js/quick-suggest.js): a card as wide as the add bar (it hangs from the
+   sticky form, inside its side padding), one big row each: the name, and under it what it sets. Scrolls if long. */
 quick-suggest { display: contents; }
 .suggestions {
-  position: absolute; top: calc(100% + var(--space-2xs)); left: 0; right: 0; z-index: 2;
+  position: absolute; top: calc(100% - var(--space-2xs)); left: var(--space-m); right: var(--space-m); z-index: 2;
+  max-height: 45vh; overflow-y: auto; overscroll-behavior: contain;
   margin: 0; padding: var(--space-2xs); list-style: none;
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg);
   box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
 }
 .suggestions[hidden] { display: none; }
 .suggestions [role=option] {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-s);
-  min-height: var(--tap); padding: 0 var(--space-s); border-radius: var(--radius); cursor: pointer;
+  display: grid; align-content: center; gap: 0.05rem;
+  min-height: var(--tap); padding: var(--space-2xs) var(--space-s); border-radius: var(--radius); cursor: pointer;
 }
+.suggestions [role=option] + [role=option] { margin-top: 1px; }
 .suggestions [aria-selected=true] { background: var(--tint-strong); }
 @media (hover: hover) { .suggestions [role=option]:hover { background: var(--tint); } }
-.suggestion-label { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
-.suggestion-kind { flex: 0 1 auto; color: var(--muted); font-size: var(--step--1); text-align: right; }
+.suggestion-label { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.suggestion-kind { color: var(--muted); font-size: var(--step--1); }
+.suggestion-label .dot { width: 0.6rem; height: 0.6rem; }
 
 .help-button { flex: none; color: var(--muted); }
 
@@ -530,6 +533,52 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
 .who { display: inline-flex; align-items: center; gap: 0.3rem; }
 .dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; flex: none; }
 .who .dot { width: 0.6rem; height: 0.6rem; }
+/* Something being worked on now: the "Working on now" group card keeps the usual group border, in its own color;
+   the focus screen's task card (.is-working) gets a still tint and a border in the worker's color (--worker). */
+.is-working { --w: var(--worker, var(--accent)); border-color: color-mix(in oklch, var(--w) 60%, transparent); background: color-mix(in oklch, var(--w) 7%, transparent); }
+/* The Working on now card's task (partials/now-card): the name bigger than a row's, its details and how long
+   you've been on it, then Done and Stop as full-size buttons. */
+.now-card { display: grid; gap: var(--space-xs); padding: var(--space-s) var(--space-2xs) var(--space-s); }
+.now-title { font-size: var(--step-1); font-weight: 600; line-height: 1.25; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.now-for { color: var(--fg); }
+.now-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-2xs); }
+.now-actions form { margin: 0; }
+/* Solid, so the card's drifting tint doesn't show through them. */
+.now-actions .button { background: var(--bg); }
+/* Its background drifts a little: a soft patch of the group's color wanders slowly from corner to corner and back,
+   on ::after behind the content. */
+.task-group.is-working-group { position: relative; isolation: isolate; }
+.task-group.is-working-group::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--glow-1) 14%, transparent), transparent) 0% 0% / 70% 140% no-repeat;
+  animation: working-drift 10s ease-in-out infinite alternate;
+}
+@keyframes working-drift { to { background-position: 100% 100%; } }
+/* Its "Working on now" heading pill breathes: a soft band of the group's color drifts across it and back, with
+   a faint glow that swells and fades. */
+.is-working-group > .group {
+  background:
+    linear-gradient(110deg, color-mix(in oklch, var(--glow-1) 10%, transparent) 20%, color-mix(in oklch, var(--glow-1) 30%, transparent) 50%, color-mix(in oklch, var(--glow-2) 10%, transparent) 80%) 0 0 / 250% 100%,
+    linear-gradient(var(--bg), var(--bg));
+  animation: working-pill 3s ease-in-out infinite alternate;
+}
+/* Its heading is a solid band right across the top of the card (not a pill on the border), its text centered.
+   The band fills the card's top padding and border, so the card doesn't need the usual room above for a pill. */
+.task-group.is-working-group > .group {
+  width: auto; text-align: center;
+  margin: calc(-1 * var(--space-2xs) - 1px) calc(-1 * var(--space-s) - 1px) 0;
+  padding: 0.45em 0.65em;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.task-group.is-working-group { margin-top: var(--space-l); }
+.task-group.is-working-group:first-child, .done-today-line + .task-group.is-working-group { margin-top: var(--space-m); }
+@keyframes working-pill {
+  from { background-position: 0% 0, 0 0; box-shadow: 0 0 0 0 transparent; }
+  to { background-position: 100% 0, 0 0; box-shadow: 0 0 0.7rem color-mix(in oklch, var(--glow-1) 35%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-working-group > .group, .task-group.is-working-group::after { animation: none; }
+}
 /* "Working on now": who's doing it, with a dot in their color that gently pulses. */
 .working { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--fg); font-weight: 600; }
 .working .dot { width: 0.6rem; height: 0.6rem; }
@@ -855,6 +904,7 @@ label.pill span, button.pill, a.pill {
   .bottom-nav, .view-title { display: none; }
   main:has(.bottom-nav) { padding-bottom: var(--space-l); }
   .quick-add { margin-inline: 0; padding-inline: 0; }
+  .suggestions { left: 0; right: 0; }
   .edit-actions { margin-inline: 0; padding-inline: 0; }
   /* Cards in pairs (When | Who & where, List & waiting | More); the name and notes and Done span both columns.
      Folded, More keeps its own height instead of stretching to its neighbor's. */
@@ -1429,3 +1479,37 @@ body:has(.landing) { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) {
   .landing-hero::before, .demo-screen, .demo-ticking .check, .demo-ticking .check span, .demo-ticking .task-title, .demo-ticking .task-title > span { animation: none; }
 }
+
+/* --- Focus sessions (views/pages/focus.eta) --------------------------------------------- */
+/* The line at the top of the lists while someone's focusing, and "Focus on these" on a list narrowed to one
+   project or place. */
+.focus-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); margin: var(--space-s) 0 0;
+  padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1);
+}
+.focus-line .dot { width: 0.6rem; height: 0.6rem; }
+.focus-line a { font-weight: 600; text-decoration: none; }
+.focus-here { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-s); margin: var(--space-s) 0 0; }
+.pills form.inline { display: contents; }
+.focus-pick-title { margin: var(--space-s) 0 var(--space-2xs); font-size: var(--step-0); }
+.focus-pick-title:first-child { margin-top: 0; }
+.focus-target { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.focus-progress { display: flex; align-items: center; gap: var(--space-s); }
+.focus-progress progress {
+  flex: 1; height: 0.6rem; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: var(--tint-strong);
+}
+.focus-progress progress::-webkit-progress-bar { background: var(--tint-strong); }
+.focus-progress progress::-webkit-progress-value { background: var(--gradient); border-radius: 999px; }
+.focus-progress progress::-moz-progress-bar { background: var(--gradient); border-radius: 999px; }
+.focus-card { margin-top: var(--space-s); display: grid; gap: var(--space-s); }
+.focus-title { margin: 0; font-size: var(--step-3); line-height: 1.2; overflow-wrap: anywhere; }
+.focus-title a { color: inherit; text-decoration: none; }
+.focus-notes { margin: 0; white-space: pre-line; }
+.focus-checklist { justify-self: start; text-decoration: none; }
+/* Done big and first; Skip and Not today beside it. Each a full-height tap target. */
+.focus-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.focus-actions form { margin: 0; }
+.focus-actions form:first-child { flex: 1 1 100%; }
+.focus-actions form:first-child .button { width: 100%; }
+@media (min-width: 40rem) { .focus-actions form:first-child { flex: 0 0 auto; } .focus-actions form:first-child .button { width: auto; min-width: 10rem; } }
+.focus-card .hint { margin: 0; }
