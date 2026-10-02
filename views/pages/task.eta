@@ -51,7 +51,7 @@
       </form>
     </section>
   </div>
-  <%~ include("/partials/flash", {}) %>
+  <%~ include("/partials/flash", it.flash ?? {}) %>
   <p id="reorder-status" class="visually-hidden" role="status"></p>
 </div>
 <% if (it.photos.enabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>
