@@ -1,8 +1,8 @@
 <% layout("/layout", { title: "Activity" }) %>
 <%/* What the household did over the last two weeks, newest first: one card per day (header band like the rest of
      the app), each line tidied by buildActivity (src/web/activity-page.js): one line per person, task and day, and
-     minor changes left out unless "Show every change" (?all=1). The chips pick whose: by default everyone but you
-     ("Sam" in a household of two), or Everyone, You, or one person (?who=, plain links). */%>
+     minor changes left out unless "Show every change" (?all=1). The chips pick whose: by default yours, or everyone
+     but you ("Sam" in a household of two), Everyone, or one person (?who=, plain links). */%>
 <a class="back" href="/">← All tasks</a>
 <h1>Activity</h1>
 <p class="hint">What happened in <%= it.household %> over the last <%= it.days %> days: one line per task each day.<%= it.activity.all ? "" : " Small changes, like notes, tags or checklist items, are left out." %></p>

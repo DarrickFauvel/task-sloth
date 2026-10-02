@@ -88,3 +88,12 @@ test("the Activity page covers the last 14 days, grouped by day", async () => {
   assert.ok(entries.includes("Today: You completed water plants"));
   assert.ok(!entries.some((e) => e.includes("added water plants")), "the 15-day-old entry is left out");
 });
+
+test("Activity shows your own by default, with You as the first chip", async () => {
+  const pair = { ...membership, members: [...membership.members, { id: "u2", name: "Sam Lee", color: "#e5484d" }] };
+  const chips = (v) => v.people.map((p) => `${p.label}${p.on ? "*" : ""} ${p.href}`);
+  assert.deepEqual(chips(await activityView({ userId: "u1", membership: pair, timeZone: "UTC", today, now: NOW })),
+    ["You* /activity", "Sam /activity?who=others", "Everyone /activity?who=everyone"]);
+  assert.equal((await activityView({ userId: "u1", membership: pair, timeZone: "UTC", today, who: "others", now: NOW })).people[1].on, true);
+  assert.deepEqual((await activityView({ userId: "u1", membership, timeZone: "UTC", today, now: NOW })).people, [], "on your own: no chips");
+});
