@@ -36,29 +36,7 @@
       </div>
     </aside>
   <% } %>
-  <%/* To-do tabs: group by date or by where/how, a cookie (see /list-grouping). It swaps the list in place;
-       without script it's a plain form post. */%>
-  <%/* View as a list or a board (see /list-layout), on the to-do tabs. Group by only applies to the list. */%>
-  <% if (l.canBoard) { %>
-    <form method="post" action="/list-layout" class="pills grouping" aria-label="View tasks as">
-      <input type="hidden" name="view" value="<%= l.view %>"><input type="hidden" name="project" value="<%= l.project ?? '' %>"><input type="hidden" name="context" value="<%= l.context ?? '' %>"><input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
-      <span class="hint">View as</span>
-      <% [["list", "List"], ["board", "Board"]].forEach(([value, label]) => { %>
-        <button name="as" value="<%= value %>" class="pill<%= l.layout === value ? ' is-on' : '' %>"<%~ l.layout === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>
-                data-on:click__prevent="@post('/list-layout?as=<%= value %>', {contentType: 'form'})"><%= label %></button>
-      <% }) %>
-    </form>
-  <% } %>
-  <% if (l.canGroup && l.layout !== "board") { %>
-    <form method="post" action="/list-grouping" class="pills grouping" aria-label="Group tasks by">
-      <input type="hidden" name="view" value="<%= l.view %>"><input type="hidden" name="project" value="<%= l.project ?? '' %>"><input type="hidden" name="tag" value="<%= l.tag ?? '' %>">
-      <span class="hint">Group by</span>
-      <% [["when", "When"], ["where", "Where / how"]].forEach(([value, label]) => { %>
-        <button name="by" value="<%= value %>" class="pill<%= l.groupBy === value ? ' is-on' : '' %>"<%~ l.groupBy === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>
-                data-on:click__prevent="@post('/list-grouping?by=<%= value %>', {contentType: 'form'})"><%= label %></button>
-      <% }) %>
-    </form>
-  <% } %>
+  <%/* View as and Group by are with the list itself (partials/list-switches), under the Working on now card. */%>
   <% if (l.view === "inbox" && l.inboxCount) { %>
     <p><a class="button primary" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>
   <% } %>

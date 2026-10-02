@@ -36,6 +36,8 @@ export async function focusLines(householdId, membership, userId) {
     const mine = s.userId === userId;
     return {
       mine,
+      // For your own session: what it's on and how far along, so the Working on now card can carry it (see taskListView).
+      target: targetLabel(s.target), done: s.done, total: s.total, currentId: s.currentId,
       color: member?.color ?? null,
       text: `${mine ? "You're" : `${member?.name.split(" ")[0] ?? "Someone"} is`} focusing on ${targetLabel(s.target)} · ${s.done} of ${s.total} done`,
     };

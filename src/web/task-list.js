@@ -7,7 +7,7 @@ import { focusChoices } from "../services/focus.js";
 import { getProject, listProjects } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
 import { cleanTagName, listTags } from "../services/tags.js";
-import { addDays, dueState, elapsedLabel, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
+import { addDays, dueState, onItLabel, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { findPhones, splitPhones } from "../../public/js/lib/phone.js";
 
@@ -86,8 +86,8 @@ export function decorateTask(t, membership, today, time = null) {
     assignee: t.assignee_id ? member(t.assignee_id) : null,
     // Who's doing it right now ("working on now"), until they stop, finish it, or their day ends.
     worker: t.status === "open" && isWorking(t) ? member(t.working_by) : null,
-    // How long they've been on it ("12 min"), for the Working on now card.
-    workingFor: t.status === "open" && isWorking(t) ? elapsedLabel(Date.now() - Date.parse(t.working_since)) : "",
+    // How long they've been on it ("On it for 12 min"), for the Working on now card.
+    workingFor: t.status === "open" && isWorking(t) ? onItLabel(Date.now() - Date.parse(t.working_since)) : "",
     dueLabel,
     // "Today 15:00 · overdue" once today's due time has passed.
     dueText: [dueLabel, t.due_date && t.due_time].filter(Boolean).join(" ") + (lateToday && t.status === "open" ? " · overdue" : ""),
@@ -172,7 +172,10 @@ export async function taskListView({ userId, membership, view, project: projectI
   // usual groups, with "Sam's on it".
   const working = tasks.filter((t) => t.worker?.id === userId).slice(0, 1);
   const rest = tasks.filter((t) => !working.includes(t));
-  const nowGroup = working.length ? [{ label: "Working on now", hue: GROUP_HUES[2], working: true, tasks: working }] : [];
+  // In a focus session on that very task, the card's footer says so (and the line at the top makes way for it).
+  const myFocus = base.focusLines.find((f) => f.mine && working[0] && f.currentId === working[0].id) ?? null;
+  if (myFocus) base.focusLines = base.focusLines.filter((f) => f !== myFocus);
+  const nowGroup = working.length ? [{ label: "Working on now", hue: GROUP_HUES[2], working: true, tasks: working, focus: myFocus }] : [];
 
   // Grouping by where/how means nothing once the list is narrowed to one context, so it falls back to dates.
   const canGroup = !context;

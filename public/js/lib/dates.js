@@ -94,6 +94,9 @@ export function elapsedLabel(ms) {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
+/** The Working on now card's line: "Just started", then "On it for 12 min". */
+export const onItLabel = (ms) => (ms < 60_000 ? "Just started" : `On it for ${elapsedLabel(ms)}`);
+
 /** How long since a past date: "since today", "1 day", "5 days", "3 weeks". */
 export function sinceLabel(ymd, today) {
   const days = Math.max(0, daysBetween(ymd, today));
