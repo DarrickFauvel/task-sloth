@@ -13,6 +13,7 @@ It's built on the ideas in *Getting Things Done*, but the app never uses GTD jar
 - **Blocked-by tasks.** A task can wait on another task and becomes ready when that one is ticked off.
 - **Private task photos** stored on Cloudinary as authenticated images, relayed by the app to household members only.
 - **Live updates** across everyone's open windows (server-sent events via Datastar).
+- **Working on now.** Tap Start on a task to show the household you're doing it: it goes to the top of everyone's lists with "Sam's on it", one task per person at a time, until it's done, stopped, or the day ends.
 - **Done today.** A badge in the header counts what the household has finished today and cheers when a task is ticked off; the Done tab shows a dot per task in the color of whoever finished it.
 - **Recently done and Activity.** Finished tasks linger for 10 minutes, the Done tab shows the last 24 hours, and the Activity page shows the last 14 days, one line per task, with small changes left out unless you ask for every change.
 - **Weekly reset.** A five-step check-in for each person (empty the inbox, catch up on what's overdue, check what's waiting, look at the week ahead, glance at Maybe later), suggested on Mine a week after the last one.

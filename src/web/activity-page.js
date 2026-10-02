@@ -12,8 +12,9 @@ const FIELD_WORDS = {
 };
 /** Fields whose change matters to everyone (when it's due, or which list it's on); edits touching only the rest are minor. */
 const MAIN_FIELDS = new Set(["due_date", "due_time", "recurrence", "list", "waiting_on", "waiting_task_id"]);
-/** Kinds that are minor whatever they touch: items added to a checklist, and the next repeat being scheduled. */
-const MINOR_VERBS = new Set(["checklist", "recurred"]);
+/** Kinds that are minor whatever they touch: items added to a checklist, the next repeat being scheduled, and
+ *  starting or stopping "working on now". */
+const MINOR_VERBS = new Set(["checklist", "recurred", "started", "stopped"]);
 
 /** "date, list and notes"; past four, "date, time, list and 2 more". Unknown fields are left out. */
 export function fieldWords(fields) {
@@ -41,7 +42,7 @@ function formatter(timeZone, options, locale = "en-US") {
  *   with what an edit changed ("Changed: date and list").
  * - Unless `all`, minor rows are left out: edits that only touch notes, name, tags, project, priority or the
  *   kind of list (an edit that also changes the date or list keeps just those), checklist items added, the next
- *   repeat being scheduled, and a delete that was undone (with its restore).
+ *   repeat being scheduled, starting or stopping work on a task, and a delete that was undone (with its restore).
  * - `who` picks whose rows: "others" (everyone but you, and things nobody did, like "Ready to go"), "everyone",
  *   or a member id.
  */

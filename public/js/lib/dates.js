@@ -43,6 +43,20 @@ export function addMonths(ymd, n) {
   return fromDate(d);
 }
 
+/** How far the time zone's wall clock is ahead of UTC at `at`, in ms (to the minute). */
+function zoneOffset(timeZone, at) {
+  const { today, time } = nowIn(timeZone, at);
+  return Date.parse(`${today}T${time}:00Z`) - (at.getTime() - (at.getTime() % 60_000));
+}
+
+/** The moment the next day starts (local midnight) in the given IANA time zone, after `at`. */
+export function nextMidnight(timeZone = "UTC", at = new Date()) {
+  const wall = toDate(addDays(todayIn(timeZone, at), 1)).getTime();
+  // Guess with today's offset, then correct once in case the clocks change overnight.
+  const guess = wall - zoneOffset(timeZone, at);
+  return new Date(wall - zoneOffset(timeZone, new Date(guess)));
+}
+
 export const weekdayOf = (ymd) => toDate(ymd).getUTCDay();
 
 /** The next date strictly after `ymd` that falls on `weekday` (0 = Sunday). */

@@ -10,6 +10,7 @@
   <div class="task-body" data-show="!(<%= renaming %>)">
     <a class="task-title" href="/tasks/<%= t.id %>"><span><%= t.title %></span></a>
     <span class="meta">
+      <% if (t.worker) { %><span class="working"><span class="dot" style="background: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're on it" : `${t.worker.name.split(" ")[0]}'s on it` %></span><% } %>
       <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
       <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
       <% if (t.blockedBy && !done) { %><span class="blocked" title="Blocked until this is done">⏳ after “<%= t.blockedBy %>”</span><% } %>
@@ -46,7 +47,18 @@
           <button class="link" title="Take it off this list now. It's still in Done.">Hide</button>
         </form>
       <% } %>
+      <%/* "Working on now": Start puts it at the top of everyone's lists (one task each at a time); Stop takes it off.
+           Rows offer Start on your tasks and nobody's; helping with someone else's starts from its page. */%>
+      <% const working = t.worker && t.worker.id === it.userId;
+         const canStart = !t.worker && t.list === "todo" && !t.blockedBy && (!t.assignee || t.assignee.id === it.userId); %>
+      <% if (!done && it.view !== "inbox" && (working || canStart)) { %>
+        <form method="post" action="/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>')" class="inline">
+          <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
+          <button class="link" title="<%= working ? 'Not doing it right now after all' : 'Show everyone you’re doing this right now' %>"><%= working ? "Stop" : "Start" %></button>
+        </form>
+      <% } %>
       <% if (it.view === "inbox") { /* it's yours until it's sorted */ %>
+      <% } else if (t.assignee && t.assignee.id === t.worker?.id) { /* "Sam's on it" already says whose it is */ %>
       <% } else if (t.assignee) { %>
         <span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span>
       <% } else if (!done) { %>

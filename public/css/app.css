@@ -512,6 +512,13 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
 .who { display: inline-flex; align-items: center; gap: 0.3rem; }
 .dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; flex: none; }
 .who .dot { width: 0.6rem; height: 0.6rem; }
+/* "Working on now": who's doing it, with a dot in their color that gently pulses. */
+.working { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--fg); font-weight: 600; }
+.working .dot { width: 0.6rem; height: 0.6rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .working .dot { animation: working-pulse 2s ease-in-out infinite; }
+}
+@keyframes working-pulse { 50% { opacity: 0.35; scale: 0.8; } }
 /* Renaming a task in place: the title turns into a text box with its actions underneath. */
 .rename { flex: 1; min-width: 0; display: grid; gap: var(--space-xs); padding: var(--space-2xs) 0; }
 .rename-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); font-size: var(--step--1); }
