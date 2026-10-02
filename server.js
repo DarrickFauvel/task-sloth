@@ -625,6 +625,16 @@ app.post("/tasks/:id/comments", requireHousehold, async (req, res) => {
   });
 });
 
+// The edit form's note for whoever a task was just handed to: a comment, so they see it's new.
+app.post("/tasks/:id/hand-over", requireHousehold, async (req, res) => {
+  await addComment(req.actor, req.params.id, req.body.handNote);
+  const to = String(req.body.handTo ?? "").trim();
+  await sse(req, res, (stream) => {
+    stream.patchSignals(JSON.stringify({ handNote: "", handTo: "" }));
+    stream.patchElements(eta.render("partials/flash", { message: to ? `Note sent to ${to}` : "Note sent" }));
+  });
+});
+
 app.post("/comments/:id/delete", requireHousehold, async (req, res) => {
   const c = await deleteComment(req.actor, req.params.id);
   if (!isDatastar(req)) return redirect(res, `/tasks/${c.task_id}#comments`);
@@ -711,7 +721,7 @@ app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
   const html = eta.render("partials/task-edit", { form: await editView(req, task, String(req.query.focus ?? "")) });
   await sse(req, res, (stream) => {
     stream.patchElements(html);
-    stream.patchSignals(JSON.stringify({ editing: true, editedBy: "" }));
+    stream.patchSignals(JSON.stringify({ editing: true, editedBy: "", handTo: "", handNote: "" }));
   });
 });
 
