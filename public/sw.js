@@ -5,6 +5,7 @@
 // revalidate), so pages start faster. Registered with ?dev=1 outside production, where they come from the
 // network first (an edited stylesheet shows on the next load, not the one after) and the cache only offline.
 // Live streams (/events), form posts, photos and avatars aren't touched.
+// Tapping a "Near you" notification (public/js/near-you.js) opens that place's tasks.
 
 const CACHE = "task-sloth-v2";
 const OFFLINE = "/offline.html";
@@ -55,6 +56,18 @@ self.addEventListener("fetch", (event) => {
         return cached;
       }
       return fresh;
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url ?? "/", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => new URL(w.url).origin === self.location.origin);
+      // navigate() only works on a page this worker controls; otherwise open a new one.
+      return open ? open.focus().then((w) => w.navigate(url)).catch(() => self.clients.openWindow(url)) : self.clients.openWindow(url);
     }),
   );
 });

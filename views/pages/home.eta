@@ -4,6 +4,7 @@
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
   <script type="module" src="/js/list-nav.js"></script>
+  <script type="module" src="/js/near-you.js"></script>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
   <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
   <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"
@@ -51,6 +52,8 @@
     </form>
     <%~ include("/partials/tabs", { list: l, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
     <%~ include("/partials/flash", it.flash ?? {}) %>
+    <%/* "You're near Target" when this device has Near you on (public/js/near-you.js); outside the live parts. */%>
+    <near-you></near-you>
     <%~ include("/partials/task-list", { ...l, userId: it.user.id, doneToday: it.doneToday }) %>
   </div>
   <% if (it.photosEnabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>

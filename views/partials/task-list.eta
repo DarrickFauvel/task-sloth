@@ -1,4 +1,6 @@
-<section id="task-list">
+<%/* data-near-you: the household's places with to-dos there, for "Near you" on this device (public/js/near-you.js),
+     re-sent with every live update so its counts stay current. */%>
+<section id="task-list"<% if (it.nearYou?.length) { %> data-near-you="<%= JSON.stringify(it.nearYou) %>"<% } %>>
   <% if (it.view === "done" && it.doneToday) { %><%~ include("/partials/done-today-dots", it.doneToday) %><% } %>
   <% if (!it.groups.length && it.filterLabel) { %>
     <p class="empty">No <%= it.view === "done" ? "finished" : "open" %> tasks for <%= it.filterLabel %> here.</p>
@@ -17,7 +19,7 @@
     <%/* By date, or by where/how (each place's heading links to just its tasks). Each group is a card with its
          heading sitting on the top border, like a fieldset's legend. */%>
     <%/* Its color: a tone (accent, danger, plain) or a hue; see withWhereTone and GROUP_HUES. */%>
-    <section class="task-group<%= g.tone ? ` tone-${g.tone}` : '' %>"<% if (g.hue != null) { %> style="--hue: <%= g.hue %>"<% } %>>
+    <section class="task-group<%= g.tone ? ` tone-${g.tone}` : '' %>"<% if (g.contextId) { %> data-context="<%= g.contextId %>"<% } %><% if (g.hue != null) { %> style="--hue: <%= g.hue %>"<% } %>>
       <h3 class="group<%= g.tone === 'danger' ? ' overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.project ? { project: it.project } : {}), ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %> <span class="count"><%= g.tasks.length %></span></h3>
       <ul class="tasks">
         <% g.tasks.forEach((t) => { %>

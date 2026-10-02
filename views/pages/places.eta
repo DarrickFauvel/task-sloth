@@ -1,0 +1,27 @@
+<% layout("/layout", { title: "Where / how" }) %>
+<script type="module" src="/js/near-you-switch.js"></script>
+<%/* Settings-style cards: "Near you" on this device, then every where/how with its place (partials/places-list).
+     Setting a place needs no script except "I'm here now" (<here-button>, in near-you-switch.js). */%>
+<div class="settings-page places-page">
+<a class="back" href="/settings">← Settings</a>
+<h1>Where / how</h1>
+<p class="hint">Where or how a task gets done: a shop like <code>@Target</code>, or a way like <code>@phone</code>. Type @ and a name in a task to add one. Give the ones that are real places a spot on the map, and Task Sloth can tell you when you're near one.</p>
+<%~ include("/partials/flash", it.flash ?? {}) %>
+
+<div class="settings">
+  <section class="panel" aria-labelledby="near-title">
+    <h2 id="near-title"><span class="emoji" aria-hidden="true">📍</span> Near you</h2>
+    <p>When this phone is near one of your places, the app says what there is to do there and moves it to the top of your list grouped by Where / how. If you allow notifications, you also get one when the app is open but not on screen.</p>
+    <p class="hint">It only checks while the app is open. That checking happens on this phone: where you are isn't sent to us or saved. (“I'm here now” below is different: it saves where you're standing as that place.)</p>
+    <%/* <near-you-switch> shows whether it's on for this device (localStorage) and asks for the permissions. */%>
+    <near-you-switch>
+      <p class="hint" data-state="no-script">Needs JavaScript and a phone or browser that can share its location.</p>
+      <button type="button" class="button primary" data-action="on" hidden>Turn on for this phone</button>
+      <p class="near-on" data-state="on" hidden><strong>On for this phone.</strong> <button type="button" class="link" data-action="off">Turn off</button></p>
+      <p class="hint" role="status" data-status></p>
+    </near-you-switch>
+  </section>
+
+  <%~ include("/partials/places-list", it) %>
+</div>
+</div>

@@ -1,0 +1,53 @@
+<%/* Every where/how (placesPageView in src/web/places-page.js), each with its place and a folded "Set its place":
+     "I'm here now" or an address search. Re-rendered after a place is saved or removed, which also folds it. */%>
+<section class="panel" id="places-list" aria-labelledby="places-title">
+  <h2 id="places-title"><span class="emoji" aria-hidden="true">🗺️</span> Your where / how</h2>
+  <% if (!it.rows.length) { %>
+    <p class="hint">None yet. Add one by typing @ and a place in a task, like <code>milk @Target</code>, then come back here to put it on the map.</p>
+  <% } %>
+  <ul class="places">
+    <% it.rows.forEach((r) => { %>
+      <li class="place" id="place-<%= r.id %>">
+        <div class="place-head">
+          <a class="place-name" href="/?<%= new URLSearchParams({ view: "all", context: r.id }) %>">@<%= r.name %></a>
+          <span class="hint"><%= r.openCount === 1 ? "1 open task" : `${r.openCount} open tasks` %></span>
+        </div>
+        <% if (r.isPlace) { %>
+          <p class="place-where"><span class="emoji" aria-hidden="true">📍</span> <%= r.placeText %> · <a href="<%= r.mapHref %>" target="_blank" rel="noopener">See on map</a></p>
+        <% } else { %>
+          <p class="place-where hint">Not on the map. Leave it that way for things like @phone.</p>
+        <% } %>
+        <details class="place-set"<%~ r.search ? " open" : "" %>>
+          <summary><%= r.isPlace ? "Change its place" : "Put it on the map" %></summary>
+          <div class="place-set-body">
+            <%/* The browser's position fills lat/lng, then the form posts (see <here-button>; hidden until its script runs). */%>
+            <here-button>
+              <form method="post" action="/places/<%= r.id %>/here" data-on:submit="@post('/places/<%= r.id %>/here', {contentType: 'form'})">
+                <input type="hidden" name="lat"><input type="hidden" name="lng">
+                <button type="button" class="button">I'm here now</button>
+              </form>
+              <p class="hint" role="status" data-status>Stand at <%= r.name %> and tap this.</p>
+            </here-button>
+            <form class="place-search" method="post" action="/places/<%= r.id %>/search" data-on:submit="@post('/places/<%= r.id %>/search', {contentType: 'form'})">
+              <label class="field">Or search for it
+                <span class="inline-field">
+                  <input type="search" name="q" value="<%= r.search?.query ?? '' %>" required maxlength="200" autocomplete="off" placeholder="Target, Main Street">
+                  <button class="button">Search</button>
+                </span>
+              </label>
+              <%/* Filled by near-you-switch.js when this browser already shares its location, so nearby results come first. */%>
+              <input type="hidden" name="nearLat"><input type="hidden" name="nearLng">
+              <small class="hint">Search uses OpenStreetMap, so what you type is sent to them, with your rough area if this browser shares it, so nearby results come first.</small>
+            </form>
+            <%~ include("/partials/place-results", r) %>
+            <% if (r.isPlace) { %>
+              <form method="post" action="/places/<%= r.id %>/clear" data-on:submit="@post('/places/<%= r.id %>/clear', {contentType: 'form'})">
+                <button class="link danger">Take it off the map</button>
+              </form>
+            <% } %>
+          </div>
+        </details>
+      </li>
+    <% }) %>
+  </ul>
+</section>

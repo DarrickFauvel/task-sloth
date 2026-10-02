@@ -1132,11 +1132,33 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .pill.is-danger { color: var(--danger); }
 .reset-nav { display: flex; justify-content: flex-end; margin: var(--space-m) 0; }
 .reset-nav form { margin: 0; }
-/* Mine's once-a-week suggestion. */
-.reset-nudge { margin: var(--space-s) 0 0; padding: var(--space-s) var(--space-m); background: var(--tint); border-color: var(--tint-line); }
-.reset-nudge p { margin: 0; }
-.reset-nudge .actions { margin: 0; }
+/* Mine's once-a-week suggestion, and "You're near Target" above the list (public/js/near-you.js). */
+.reset-nudge, .near-banner { margin: var(--space-s) 0 0; padding: var(--space-s) var(--space-m); background: var(--tint); border-color: var(--tint-line); }
+.reset-nudge p, .near-banner p { margin: 0; }
+.reset-nudge .actions, .near-banner .actions { margin: 0; }
 .activity time { flex: none; font-size: var(--step--1); }
+/* The Where / how page: each where/how, its place, and a folded "Put it on the map". */
+.places { list-style: none; margin: 0; padding: 0; }
+.place { display: grid; gap: var(--space-2xs); padding: var(--space-s) 0; border-bottom: 1px solid var(--line); }
+.place:last-child { border-bottom: 0; padding-bottom: 0; }
+.place-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs); }
+.place-name { font-weight: 600; color: inherit; text-decoration: none; }
+.place-where { margin: 0; overflow-wrap: anywhere; }
+.place-set > summary { cursor: pointer; color: var(--accent); padding: var(--space-xs) 0; min-height: 2.75rem; display: flex; align-items: center; }
+.place-set-body { display: grid; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); }
+.place-set-body form, .place-set-body .field { margin: 0; }
+.place-set-body .hint { margin: 0; }
+/* "I'm here now" needs its script; without it there's still the search. */
+here-button:not(:defined) { display: none; }
+here-button { display: grid; gap: var(--space-2xs); }
+here-button .button { justify-self: start; }
+.place-results { display: grid; gap: var(--space-2xs); }
+.place-results:empty { display: none; }
+.place-options { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2xs); }
+.place-option { width: 100%; text-align: left; justify-content: flex-start; min-height: 2.75rem; padding: var(--space-xs) var(--space-s);
+  border: 1px solid var(--line); border-radius: var(--radius); background: none; color: inherit; font: inherit; cursor: pointer; }
+.place-option:hover, .place-option:focus-visible { border-color: var(--accent); background: var(--tint); }
+.near-on { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s); }
 
 /* --- Settings ----------------------------------------------------------------------------- */
 

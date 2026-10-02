@@ -16,7 +16,10 @@ import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
 import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
-import { ensureContext, listContexts } from "./src/services/contexts.js";
+import { clearPlace, ensureContext, listContexts, setPlace } from "./src/services/contexts.js";
+import { searchPlaces } from "./src/services/geocode.js";
+import { placesPageView, searchNudge } from "./src/web/places-page.js";
+import { cleanCoords } from "./public/js/lib/places.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
 import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
@@ -843,6 +846,85 @@ app.post("/items/:id/rename", requireHousehold, async (req, res) => {
   const { taskId, movedTo } = await renameItem(req.actor, req.params.id, req.body.text ?? req.body.itemText);
   const flash = movedTo ? { message: `Moved to ${movedTo}` } : undefined;
   await sendChecklist(req, res, taskId, { flash, signals: { itemRenaming: "", itemText: "" } });
+});
+
+// --- Where / how places ---------------------------------------------------------------
+// A where/how can be a real place, so the home page can say when you're near it (public/js/near-you.js). The
+// page lists them all; a place is set with "I'm here now" (the browser's position) or an address search
+// (src/services/geocode.js). Datastar gets the list back with a toast; plain forms, a redirect.
+
+const PLACE_SAVED = { set: "Place saved", cleared: "Place removed" };
+const renderPlaces = async (req, res, { search = null, saved, status = 200 } = {}) =>
+  render(res, "pages/places", { user: req.user, ...placesPageView(await listContexts(req.actor.householdId), search), flash: saved ? { message: saved } : null }, status);
+
+app.get("/places", requireHousehold, (req, res) => renderPlaces(req, res, { saved: PLACE_SAVED[req.query.saved] }));
+
+async function sendPlaces(req, res, saved) {
+  changed(req.actor.householdId); // open home pages get the new place
+  if (!isDatastar(req)) return redirect(res, `/places?saved=${saved}`);
+  const view = placesPageView(await listContexts(req.actor.householdId));
+  await sse(req, res, (stream) => {
+    stream.patchElements(eta.render("partials/places-list", view));
+    stream.patchElements(eta.render("partials/flash", { message: PLACE_SAVED[saved] }));
+  });
+}
+
+const placeError = (req, res, err) => {
+  if (!(err instanceof HttpError && err.status === 400)) throw err;
+  if (!isDatastar(req)) return render(res, "pages/error", { status: 400, message: err.message }, 400);
+  return sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: err.message, error: true })));
+};
+
+app.post("/places/:id/here", requireHousehold, async (req, res) => {
+  try {
+    await setPlace(req.actor.householdId, req.params.id, { lat: req.body.lat, lng: req.body.lng });
+  } catch (err) {
+    return placeError(req, res, err);
+  }
+  await sendPlaces(req, res, "set");
+});
+
+app.post("/places/:id/pick", requireHousehold, async (req, res) => {
+  try {
+    await setPlace(req.actor.householdId, req.params.id, { lat: req.body.lat, lng: req.body.lng, label: req.body.label });
+  } catch (err) {
+    return placeError(req, res, err);
+  }
+  await sendPlaces(req, res, "set");
+});
+
+app.post("/places/:id/clear", requireHousehold, async (req, res) => {
+  await clearPlace(req.actor.householdId, req.params.id);
+  await sendPlaces(req, res, "cleared");
+});
+
+// Address search: what's typed goes to OpenStreetMap (see geocode.js). Results lean towards the browser's
+// position when it sent one (nearLat/nearLng), or else the household's first place. 20 every 10 minutes per person.
+const placeSearches = createRateLimit({ limit: 20, windowMs: 10 * 60_000 });
+app.post("/places/:id/search", requireHousehold, async (req, res) => {
+  const { householdId } = req.actor;
+  const contexts = await listContexts(householdId);
+  const context = contexts.find((cx) => cx.id === req.params.id);
+  if (!context) throw new HttpError(404, "Where/how not found");
+  const query = String(req.body.q ?? "").slice(0, 200);
+  const search = { contextId: context.id, query, results: [], error: null };
+  if (placeSearches.isLimited(req.user.id)) search.error = "That's a lot of searches. Try again in a few minutes.";
+  else {
+    placeSearches.hit(req.user.id);
+    const near = cleanCoords(req.body.nearLat, req.body.nearLng) ?? searchNudge(contexts);
+    try {
+      search.results = await searchPlaces(query, near);
+      if (!search.results.length) search.error = `Nothing found for “${query.trim()}”. Try adding the town, or a street.`;
+    } catch (err) {
+      if (!(err instanceof HttpError && [400, 502].includes(err.status))) throw err;
+      search.error = err.message;
+    }
+  }
+  if (!isDatastar(req)) return renderPlaces(req, res, { search });
+  const row = placesPageView([context], search).rows[0];
+  await sse(req, res, (stream) => {
+    stream.patchElements(eta.render("partials/place-results", row));
+  });
 });
 
 // --- Settings -------------------------------------------------------------------------
