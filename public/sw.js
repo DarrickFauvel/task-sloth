@@ -6,7 +6,7 @@
 // network first (an edited stylesheet shows on the next load, not the one after) and the cache only offline.
 // Live streams (/events), form posts, photos and avatars aren't touched.
 
-const CACHE = "task-sloth-v1";
+const CACHE = "task-sloth-v2";
 const OFFLINE = "/offline.html";
 const PRECACHE = [OFFLINE, "/css/app.css", "/img/logo.png", "/favicon.png"];
 const DATASTAR = "https://cdn.jsdelivr.net/gh/starfederation/datastar@";
