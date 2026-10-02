@@ -56,15 +56,25 @@
 
     <section class="panel edit-group is-who" aria-labelledby="edit-who">
       <h2 id="edit-who"><span class="emoji" aria-hidden="true">👤</span> Who &amp; where</h2>
-      <fieldset class="edit-field"<%~ focus("assigneeId") %>>
+      <%/* Handing it to someone else (not you, not Anyone, not who had it) offers a note for them ($handTo is their
+           name). It's sent as a comment, so they see the task's "new" dot. The box has no name, so it isn't autosaved. */%>
+      <fieldset class="edit-field"<%~ focus("assigneeId") %>
+                data-on:change="evt.target.name === 'assigneeId' && ($handTo = ['', '<%= f.userId %>', '<%= t.assignee_id ?? '' %>'].includes(evt.target.value) ? '' : evt.target.dataset.name)">
         <legend>Who does it</legend>
         <div class="pills">
           <% f.members.forEach((m) => { %>
-            <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>"<%~ checked(m.id === t.assignee_id) %>><span><%= m.id === f.userId ? "Me" : m.name %></span></label>
+            <label class="pill"><input type="radio" name="assigneeId" value="<%= m.id %>" data-name="<%= m.name %>"<%~ checked(m.id === t.assignee_id) %>><span><%= m.id === f.userId ? "Me" : m.name %></span></label>
           <% }) %>
           <label class="pill"><input type="radio" name="assigneeId" value=""<%~ checked(!t.assignee_id) %>><span>Anyone</span></label>
         </div>
         <p class="hint">“Anyone” puts it on Up for grabs, for whoever gets to it first.</p>
+        <div class="hand-over" data-show="$handTo" style="display: none">
+          <label for="hand-note">Anything <span data-text="$handTo"></span> should know?</label>
+          <textarea id="hand-note" data-bind:hand-note rows="2" maxlength="4000" placeholder="e.g. The receipt is in the drawer"></textarea>
+          <span class="hint">Optional. It's added to the comments, and they'll see it's new.</span>
+          <button type="button" class="button" data-attr:disabled="!$handNote.trim()"
+                  data-on:click="@post('/tasks/<%= t.id %>/hand-over', {filterSignals: {include: /^(handNote|handTo)$/}})">Send note</button>
+        </div>
       </fieldset>
       <label class="edit-field">Where / how
         <input name="context"<%~ focus("context") %> value="<%= t.context_name ?? '' %>" list="contexts" maxlength="80" autocomplete="off" placeholder="e.g. Target, phone, computer">
@@ -161,7 +171,8 @@
         <button type="button" class="button" data-on:click="@get('/tasks/<%= t.id %>/edit')">Show their changes</button>
       </p>
       <p class="hint">Changes save as you go.</p>
-      <button class="button primary" data-on:click__prevent="$editing = false">Done</button>
+      <%/* A hand-over note that's typed but not sent yet goes too. */%>
+      <button class="button primary" data-on:click__prevent="$handTo && $handNote.trim() && @post('/tasks/<%= t.id %>/hand-over', {filterSignals: {include: /^(handNote|handTo)$/}}); $editing = false">Done</button>
     </div>
   </form>
 <% } %>
