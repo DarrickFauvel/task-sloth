@@ -9,6 +9,7 @@
   <h1 class="task-title tap-edit" <%~ editOnTap("title") %>><%~ include("/partials/phone-text", { parts: t.titleParts }) %></h1>
   <span class="meta">
     <% if (done) { %><span>Done</span><% } %>
+    <% if (t.worker) { %><span class="working"><span class="dot" style="background: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're working on this now" : `${t.worker.name.split(" ")[0]} is working on this now` %></span><% } %>
     <% if (t.dueLabel) { %><a class="meta-edit due <%= t.dueState %>" <%~ edit("dueDate") %>><%= t.dueText %></a><% } %>
     <% if (t.repeats) { %><a class="meta-edit" <%~ edit("recurrence") %>><span class="emoji" aria-hidden="true">↻</span> <%= t.repeats %></a><% } %>
     <% if (!done && t.list === "inbox") { %><span><span class="emoji" aria-hidden="true">📥</span> In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
@@ -31,6 +32,14 @@
       <input type="hidden" name="back" value="task">
       <button class="button<%= done ? '' : ' primary' %>"><%= done ? "Reopen" : "Mark done" %></button>
     </form>
+    <%/* "Working on now" (see the task row): one task each at a time, shown at the top of everyone's lists. */%>
+    <% const working = t.worker && t.worker.id === it.userId; %>
+    <% if (!done && (working || (!t.worker && t.list === "todo" && !t.blockedBy))) { %>
+      <form method="post" action="/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>', {contentType: 'form'})">
+        <input type="hidden" name="back" value="task">
+        <button class="button" title="<%= working ? 'Not doing it right now after all' : 'Show everyone you’re doing this right now' %>"><%= working ? "Stop working on it" : "Start now" %></button>
+      </form>
+    <% } %>
     <a class="button" href="/tasks/<%= t.id %>/edit" data-show="!$editing" data-on:click__prevent="@get('/tasks/<%= t.id %>/edit')">Edit</a>
     <%/* A plain post: it leaves the page for your lists, where a toast offers Undo (see ?deleted= on the home route). */%>
     <form method="post" action="/tasks/<%= t.id %>/delete">

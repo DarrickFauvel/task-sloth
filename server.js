@@ -13,7 +13,7 @@ import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, getUser, MEMBER_C
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
-import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, updateTask } from "./src/services/tasks.js";
+import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
 import { addSpot, ensureContext, getContext, listContexts, listSpots, removeSpot } from "./src/services/contexts.js";
@@ -39,7 +39,7 @@ import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortc
 import { checklistView } from "./src/web/checklist.js";
 import { autosaveInput, editFormView, editInput, savedMessage } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
-import { addDays, nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
+import { addDays, nextMidnight, nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
 import { createTasksApi } from "./src/google/tasks-api.js";
 import { createSyncEngine } from "./src/sync/engine.js";
@@ -381,6 +381,17 @@ app.post("/tasks/:id/hide", requireHousehold, async (req, res) => {
 
 app.post("/tasks/:id/claim", requireHousehold, async (req, res) => {
   await assignTask(req.actor, req.params.id, req.user.id);
+  await sendTaskList(req, res);
+});
+
+// "Working on now": until you stop, finish it, or your day ends (midnight where you are).
+app.post("/tasks/:id/start", requireHousehold, async (req, res) => {
+  await startWorking(req.actor, req.params.id, { until: nextMidnight(req.cookies.tz).toISOString() });
+  await sendTaskList(req, res, { flash: { message: "Everyone can see you're on it" } });
+});
+
+app.post("/tasks/:id/stop", requireHousehold, async (req, res) => {
+  await stopWorking(req.actor, req.params.id);
   await sendTaskList(req, res);
 });
 

@@ -1,4 +1,4 @@
-import { inboxCount, listTasks, tagList } from "../services/tasks.js";
+import { inboxCount, isWorking, listTasks, tagList } from "../services/tasks.js";
 import { tasksWithNewComments } from "../services/comments.js";
 import { getContext, listPlaces } from "../services/contexts.js";
 import { nearYouPlaces } from "./places-page.js";
@@ -75,12 +75,15 @@ export const listQueryString = ({ view, project, context, tag }) =>
  * `time` ("HH:MM" in the viewer's time zone) makes a task due earlier today overdue; without it, only the date counts.
  */
 export function decorateTask(t, membership, today, time = null) {
+  const member = (id) => membership.members.find((m) => m.id === id) ?? null;
   const state = t.due_date ? dueState(t.due_date, today, t.due_time, time) : "";
   const dueLabel = t.due_date ? relativeLabel(t.due_date, today) : "";
   const lateToday = state === "overdue" && t.due_date === today;
   return {
     ...t,
-    assignee: t.assignee_id ? membership.members.find((m) => m.id === t.assignee_id) ?? null : null,
+    assignee: t.assignee_id ? member(t.assignee_id) : null,
+    // Who's doing it right now ("working on now"), until they stop, finish it, or their day ends.
+    worker: t.status === "open" && isWorking(t) ? member(t.working_by) : null,
     dueLabel,
     // "Today 15:00 · overdue" once today's due time has passed.
     dueText: [dueLabel, t.due_date && t.due_time].filter(Boolean).join(" ") + (lateToday && t.status === "open" ? " · overdue" : ""),
@@ -137,7 +140,9 @@ export async function taskListView({ userId, membership, view, project: projectI
   const query = { view, project: project?.id ?? null, context: context?.id ?? null, tag };
   const filterLabel = [project && `${project.emoji} ${project.name}`, context && `@${context.name}`, tag && `+${tag}`].filter(Boolean).join(" ");
   const doneTimes = tasks.filter((t) => t.status === "done").map((t) => Date.parse(t.completed_at));
-  const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...(time ? clockTicks(tasks, today, time, now) : [])];
+  // "Working on now" lapses at the end of the day it was started.
+  const workingUntil = tasks.filter((t) => t.worker).map((t) => Date.parse(t.working_until));
+  const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...workingUntil, ...(time ? clockTicks(tasks, today, time, now) : [])];
   const refreshAt = refreshTimes.length ? Math.min(...refreshTimes) : null;
   // Mine suggests the weekly reset when one is due (see src/services/reset.js); the caller works that out.
   const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
@@ -147,9 +152,14 @@ export async function taskListView({ userId, membership, view, project: projectI
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
 
+  // What people are doing right now goes first, ahead of the dates or places.
+  const working = tasks.filter((t) => t.worker);
+  const rest = tasks.filter((t) => !t.worker);
+  const nowGroup = working.length ? [{ label: "Working on now", hue: GROUP_HUES[2], tasks: working }] : [];
+
   // Grouping by where/how means nothing once the list is narrowed to one context, so it falls back to dates.
   const canGroup = !context;
-  if (canGroup && groupBy === "where") return { ...base, canGroup, groupBy, groups: groupByWhere(tasks).map(withWhereTone) };
+  if (canGroup && groupBy === "where") return { ...base, canGroup, groupBy, groups: [...nowGroup, ...groupByWhere(rest).map(withWhereTone)] };
 
   const weekOut = addDays(today, 7);
   const groups = [
@@ -159,9 +169,9 @@ export async function taskListView({ userId, membership, view, project: projectI
     { label: "Later", hue: GROUP_HUES[3], test: (t) => t.due_date && t.due_date > weekOut },
     { label: "No date", tone: "plain", test: (t) => !t.due_date },
   ]
-    .map(({ test, ...g }) => ({ ...g, tasks: tasks.filter(test) }))
+    .map(({ test, ...g }) => ({ ...g, tasks: rest.filter(test) }))
     .filter((g) => g.tasks.length);
-  return { ...base, canGroup, groupBy: "when", groups };
+  return { ...base, canGroup, groupBy: "when", groups: [...nowGroup, ...groups] };
 }
 
 /**

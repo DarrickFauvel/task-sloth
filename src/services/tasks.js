@@ -266,8 +266,53 @@ export async function updateTask(actor, id, input, { fromGoogle = false } = {}) 
   if (updated.length && !settingUp) {
     statements.push(activityStatement(actor.householdId, actorId, id, "updated", { fields: updated }));
   }
+  // Someone no longer doing it, or the task leaving To do, ends "working on now".
+  const workerLeft = task.working_by && "assignee_id" in diff && diff.assignee_id !== task.working_by;
+  if (workerLeft || (diff.list && diff.list !== "todo")) statements.push(stopWorkingStatement(id));
   await db.batch(statements);
   changed(actor.householdId, id, { fromGoogle, editedBy: actorId });
+}
+
+const stopWorkingStatement = (id) => ({
+  sql: "UPDATE tasks SET working_by = NULL, working_since = NULL, working_until = NULL WHERE id = ?",
+  args: [id],
+});
+
+/** Whether someone is working on this task right now: marked, and the day they marked it hasn't ended. */
+export const isWorking = (task, at = now()) => Boolean(task.working_by && task.working_until > at);
+
+/**
+ * "Working on now": marks a To do task as the one the actor is doing, until they stop, finish it, or `until`
+ * (an ISO time, the end of their day). One at a time, so it ends any other task they were on. Nobody's task
+ * becomes theirs; someone else's stays theirs (the actor is helping).
+ */
+export async function startWorking(actor, id, { until }) {
+  const task = await getTask(actor.householdId, id);
+  if (task.status !== "open" || task.is_template) throw new HttpError(400, "That task is already done");
+  if (task.list !== "todo") throw new HttpError(400, "Move it to To do first");
+  const ts = now();
+  const others = await db.all(
+    "SELECT id FROM tasks WHERE household_id = ? AND working_by = ? AND id != ?",
+    [actor.householdId, actor.id, id],
+  );
+  await db.batch([
+    ...others.map((o) => stopWorkingStatement(o.id)),
+    {
+      sql: "UPDATE tasks SET working_by = ?, working_since = ?, working_until = ?, assignee_id = COALESCE(assignee_id, ?), updated_at = ? WHERE id = ?",
+      args: [actor.id, ts, until, actor.id, ts, id],
+    },
+    ...(task.assignee_id ? [] : [activityStatement(actor.householdId, actor.id, id, "assigned", { from: null, to: actor.id })]),
+    activityStatement(actor.householdId, actor.id, id, "started"),
+  ]);
+  for (const o of [...others, { id }]) changed(actor.householdId, o.id);
+}
+
+/** Ends "working on now" for a task, whoever marked it. */
+export async function stopWorking(actor, id) {
+  const task = await getTask(actor.householdId, id);
+  if (!task.working_by) return;
+  await db.batch([stopWorkingStatement(id), activityStatement(actor.householdId, actor.id, id, "stopped")]);
+  changed(actor.householdId, id);
 }
 
 /** Reassigns (or claims / releases) a task, optionally leaving a note as a comment. */
@@ -289,6 +334,7 @@ export async function setDone(actor, id, done, { today, fromGoogle = false } = {
       args: done ? ["done", ts, actorId, ts, id] : ["open", null, null, ts, id],
     },
     activityStatement(actor.householdId, actorId, id, done ? "completed" : "reopened"),
+    ...(done ? [stopWorkingStatement(id)] : []),
     ...released.statements,
   ];
   await db.batch(statements);
