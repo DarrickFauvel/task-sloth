@@ -554,6 +554,23 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
   animation: working-drift 10s ease-in-out infinite alternate;
 }
 @keyframes working-drift { to { background-position: 100% 100%; } }
+/* In a focus session on this task: a last line in the card's body, a little apart from the buttons above it. */
+.now-focus {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-s);
+  margin-top: var(--space-l); padding: 0 var(--space-2xs) var(--space-s); font-size: var(--step--1);
+}
+.now-focus progress {
+  flex: 1 1 5rem; height: 0.45rem; appearance: none; border: 0; border-radius: 999px; overflow: hidden;
+  background: color-mix(in oklch, var(--glow-1) 18%, transparent);
+}
+.now-focus progress::-webkit-progress-bar { background: color-mix(in oklch, var(--glow-1) 18%, transparent); }
+.now-focus progress::-webkit-progress-value { background: var(--glow-1); border-radius: 999px; }
+.now-focus progress::-moz-progress-bar { background: var(--glow-1); border-radius: 999px; }
+/* Quieter than the task above it: muted text, a softer bar and link. */
+.now-focus { color: var(--muted); font-size: var(--step--2); opacity: 0.85; }
+.now-focus strong { font-weight: normal; color: inherit; }
+.now-focus progress { opacity: 0.45; height: 0.35rem; }
+.now-focus a { font-weight: normal; color: inherit; text-decoration: underline; text-decoration-color: color-mix(in oklch, currentColor 40%, transparent); text-underline-offset: 0.2em; }
 /* Its "Working on now" heading pill breathes: a soft band of the group's color drifts across it and back, with
    a faint glow that swells and fades. */
 .is-working-group > .group {
@@ -570,7 +587,7 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
   padding: 0.45em 0.65em;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
-.task-group.is-working-group { margin-top: var(--space-l); }
+.task-group.is-working-group { margin-top: var(--space-l); margin-bottom: calc(var(--space-l) * 2); }
 .task-group.is-working-group:first-child, .done-today-line + .task-group.is-working-group { margin-top: var(--space-m); }
 @keyframes working-pill {
   from { background-position: 0% 0, 0 0; box-shadow: 0 0 0 0 transparent; }

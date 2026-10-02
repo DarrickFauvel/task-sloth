@@ -1,0 +1,23 @@
+<%/* How the list below shows (on the to-do tabs): View as a list or a board (/list-layout), and for a list, Group by
+     when or where / how (/list-grouping). Both cookies; they swap the list in place, or without script post and
+     redirect. They sit under the Working on now card, since they're about the list, not what you're doing now. */%>
+  <% if (it.canBoard) { %>
+    <form method="post" action="/list-layout" class="pills grouping" aria-label="View tasks as">
+      <input type="hidden" name="view" value="<%= it.view %>"><input type="hidden" name="project" value="<%= it.project ?? '' %>"><input type="hidden" name="context" value="<%= it.context ?? '' %>"><input type="hidden" name="tag" value="<%= it.tag ?? '' %>">
+      <span class="hint">View as</span>
+      <% [["list", "List"], ["board", "Board"]].forEach(([value, label]) => { %>
+        <button name="as" value="<%= value %>" class="pill<%= it.layout === value ? ' is-on' : '' %>"<%~ it.layout === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>
+                data-on:click__prevent="@post('/list-layout?as=<%= value %>', {contentType: 'form'})"><%= label %></button>
+      <% }) %>
+    </form>
+  <% } %>
+  <% if (it.canGroup && it.layout !== "board") { %>
+    <form method="post" action="/list-grouping" class="pills grouping" aria-label="Group tasks by">
+      <input type="hidden" name="view" value="<%= it.view %>"><input type="hidden" name="project" value="<%= it.project ?? '' %>"><input type="hidden" name="tag" value="<%= it.tag ?? '' %>">
+      <span class="hint">Group by</span>
+      <% [["when", "When"], ["where", "Where / how"]].forEach(([value, label]) => { %>
+        <button name="by" value="<%= value %>" class="pill<%= it.groupBy === value ? ' is-on' : '' %>"<%~ it.groupBy === value ? ' aria-pressed="true"' : ' aria-pressed="false"' %>
+                data-on:click__prevent="@post('/list-grouping?by=<%= value %>', {contentType: 'form'})"><%= label %></button>
+      <% }) %>
+    </form>
+  <% } %>

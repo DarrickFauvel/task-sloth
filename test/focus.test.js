@@ -11,6 +11,7 @@ import {
   setAsideInSession, skipInSession, startFocus,
 } from "../src/services/focus.js";
 import { focusLines, focusPageView } from "../src/web/focus-page.js";
+import { taskListView } from "../src/web/task-list.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-focus-"));
 const me = { id: "u1", householdId: "h1" };
@@ -119,7 +120,9 @@ test("the household sees who's focusing on what, and the page shows the task, pr
   await createTask(me, { title: "first", contextId: "target", dueDate: "2099-01-01" });
   await createTask(me, { title: "second", contextId: "target", dueDate: "2099-01-02" });
   await startFocus(me, { contextId: "target" }, { until: until() });
-  assert.deepEqual(await householdSessions("h1"), [{ userId: "u1", target: { kind: "context", id: "target", name: "Target" }, done: 0, total: 2 }]);
+  const [line] = await householdSessions("h1");
+  assert.deepEqual({ ...line, currentId: undefined }, { userId: "u1", target: { kind: "context", id: "target", name: "Target" }, done: 0, total: 2, currentId: undefined });
+  assert.equal((await getTask("h1", line.currentId)).title, "first");
   assert.deepEqual((await focusLines("h1", membership, "u2")).map((l) => l.text), ["Alice is focusing on @Target · 0 of 2 done"]);
   assert.equal((await focusLines("h1", membership, "u1"))[0].text, "You're focusing on @Target · 0 of 2 done");
   const page = await focusPageView({ actor: me, membership, today: "2026-10-02" });
@@ -137,4 +140,17 @@ test("choices count what you could take on in each project and place", async () 
   assert.deepEqual(projects.map((c) => [c.name, c.count]), [["Party", 1]]);
   assert.deepEqual(contexts.map((c) => [c.name, c.count]), [["Target", 2]]);
   await assert.rejects(startFocus(me, {}, { until: until() }), /Pick a project/);
+});
+
+test("your session rides on the Working on now card's footer while it's that task", async () => {
+  await createTask(me, { title: "in session", contextId: "target" });
+  const other = await createTask(me, { title: "something else" });
+  await startFocus(me, { contextId: "target" }, { until: until() });
+  let list = await taskListView({ userId: "u1", membership, view: "all", today: "2026-10-02" });
+  assert.equal(list.groups[0].focus.text, "You're focusing on @Target · 0 of 1 done");
+  assert.ok(!list.focusLines.some((f) => f.mine), "not also at the top");
+  await startWorking(me, other, { until: until() });
+  list = await taskListView({ userId: "u1", membership, view: "all", today: "2026-10-02" });
+  assert.equal(list.groups[0].focus, null, "on something else: no footer");
+  assert.ok(list.focusLines.some((f) => f.mine), "the line is back at the top");
 });

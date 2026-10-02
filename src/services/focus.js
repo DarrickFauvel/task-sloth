@@ -188,7 +188,7 @@ export async function householdSessions(householdId) {
       const target = session && (await sessionTarget(householdId, session).catch(() => null));
       if (!target) return null;
       const [done, queue] = await Promise.all([sessionDone(actor, session), sessionQueue(actor, session)]);
-      return { userId: user_id, target, done, total: done + queue.length };
+      return { userId: user_id, target, done, total: done + queue.length, currentId: queue[0]?.id ?? null };
     }),
   );
   return lines.filter(Boolean);

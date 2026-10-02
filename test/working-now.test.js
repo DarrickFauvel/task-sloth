@@ -9,7 +9,7 @@ import { createTask, getTask, isWorking, setDone, startWorking, stopWorking, upd
 import { taskListView } from "../src/web/task-list.js";
 import { buildActivity } from "../src/web/activity-page.js";
 import { listActivity } from "../src/services/activity.js";
-import { elapsedLabel, nextMidnight } from "../public/js/lib/dates.js";
+import { elapsedLabel, nextMidnight, onItLabel } from "../public/js/lib/dates.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-working-"));
 const me = { id: "u1", householdId: "h1" };
@@ -142,4 +142,5 @@ test("starting and stopping show in Activity only under every change", async () 
 
 test("how long you've been on it", () => {
   assert.deepEqual([0, 59_000, 12 * 60_000, 60 * 60_000, 125 * 60_000].map(elapsedLabel), ["just started", "just started", "12 min", "1 h", "2 h 5 min"]);
+  assert.deepEqual([30_000, 12 * 60_000].map(onItLabel), ["Just started", "On it for 12 min"]);
 });
