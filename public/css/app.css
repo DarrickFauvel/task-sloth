@@ -558,15 +558,15 @@ button.link.danger { color: var(--danger); }
    Each section is a plain .panel card with its heading inside, sized and spaced like Settings' cards. */
 .edit { display: grid; gap: var(--space-m); margin: var(--space-s) 0 var(--space-m); }
 .edit h2 { font-size: var(--step-1); }
-.edit-main { gap: var(--space-2xs); }
-.edit-main > h2 { margin-bottom: var(--space-s); }
-.edit-main > h2 label { display: inline; font: inherit; color: inherit; }
+/* The task's name and notes, on the page rather than in a card: the name at page-title size over a hairline that
+   turns to your accent while you type, the notes as plain text under it. */
+.edit-main { display: grid; gap: var(--space-2xs); }
 .edit-title {
-  min-height: 0; padding: 0.1rem 0; border: 0; border-bottom: 1px dashed transparent; border-radius: 0;
-  font-size: var(--step-2); font-weight: 650; line-height: 1.25; background: none;
+  min-height: 0; padding: 0.1rem 0 var(--space-2xs); border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+  font-size: var(--step-3); font-weight: 700; line-height: 1.15; background: none;
 }
 .edit-title:focus { outline: none; border-bottom-color: var(--accent); }
-.edit-main textarea { min-height: 0; padding: var(--space-2xs) 0; border: 0; border-radius: 0; background: none; font-size: var(--step--1); }
+.edit-main textarea { min-height: 0; padding: var(--space-2xs) 0; border: 0; border-radius: 0; background: none; }
 .edit-main textarea:focus { outline: none; }
 /* Each card holds a few features: a label (or legend) in the text color, the control, then a muted hint that
    says what it does. Features are split by the same hairline as the task list's rows, with --feature-gap on
@@ -831,7 +831,7 @@ label.pill span, button.pill, a.pill {
   main:has(.bottom-nav) { padding-bottom: var(--space-l); }
   .quick-add { margin-inline: 0; padding-inline: 0; }
   .edit-actions { margin-inline: 0; padding-inline: 0; }
-  /* Cards in pairs (When | Who & where, List & waiting | More); the title card and Done span both columns.
+  /* Cards in pairs (When | Who & where, List & waiting | More); the name and notes and Done span both columns.
      Folded, More keeps its own height instead of stretching to its neighbor's. */
   .edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .edit-main, .edit-actions { grid-column: 1 / -1; }

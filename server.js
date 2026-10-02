@@ -129,8 +129,13 @@ const decorate = (req, task, membership = req.membership) => {
   return decorateTask(task, membership, today, time);
 };
 const doneToday = (req, membership) => doneTodayView({ membership, timeZone: req.cookies.tz });
-/** How to-do lists are grouped on this device: by date ("when", the default) or by where/how. */
-const groupBy = (req) => (req.cookies.group === "where" ? "where" : "when");
+/**
+ * How to-do lists are grouped on this device: by date ("when", the default) or by where/how. It's a cookie, but a
+ * page's live stream (/events) keeps the cookies it opened with, so a switch made after that is also kept here,
+ * per sign-in, and wins: otherwise the next live update would put the list back the old way.
+ */
+const groupSwitches = new Map();
+const groupBy = (req) => groupSwitches.get(req.user?.session_id) ?? (req.cookies.group === "where" ? "where" : "when");
 const isDatastar = (req) => req.get("datastar-request") === "true";
 
 /** The home page's nudge to confirm your email (or a pending new one), for password accounts; null if there's nothing to confirm. */
@@ -1109,6 +1114,7 @@ app.post("/household-line", requireHousehold, async (req, res) => {
 app.post("/list-grouping", requireHousehold, async (req, res) => {
   const by = (req.body.by ?? req.query.by) === "where" ? "where" : "when";
   res.append("Set-Cookie", by === "where" ? "group=where; Path=/; Max-Age=31536000; SameSite=Lax" : "group=; Path=/; Max-Age=0; SameSite=Lax");
+  groupSwitches.set(req.user.session_id, by);
   await sendTaskList(req, res, { grouping: by });
 });
 
