@@ -1,0 +1,38 @@
+<%/* The board (View as: Board; boardColumns in src/web/task-list.js): To do, Doing, Waiting on and Done today side
+     by side. Moving a card changes the task: each card's "Move to" has a form per other column (posted with
+     Datastar, or plain without script), and <task-board> (public/js/task-board.js) submits the right one when a
+     card is dropped on a column. On a phone the columns swipe sideways. */%>
+<task-board class="board">
+  <% it.columns.forEach((c) => { %>
+    <section class="board-col" data-column="<%= c.key %>" id="col-<%= c.key %>" aria-labelledby="col-<%= c.key %>-title">
+      <h3 class="board-head" id="col-<%= c.key %>-title"><%= c.label %> <span class="count"><%= c.tasks.length %></span></h3>
+      <% if (!c.tasks.length) { %><p class="hint board-empty"><%= c.empty %></p><% } %>
+      <ul class="board-cards">
+        <% c.tasks.forEach((t) => { const done = t.status === "done"; %>
+          <li class="board-card<%= done ? ' is-done' : '' %>" id="card-<%= t.id %>" draggable="true" data-task="<%= t.id %>">
+            <a class="board-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
+            <span class="meta">
+              <% if (t.worker) { %><span class="working"><span class="dot" style="background: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're on it" : `${t.worker.name.split(" ")[0]}'s on it` %></span><% } %>
+              <% if (t.dueLabel && !done) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
+              <% if (t.blockedBy && !done) { %><a class="blocked" href="/tasks/<%= t.waiting_task_id %>">⏳ after “<%= t.blockedBy %>”</a><% } %>
+              <% if (t.waitingLabel) { %><span>⏳ <%= t.waitingLabel %></span><% } %>
+              <%~ include("/partials/context-tags", { t }) %>
+              <% if (t.assignee && t.assignee.id !== t.worker?.id) { %><span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span><% } %>
+            </span>
+            <details class="move">
+              <summary>Move to</summary>
+              <div class="move-to">
+                <% it.columns.filter((o) => o.key !== c.key).forEach((o) => { %>
+                  <form method="post" action="/tasks/<%= t.id %>/move/<%= o.key %>" data-move="<%= o.key %>" data-on:submit="@post('/tasks/<%= t.id %>/move/<%= o.key %>')">
+                    <input type="hidden" name="view" value="<%= it.view %>"><%~ include("/partials/list-query", it) %>
+                    <button class="pill"><%= o.label %></button>
+                  </form>
+                <% }) %>
+              </div>
+            </details>
+          </li>
+        <% }) %>
+      </ul>
+    </section>
+  <% }) %>
+</task-board>
