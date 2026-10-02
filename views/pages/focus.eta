@@ -1,0 +1,52 @@
+<% layout("/layout", { title: "Focus" }) %>
+<%/* A focus session (src/web/focus-page.js): one task at a time from one project or where/how. Each answer is a
+     plain post that comes back here with the next task. Without a session, a picker. */%>
+<% if (!it.session) { const c = it.choices; %>
+  <a class="back" href="/">← Lists</a>
+  <h1>Focus on one thing</h1>
+  <p class="hint">Pick a project or a place and work through its tasks one at a time: yours, and any nobody's taken yet. The household sees what you're on.</p>
+  <section class="panel focus-card">
+    <% if (c.projects.length || c.contexts.length) { %>
+      <%~ include("/partials/focus-picker", c) %>
+    <% } else { %>
+      <p class="empty">Nothing to focus on yet. Tasks with a project (<code>#Birthday</code>) or a where / how (<code>@Target</code>) show up here.</p>
+    <% } %>
+  </section>
+
+<% } else if (!it.current) { %>
+  <section class="empty-state">
+    <p class="empty-icon emoji" aria-hidden="true">🎉</p>
+    <h1>All done for <%= it.target.label %></h1>
+    <p><%= it.done ? `You finished ${it.done} ${it.done === 1 ? "task" : "tasks"}.` : "Nothing's left that you can take on right now." %></p>
+    <form method="post" action="/focus/end"><button class="button primary">End session</button></form>
+  </section>
+
+<% } else { const t = it.current; %>
+  <nav class="reset-top">
+    <a class="back" href="/" title="Your session keeps going; come back from the line at the top of your lists">← Lists</a>
+    <span class="focus-target"><%= it.target.label %></span>
+  </nav>
+  <div class="focus-progress">
+    <progress max="<%= it.total %>" value="<%= it.done %>"></progress>
+    <span class="hint"><%= it.done %> of <%= it.total %> done</span>
+  </div>
+  <section class="panel focus-card is-working" aria-labelledby="focus-task"<% if (t.worker) { %> style="--worker: <%= t.worker.color %>"<% } %>>
+    <h1 id="focus-task" class="focus-title"><a href="/tasks/<%= t.id %>"><%= t.title %></a></h1>
+    <span class="meta">
+      <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
+      <% if (t.repeats) { %><span>↻ <%= t.repeats %></span><% } %>
+      <%~ include("/partials/context-tags", { t }) %>
+      <% if (t.project_name && it.target.kind !== "project") { %><span><%= t.project_emoji %> <%= t.project_name %></span><% } %>
+    </span>
+    <% if (t.notes) { %><p class="focus-notes"><%= t.notes %></p><% } %>
+    <% if (Number(t.item_count)) { %><a class="focus-checklist" href="/tasks/<%= t.id %>">☑ <%= t.item_done %> of <%= t.item_count %> on its checklist →</a><% } %>
+    <div class="focus-actions">
+      <form method="post" action="/focus/<%= t.id %>/done"><button class="button primary">Done</button></form>
+      <% if (it.left > 1) { %><form method="post" action="/focus/<%= t.id %>/skip"><button class="button" title="Come back to it at the end">Skip</button></form><% } %>
+      <form method="post" action="/focus/<%= t.id %>/later"><button class="button" title="Leave it out of this session">Not today</button></form>
+    </div>
+    <p class="hint"><%= it.next ? `Up next: ${it.next}` : "This is the last one." %></p>
+  </section>
+  <form method="post" action="/focus/end" class="reset-nav"><button class="button">End session</button></form>
+<% } %>
+<%~ include("/partials/flash", it.flash ?? {}) %>

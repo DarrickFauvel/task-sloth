@@ -113,12 +113,15 @@ class NearYou extends HTMLElement {
     this.replaceChildren(box);
   }
 
-  /** Grouped by Where / how: the place we're near goes first. (The server's order comes back with each update.) */
+  /**
+   * Grouped by Where / how: the place we're near goes first, after only "Working on now" (what people are doing
+   * right now stays on top). The server's order comes back with each update.
+   */
   raiseGroup() {
     const p = this.place;
     if (!p) return;
     const group = this.list.querySelector(`.task-group[data-context="${CSS.escape(p.contextId)}"]`);
-    const first = this.list.querySelector(".task-group");
+    const first = this.list.querySelector(".task-group:not(.is-working-group)");
     if (group && first && group !== first) first.before(group);
   }
 

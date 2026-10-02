@@ -22,6 +22,13 @@
     </near-you-switch>
   </section>
 
+  <% if (it.focusPlaces?.length) { %>
+    <section class="panel" aria-labelledby="focus-title">
+      <h2 id="focus-title"><span class="emoji" aria-hidden="true">🎯</span> Focus on one</h2>
+      <p class="hint">Work through a place's tasks one at a time: yours, and any nobody's taken yet. The number is how many you can take on.</p>
+      <%~ include("/partials/focus-picker", { contexts: it.focusPlaces }) %>
+    </section>
+  <% } %>
 </div>
 <%~ include("/partials/places-list", it) %>
 </div>

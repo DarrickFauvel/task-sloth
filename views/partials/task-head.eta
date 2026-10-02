@@ -32,7 +32,7 @@
       <input type="hidden" name="back" value="task">
       <button class="button<%= done ? '' : ' primary' %>"><%= done ? "Reopen" : "Mark done" %></button>
     </form>
-    <%/* "Working on now" (see the task row): one task each at a time, shown at the top of everyone's lists. */%>
+    <%/* "Working on now" (see the task row): one task each at a time, at the top of your lists and shown to everyone. */%>
     <% const working = t.worker && t.worker.id === it.userId; %>
     <% if (!done && (working || (!t.worker && t.list === "todo" && !t.blockedBy))) { %>
       <form method="post" action="/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= working ? 'stop' : 'start' %>', {contentType: 'form'})">

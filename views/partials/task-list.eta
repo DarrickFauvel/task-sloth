@@ -2,6 +2,17 @@
      re-sent with every live update so its counts stay current. */%>
 <%/* data-suggest: the household's names for the add box's suggestions (public/js/quick-suggest.js), current with every update. */%>
 <section id="task-list"<% if (it.nearYou?.length) { %> data-near-you="<%= JSON.stringify(it.nearYou) %>"<% } %><% if (it.suggest) { %> data-suggest="<%= JSON.stringify(it.suggest) %>"<% } %>>
+  <%/* Focus sessions going on in the household (src/web/focus-page.js); yours links back to it. */%>
+  <% (it.focusLines ?? []).forEach((f) => { %>
+    <p class="focus-line"><span class="dot" style="background: <%= f.color ?? 'var(--accent)' %>"></span><span><%= f.text %></span><% if (f.mine) { %> <a href="/focus">Back to it →</a><% } %></p>
+  <% }) %>
+  <% if (it.focusHere && !(it.focusLines ?? []).some((f) => f.mine)) { const c = it.focusHere; %>
+    <form method="post" action="/focus/start" class="focus-here">
+      <input type="hidden" name="<%= c.kind === 'project' ? 'projectId' : 'contextId' %>" value="<%= c.id %>">
+      <button class="button"><span class="emoji" aria-hidden="true">🎯</span> Focus on these</button>
+      <span class="hint">One at a time, <%= c.count %> you can take on</span>
+    </form>
+  <% } %>
   <% if (it.view === "done" && it.doneToday) { %><%~ include("/partials/done-today-dots", it.doneToday) %><% } %>
   <% if (!it.groups.length && it.filterLabel) { %>
     <p class="empty">No <%= it.view === "done" ? "finished" : "open" %> tasks for <%= it.filterLabel %> here.</p>
@@ -20,13 +31,20 @@
     <%/* By date, or by where/how (each place's heading links to just its tasks). Each group is a card with its
          heading sitting on the top border, like a fieldset's legend. */%>
     <%/* Its color: a tone (accent, danger, plain) or a hue; see withWhereTone and GROUP_HUES. */%>
-    <section class="task-group<%= g.tone ? ` tone-${g.tone}` : '' %>"<% if (g.contextId) { %> data-context="<%= g.contextId %>"<% } %><% if (g.hue != null) { %> style="--hue: <%= g.hue %>"<% } %>>
-      <h3 class="group<%= g.tone === 'danger' ? ' overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.project ? { project: it.project } : {}), ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %> <span class="count"><%= g.tasks.length %></span></h3>
+    <%/* "Working on now" holds your one task as a bigger card (partials/now-card), its heading pulsing (.is-working-group in app.css). */%>
+    <%/* A stable id per group, so a live update morphs each card into itself even after Near you has moved one. */%>
+    <% const groupId = g.working ? "group-working" : g.contextId ? `group-at-${g.contextId}` : `group-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`; %>
+    <section id="<%= groupId %>" class="task-group<%= g.tone ? ` tone-${g.tone}` : '' %><%= g.working ? ' is-working-group' : '' %>"<% if (g.contextId) { %> data-context="<%= g.contextId %>"<% } %><% if (g.hue != null) { %> style="--hue: <%= g.hue %>"<% } %>>
+      <h3 class="group<%= g.tone === 'danger' ? ' overdue' : '' %>"><% if (g.contextId) { %><a href="/?<%= new URLSearchParams({ view: it.view, context: g.contextId, ...(it.project ? { project: it.project } : {}), ...(it.tag ? { tag: it.tag } : {}) }) %>">@<%= g.label %></a><% } else { %><%= g.label %><% } %><% if (!g.working) { %> <span class="count"><%= g.tasks.length %></span><% } %></h3>
+      <% if (g.working) { %>
+        <%~ include("/partials/now-card", { t: g.tasks[0], view: it.view, project: it.project, context: it.context, tag: it.tag }) %>
+      <% } else { %>
       <ul class="tasks">
         <% g.tasks.forEach((t) => { %>
           <%~ include("/partials/task-row", { t, view: it.view, project: it.project, context: it.context, tag: it.tag, userId: it.userId }) %>
         <% }) %>
       </ul>
+      <% } %>
     </section>
   <% }) %>
 </section>

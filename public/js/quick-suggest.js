@@ -17,7 +17,8 @@ class QuickSuggest extends HTMLElement {
     this.list.setAttribute("role", "listbox");
     this.list.setAttribute("aria-label", "Suggestions");
     this.list.hidden = true;
-    this.append(this.list);
+    // In the form, not beside the box, so it can span the whole add bar (the box alone is narrow on a phone).
+    this.input.form.append(this.list);
     this.input.setAttribute("role", "combobox");
     this.input.setAttribute("aria-autocomplete", "list");
     this.input.setAttribute("aria-controls", this.list.id);

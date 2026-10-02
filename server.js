@@ -13,6 +13,8 @@ import { AVATAR_MAX_BYTES, createPasswordUser, getAvatarPhoto, getUser, MEMBER_C
 import { createRateLimit } from "./src/lib/rate-limit.js";
 import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getInvite, renameHousehold } from "./src/services/household.js";
 import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
+import { completeInSession, endFocus, focusChoices, getFocus, resumeFocus, setAsideInSession, skipInSession, startFocus } from "./src/services/focus.js";
+import { focusPageView } from "./src/web/focus-page.js";
 import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects } from "./src/services/projects.js";
@@ -175,8 +177,15 @@ app.get("/", async (req, res) => {
     : null;
   render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
     householdLine: householdLine(req, res),
-    emailNotice: await emailNoticeView(req), flash: req.query.password === "changed" ? { message: "Password changed. You're signed in." } : await deletedNotice(req) });
+    emailNotice: await emailNoticeView(req), flash: req.query.password === "changed" ? { message: "Password changed. You're signed in." } : focusEndedNotice(req) ?? (await deletedNotice(req)) });
 });
+
+/** After ending a focus session (?focused=<how many it finished>). */
+function focusEndedNotice(req) {
+  if (typeof req.query.focused !== "string") return null;
+  const n = Math.max(0, Number.parseInt(req.query.focused, 10) || 0);
+  return { message: n ? `Session ended. You finished ${n} ${n === 1 ? "task" : "tasks"}.` : "Session ended." };
+}
 
 // --- Tasks ----------------------------------------------------------------------------
 
@@ -417,6 +426,42 @@ app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {
 app.post("/tasks/:id/restore", requireHousehold, async (req, res) => {
   await restoreTask(req.actor, req.params.id);
   await sendTaskList(req, res);
+});
+
+// --- Focus sessions ---------------------------------------------------------------------
+// One project or where/how, one task at a time (src/services/focus.js). Plain posts that come back to /focus.
+
+app.get("/focus", requireHousehold, async (req, res) => {
+  // Back after being elsewhere: you're on the session's task again. (/focus isn't prerendered, so only a real visit does this.)
+  const session = await getFocus(req.actor);
+  if (session) await resumeFocus(req.actor, session);
+  render(res, "pages/focus", await focusPageView({ actor: req.actor, membership: req.membership, ...clock(req) }));
+});
+
+app.post("/focus/start", requireHousehold, async (req, res) => {
+  await startFocus(req.actor, { projectId: req.body.projectId, contextId: req.body.contextId }, { until: nextMidnight(req.cookies.tz).toISOString() });
+  redirect(res, "/focus");
+});
+
+app.post("/focus/end", requireHousehold, async (req, res) => {
+  const session = await getFocus(req.actor);
+  const done = session ? await endFocus(req.actor, session) : 0;
+  redirect(res, `/?focused=${done}`);
+});
+
+// Done, Skip and Not today on the task on screen. A page left open while the session moved on (the task was done
+// elsewhere, say) just comes back to where things are now.
+const FOCUS_ANSWERS = {
+  done: (req, session) => completeInSession(req.actor, session, req.params.id, { today: today(req) }),
+  skip: (req, session) => skipInSession(req.actor, session, req.params.id),
+  later: (req, session) => setAsideInSession(req.actor, session, req.params.id),
+};
+app.post("/focus/:id/:answer", requireHousehold, async (req, res) => {
+  const answer = FOCUS_ANSWERS[req.params.answer];
+  if (!answer) throw new HttpError(404, "Not found");
+  const session = await getFocus(req.actor);
+  if (session) await answer(req, session).catch((err) => (err.status === 409 ? null : Promise.reject(err)));
+  redirect(res, "/focus");
 });
 
 // --- Weekly reset ---------------------------------------------------------------------
@@ -898,7 +943,7 @@ const PLACE_SAVED = { added: "Spot added", updated: "Spot updated", removed: "Sp
 const placesView = async (req, search = null) =>
   placesPageView(await listContexts(req.actor.householdId), await listSpots(req.actor.householdId), search, req.cookies.tz);
 const renderPlaces = async (req, res, { search = null, saved, status = 200 } = {}) =>
-  render(res, "pages/places", { user: req.user, ...(await placesView(req, search)), flash: saved ? { message: saved } : null }, status);
+  render(res, "pages/places", { user: req.user, ...(await placesView(req, search)), focusPlaces: (await focusChoices(req.actor)).contexts, flash: saved ? { message: saved } : null }, status);
 
 app.get("/places", requireHousehold, (req, res) => renderPlaces(req, res, { saved: PLACE_SAVED[req.query.saved] }));
 
