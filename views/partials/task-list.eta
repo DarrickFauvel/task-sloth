@@ -1,6 +1,7 @@
 <%/* data-near-you: the household's places with to-dos there, for "Near you" on this device (public/js/near-you.js),
      re-sent with every live update so its counts stay current. */%>
-<section id="task-list"<% if (it.nearYou?.length) { %> data-near-you="<%= JSON.stringify(it.nearYou) %>"<% } %>>
+<%/* data-suggest: the household's names for the add box's suggestions (public/js/quick-suggest.js), current with every update. */%>
+<section id="task-list"<% if (it.nearYou?.length) { %> data-near-you="<%= JSON.stringify(it.nearYou) %>"<% } %><% if (it.suggest) { %> data-suggest="<%= JSON.stringify(it.suggest) %>"<% } %>>
   <% if (it.view === "done" && it.doneToday) { %><%~ include("/partials/done-today-dots", it.doneToday) %><% } %>
   <% if (!it.groups.length && it.filterLabel) { %>
     <p class="empty">No <%= it.view === "done" ? "finished" : "open" %> tasks for <%= it.filterLabel %> here.</p>

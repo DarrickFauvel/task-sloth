@@ -6,7 +6,7 @@ It's built on the ideas in *Getting Things Done*, but the app never uses GTD jar
 
 ## Features
 
-- **Quick add with typed shortcuts.** `call grandma sun @phone +errand` sets the day, the where/how and a tag in one line. A task with a detail skips the Inbox.
+- **Quick add with typed shortcuts.** `call grandma sun @phone +errand` sets the day, the where/how and a tag in one line, with suggestions as you type (`@` for who or where, `#` for a project, `+` for a tag, and day and repeat words). A task with a detail skips the Inbox.
 - **Due dates and times.** A task due at a time turns red and moves to Overdue once that time passes, live, in each person's own time zone.
 - **Shared household lists.** Views for Mine, Everyone and Up for grabs (claim a task with one tap), grouped by *when* or *where / how*, and filterable by project, tag or where/how.
 - **Checklists** on any task, with sections, drag or arrow-key reordering, and auto-categorized grocery lists.

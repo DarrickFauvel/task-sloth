@@ -1,10 +1,10 @@
 import { inboxCount, isWorking, listTasks, tagList } from "../services/tasks.js";
 import { tasksWithNewComments } from "../services/comments.js";
-import { getContext, listPlaces } from "../services/contexts.js";
+import { getContext, listContexts, listPlaces } from "../services/contexts.js";
 import { nearYouPlaces } from "./places-page.js";
-import { getProject } from "../services/projects.js";
+import { getProject, listProjects } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
-import { cleanTagName } from "../services/tags.js";
+import { cleanTagName, listTags } from "../services/tags.js";
 import { addDays, dueState, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { findPhones, splitPhones } from "../../public/js/lib/phone.js";
@@ -147,7 +147,8 @@ export async function taskListView({ userId, membership, view, project: projectI
   // Mine suggests the weekly reset when one is due (see src/services/reset.js); the caller works that out.
   const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
     // The household's places with something to do there, for "Near you" (public/js/near-you.js) on this device.
-    nearYou: nearYouPlaces(await listPlaces(householdId)) };
+    nearYou: nearYouPlaces(await listPlaces(householdId)),
+    suggest: await suggestData(householdId, userId, membership, today) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };
@@ -172,6 +173,22 @@ export async function taskListView({ userId, membership, view, project: projectI
     .map(({ test, ...g }) => ({ ...g, tasks: rest.filter(test) }))
     .filter((g) => g.tasks.length);
   return { ...base, canGroup, groupBy: "when", groups: [...nowGroup, ...groups] };
+}
+
+/**
+ * What the add box suggests from (public/js/lib/suggest.js): the household's people, projects, where / hows and
+ * tags, plus the viewer's today for what "fri" means.
+ */
+export async function suggestData(householdId, userId, membership, today) {
+  const [projects, contexts, tags] = await Promise.all([listProjects(householdId), listContexts(householdId), listTags(householdId)]);
+  return {
+    today,
+    me: userId,
+    members: membership.members.map(({ id, name, color }) => ({ id, name, color })),
+    projects: projects.map(({ name, emoji }) => ({ name, emoji })),
+    contexts: contexts.map(({ name }) => ({ name })),
+    tags: tags.map((t) => t.name),
+  };
 }
 
 /**
