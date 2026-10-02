@@ -34,7 +34,7 @@ import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
-import { editFormView, editInput, savedMessage } from "./src/web/task-page.js";
+import { autosaveInput, editFormView, editInput, savedMessage } from "./src/web/task-page.js";
 import { parseQuickAdd } from "./public/js/lib/quick-add.js";
 import { addDays, nowIn, relativeLabel, todayIn } from "./public/js/lib/dates.js";
 import { getAccessToken } from "./src/google/tokens.js";
@@ -69,8 +69,8 @@ const sync = googleConfigured()
     })
   : null;
 
-onChange(({ householdId, taskId, fromGoogle }) => {
-  publish(householdId, { type: "changed", taskId });
+onChange(({ householdId, taskId, fromGoogle, editedBy }) => {
+  publish(householdId, { type: "changed", taskId, editedBy });
   if (sync && taskId && !fromGoogle) {
     sync.enqueue(taskId).then(() => sync.processQueue()).catch((err) => console.error("sync enqueue failed", err));
   }
@@ -201,6 +201,8 @@ app.get("/events", requireHousehold, async (req, res) => {
   // When a finished task is due to drop off the list; nothing else changes, so the stream re-renders itself then.
   let dropTimer = null;
   let refresh = () => {}; // set once the stream is open
+  /** @type {string | null} who else last changed this task's details, until the next render tells the edit form */
+  let editedBy = null;
   const scheduleDrop = (at) => {
     clearTimeout(dropTimer);
     if (at && !closed) dropTimer = setTimeout(refresh, Math.max(at - Date.now(), 0) + 1000);
@@ -232,6 +234,12 @@ app.get("/events", requireHousehold, async (req, res) => {
         return res.end();
       }
       if (!closed) for (const html of parts) stream.patchElements(html);
+      // Someone else saved a change to this task: an open edit form (which isn't re-rendered) says so; see task-edit.eta.
+      if (editedBy && !closed) {
+        const by = membership.members.find((m) => m.id === editedBy)?.name ?? "Someone";
+        stream.patchSignals(JSON.stringify({ editedBy: by }));
+        editedBy = null;
+      }
     };
 
     // One render at a time; changes that arrive mid-render are folded into one more render.
@@ -249,7 +257,10 @@ app.get("/events", requireHousehold, async (req, res) => {
         .finally(() => (running = null));
     };
 
-    const unsubscribe = subscribe(householdId, refresh);
+    const unsubscribe = subscribe(householdId, (event) => {
+      if (taskId && event?.taskId === taskId && event.editedBy && event.editedBy !== req.user.id) editedBy = event.editedBy;
+      refresh();
+    });
     const heartbeat = setInterval(() => res.write(": ping\n\n"), 25_000); // keeps proxies from idling us out
     const current = since > lastChangedAt(householdId) && (!next || next > Date.now());
     if (!current) refresh();
@@ -700,7 +711,7 @@ app.get("/tasks/:id/edit", requireHousehold, async (req, res) => {
   const html = eta.render("partials/task-edit", { form: await editView(req, task, String(req.query.focus ?? "")) });
   await sse(req, res, (stream) => {
     stream.patchElements(html);
-    stream.patchSignals(JSON.stringify({ editing: true }));
+    stream.patchSignals(JSON.stringify({ editing: true, editedBy: "" }));
   });
 });
 
@@ -718,7 +729,9 @@ app.post("/tasks/:id/edit", requireHousehold, async (req, res) => {
     if (seq && seq <= (lastAutosave.get(key) ?? 0)) return sse(req, res, () => {});
     lastAutosave.set(key, seq);
   }
-  const { newBlocker, ...input } = editInput(req.body);
+  // An autosave writes only the field that changed, so it can't undo what someone else saved meanwhile.
+  const fields = autosave ? autosaveInput(editInput(req.body), String(req.query.saved)) : editInput(req.body);
+  const { newBlocker, ...input } = fields;
   const newProject = input.projectName;
   let flash = autosave ? { message: savedMessage(req.query.saved) } : undefined;
 

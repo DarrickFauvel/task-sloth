@@ -104,3 +104,24 @@ const FIELD_LABELS = {
 
 /** The toast after the edit form saves one field as you go: "Priority saved", or just "Saved". */
 export const savedMessage = (field) => (Object.hasOwn(FIELD_LABELS, field) ? `${FIELD_LABELS[field]} saved` : "Saved");
+
+/** Which parts of editInput's result each form field's autosave writes. */
+const SAVES = {
+  title: ["title"], notes: ["notes"], dueTime: ["dueTime"], recurrence: ["recurrence"], assigneeId: ["assigneeId"],
+  context: ["contextName"], tags: ["tags"], priority: ["priority"], waitingOn: ["waitingOn"],
+  list: ["list", "waitingOn"],
+  projectId: ["projectId", "projectName"], newProject: ["projectId", "projectName"],
+  waitingTaskId: ["waitingTaskId", "newBlocker"], newBlocker: ["waitingTaskId", "newBlocker"],
+};
+
+/**
+ * An autosave posts the whole form, but writes only the field that changed, so it can't put back an older
+ * value of a field someone else changed meanwhile. Clearing the date clears the time too ("No date").
+ * An unknown field writes everything, as the plain (no-script) submit does.
+ */
+export function autosaveInput(input, field) {
+  if (field === "dueDate") return input.dueDate ? { dueDate: input.dueDate } : { dueDate: null, dueTime: null };
+  const keys = Object.hasOwn(SAVES, field) ? SAVES[field] : null;
+  if (!keys) return input;
+  return Object.fromEntries(keys.filter((k) => k in input).map((k) => [k, input[k]]));
+}

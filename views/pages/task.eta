@@ -5,7 +5,7 @@
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them.
      since and whenShown: as on the home page. */%>
-<div data-signals="{items: '', comment: '', editing: <%= it.form ? 'true' : 'false' %>, itemRenaming: '', itemText: ''}"
+<div data-signals="{items: '', comment: '', editing: <%= it.form ? 'true' : 'false' %>, editedBy: '', itemRenaming: '', itemText: ''}"
      data-init="whenShown(() => @get('/events?task=<%= t.id %>&since=<%= it.renderedAt %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
   <%~ include("/partials/task-head", { task: t, userId: it.userId }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>

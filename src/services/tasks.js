@@ -267,7 +267,7 @@ export async function updateTask(actor, id, input, { fromGoogle = false } = {}) 
     statements.push(activityStatement(actor.householdId, actorId, id, "updated", { fields: updated }));
   }
   await db.batch(statements);
-  changed(actor.householdId, id, { fromGoogle });
+  changed(actor.householdId, id, { fromGoogle, editedBy: actorId });
 }
 
 /** Reassigns (or claims / releases) a task, optionally leaving a note as a comment. */
