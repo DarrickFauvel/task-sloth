@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { editFormView, editInput, savedMessage } from "../src/web/task-page.js";
+import { autosaveInput, editFormView, editInput, savedMessage } from "../src/web/task-page.js";
 
 const ctx = { members: [{ id: "u1", name: "Alice" }], projects: [] };
 const labels = (view) => view.repeats.map((r) => r.label);
@@ -100,4 +100,16 @@ test("editInput: picking a project, none, or a new one by name", () => {
   assert.ok(!("projectId" in created));
   const unnamed = editInput({ projectId: "new", newProject: " " });
   assert.ok(!("projectId" in unnamed) && !("projectName" in unnamed));
+});
+
+test("autosaveInput writes only the field that changed", () => {
+  const input = editInput({ title: "Mow", notes: "front only", dueDate: "2026-10-03", dueTime: "09:00", list: "waiting", waitingOn: "Sam", priority: "1", tags: "yard" });
+  assert.deepEqual(autosaveInput(input, "title"), { title: "Mow" });
+  assert.deepEqual(autosaveInput(input, "dueDate"), { dueDate: "2026-10-03" });
+  assert.deepEqual(autosaveInput(input, "list"), { list: "waiting", waitingOn: "Sam" });
+  assert.deepEqual(autosaveInput(input, "context"), { contextName: "" });
+  assert.deepEqual(autosaveInput(editInput({ title: "x", dueDate: "", dueTime: "09:00" }), "dueDate"), { dueDate: null, dueTime: null }, "No date clears the time too");
+  assert.deepEqual(autosaveInput(editInput({ title: "x", projectId: "new", newProject: "Yard" }), "newProject"), { projectName: "Yard" });
+  assert.deepEqual(autosaveInput(editInput({ title: "x", waitingTaskId: "new", newBlocker: "buy seed" }), "newBlocker"), { newBlocker: "buy seed" });
+  assert.equal(autosaveInput(input, "toString"), input, "an unknown field writes the whole form");
 });

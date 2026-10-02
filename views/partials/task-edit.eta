@@ -6,8 +6,9 @@
      hint that says what it does; chips instead of dropdowns where the choices are few. Done is pinned
      to the bottom of the screen.
      Every change saves at once, like Settings: a choice when it's picked, text when you leave its box (or press
-     Enter). Each save posts the whole form with ?saved=<field> (for the toast) and seq (so a late one can't undo a
-     newer one). It waits for a name before saving "➕ New task…" or "➕ New project…", and skips a blank title (the browser says why).
+     Enter). Each save posts the whole form with ?saved=<field> (for the toast, and the only field it writes, so it
+     can't undo someone else's change to another field) and seq (so a late one can't undo a newer one). When
+     someone else saves a change to this task, a notice above Done offers to show it. It waits for a name before saving "➕ New task…" or "➕ New project…", and skips a blank title (the browser says why).
      Enter in a text box just leaves it (so it saves, and the form stays open). "Done" only closes the form: tapping
      it has already left the box you were in, which saved it. Without script, Done is the plain submit. On wider screens When and Who & where sit side by side. Field names are unchanged. */%>
 <div id="task-edit" data-show="$editing">
@@ -152,6 +153,13 @@
     </details>
 
     <div class="edit-actions">
+      <%/* Someone else just saved a change to this task ($editedBy is their name, from the live stream). This form
+           still shows what was there before; "Show their changes" opens it fresh (tapping it leaves the box you're in,
+           which saves it first). */%>
+      <p class="edit-notice" role="status" data-show="$editedBy" style="display: none">
+        <span><strong data-text="$editedBy"></strong> just changed this task. What you've changed is saved.</span>
+        <button type="button" class="button" data-on:click="@get('/tasks/<%= t.id %>/edit')">Show their changes</button>
+      </p>
       <p class="hint">Changes save as you go.</p>
       <button class="button primary" data-on:click__prevent="$editing = false">Done</button>
     </div>
