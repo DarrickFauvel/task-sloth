@@ -7,7 +7,7 @@ import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { createTask, setDone } from "../src/services/tasks.js";
 import { addSpot, ensureContext, listPlaces, listSpots, MAX_SPOTS, removeSpot } from "../src/services/contexts.js";
-import { NOMINATIM_URL, searchPlaces, shortAddress } from "../src/services/geocode.js";
+import { NOMINATIM_URL, placeLabel, searchPlaces, shortAddress } from "../src/services/geocode.js";
 import { nearYouPlaces, placesPageView, searchNudge } from "../src/web/places-page.js";
 import { cleanCoords, distanceMeters, LEAVE_METERS, nearestPlace, NEAR_METERS } from "../public/js/lib/places.js";
 
@@ -143,13 +143,24 @@ test("searchPlaces asks Nominatim politely and shortens what it says", async () 
   assert.deepEqual(results, [{ label: "Target, 1234, Main Street, Springfield", lat: 39.78, lng: -89.65 }]);
   assert.equal(`${asked.url.origin}${asked.url.pathname}`, NOMINATIM_URL);
   assert.equal(asked.url.searchParams.get("q"), "target springfield");
-  assert.equal(asked.url.searchParams.get("bounded"), "0");
-  assert.deepEqual(asked.url.searchParams.get("viewbox").split(",").map(Number).map((n) => Math.round(n * 10) / 10), [-89.9, 40.1, -89.3, 39.5]);
+  assert.equal(asked.url.searchParams.get("bounded"), "1", "nearby first");
+  assert.deepEqual(asked.url.searchParams.get("viewbox").split(",").map(Number).map((n) => Math.round(n * 10) / 10), [-90.1, 40.3, -89.1, 39.3]);
   assert.match(asked.init.headers["User-Agent"], /^TaskSloth\//);
 
   globalThis.fetch = async (url) => ((asked = { url: new URL(url) }), Response.json([]));
   await searchPlaces("target");
   assert.equal(asked.url.searchParams.get("viewbox"), null, "no area: no nudge");
+});
+
+test("searchPlaces looks further only when nothing's nearby", async () => {
+  const asked = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    asked.push(u.searchParams.get("bounded"));
+    return Response.json(u.searchParams.get("bounded") ? [] : [{ name: "Aldi", display_name: "x", lat: "52.7", lon: "-2.7", address: { city: "Shrewsbury", state: "England" } }]);
+  };
+  assert.deepEqual((await searchPlaces("aldi shrewsbury", { lat: 42.3, lng: -71.7 })).map((r) => r.label), ["Aldi, Shrewsbury, England"]);
+  assert.deepEqual(asked, ["1", null]);
 });
 
 test("searchPlaces: an empty search is a 400, a failing service a 502", async () => {
@@ -169,4 +180,24 @@ test("searchPlaces: an empty search is a 400, a failing service a 502", async ()
 test("shortAddress keeps the first few parts", () => {
   assert.equal(shortAddress("A, B, C, D, E"), "A, B, C, D");
   assert.equal(shortAddress(undefined), "");
+});
+
+test("placeLabel says a result the short way, adding the street only to tell two apart", () => {
+  const aldi = (street, town) => ({
+    name: "Aldi", display_name: "long",
+    address: { shop: "Aldi", house_number: street[0], road: street[1], hamlet: "Beverly Road", city: town, county: "Worcester County", state: "Massachusetts", "ISO3166-2-lvl4": "US-MA", country: "United States" },
+  });
+  assert.equal(placeLabel(aldi(["500", "Lincoln Street"], "Worcester")), "Aldi, Worcester, MA");
+  assert.equal(placeLabel(aldi(["500", "Lincoln Street"], "Worcester"), { withStreet: true }), "Aldi, 500 Lincoln Street, Worcester, MA");
+  assert.equal(placeLabel({ name: "", display_name: "x", address: { house_number: "12", road: "Elm St", town: "Milford", state: "Massachusetts", "ISO3166-2-lvl4": "US-MA" } }),
+    "12 Elm St, Milford, MA", "a plain address leads with the street");
+  assert.equal(placeLabel({ name: "Tesco", display_name: "x", address: { city: "Leeds", state: "England", "ISO3166-2-lvl4": "GB-ENG" } }), "Tesco, Leeds, England", "outside the US: the state's name");
+  assert.equal(placeLabel({ display_name: "A, B, C, D, E" }), "A, B, C, D", "no details: the first parts");
+});
+
+test("searchPlaces gives same-town branches their street", async () => {
+  const branch = (n, road) => ({ name: "Aldi", display_name: "x", lat: "42.2", lon: `-71.${n}`, address: { house_number: n, road, city: "Worcester", "ISO3166-2-lvl4": "US-MA" } });
+  globalThis.fetch = async () => Response.json([branch("500", "Lincoln Street"), branch("30", "Mill Street"),
+    { name: "Aldi", display_name: "x", lat: "42.1", lon: "-71.5", address: { town: "Milford", "ISO3166-2-lvl4": "US-MA" } }]);
+  assert.deepEqual((await searchPlaces("aldi")).map((r) => r.label), ["Aldi, 500 Lincoln Street, Worcester, MA", "Aldi, 30 Mill Street, Worcester, MA", "Aldi, Milford, MA"]);
 });
