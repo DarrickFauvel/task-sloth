@@ -5,6 +5,7 @@
 <% if (it.membership) { %>
   <script type="module" src="/js/list-nav.js"></script>
   <script type="module" src="/js/near-you.js"></script>
+  <script type="module" src="/js/quick-suggest.js"></script>
   <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
   <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
   <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"
@@ -41,6 +42,8 @@
                 data-show="$quick.length > 0" data-on:click="$quick = ''; el.previousElementSibling.focus()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
+        <%/* Suggests shortcuts while typing: @who / where, #project, +tag, when and repeats (public/js/quick-suggest.js). */%>
+        <quick-suggest></quick-suggest>
       </span>
       <button type="button" class="icon-button help-button" aria-label="Shortcuts you can type" aria-haspopup="dialog"
               data-on:click="document.getElementById('shortcuts-dialog').showModal()">

@@ -344,6 +344,24 @@ button.icon:focus-visible { opacity: 1; }
 }
 @media (hover: hover) { .clear-input:hover { color: var(--fg); } }
 .quick-add button { flex: none; }
+/* Suggestions under the add box (public/js/quick-suggest.js): a card of big rows, the name on the left and
+   what it sets on the right. */
+quick-suggest { display: contents; }
+.suggestions {
+  position: absolute; top: calc(100% + var(--space-2xs)); left: 0; right: 0; z-index: 2;
+  margin: 0; padding: var(--space-2xs); list-style: none;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+}
+.suggestions[hidden] { display: none; }
+.suggestions [role=option] {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-s);
+  min-height: var(--tap); padding: 0 var(--space-s); border-radius: var(--radius); cursor: pointer;
+}
+.suggestions [aria-selected=true] { background: var(--tint-strong); }
+@media (hover: hover) { .suggestions [role=option]:hover { background: var(--tint); } }
+.suggestion-label { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
+.suggestion-kind { flex: 0 1 auto; color: var(--muted); font-size: var(--step--1); text-align: right; }
 
 .help-button { flex: none; color: var(--muted); }
 
