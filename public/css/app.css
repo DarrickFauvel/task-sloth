@@ -1144,6 +1144,10 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .place-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs); }
 .place-name { font-weight: 600; color: inherit; text-decoration: none; }
 .place-where { margin: 0; overflow-wrap: anywhere; }
+.spots { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2xs); }
+.spot { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-s); }
+.spot form { margin: 0; flex: none; }
+.place > .hint { margin: 0; }
 .place-set > summary { cursor: pointer; color: var(--accent); padding: var(--space-xs) 0; min-height: 2.75rem; display: flex; align-items: center; }
 .place-set-body { display: grid; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); }
 .place-set-body form, .place-set-body .field { margin: 0; }

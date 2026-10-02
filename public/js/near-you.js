@@ -1,5 +1,5 @@
 // "Near you" on the home page: while the app is open, this device's position is checked against the household's
-// places (the where/hows on the map, sent as #task-list's data-near-you), all in the browser. Near one with
+// spots (where/hows on the map, sent as #task-list's data-near-you; a shop can have several), all in the browser. Near one with
 // something to do there, it shows a banner linking to those tasks, moves that place's group to the top of a list
 // grouped by Where / how, and, if the page isn't on screen and notifications are allowed, sends a notification.
 // It's off until someone turns it on for this device on the Where / how page (near-you-switch.js).
@@ -30,8 +30,8 @@ class NearYou extends HTMLElement {
   connectedCallback() {
     this.list = document.getElementById("task-list");
     if (!this.list || !nearYouOn() || !("geolocation" in navigator)) return;
-    this.place = null; // the place we're near, from the last reading
-    this.dismissed = null; // a place whose banner was closed; it stays closed until we leave it
+    this.place = null; // the spot we're near, from the last reading
+    this.dismissed = null; // a where/how whose banner was closed; it stays closed until we leave it
     this.position = null;
     // Live updates replace the list (new counts, places, groups): read the places again and re-apply.
     this.observer = new MutationObserver(() => this.update());
@@ -62,10 +62,12 @@ class NearYou extends HTMLElement {
 
   update() {
     const places = this.places();
-    const was = this.place?.id ?? null;
-    this.place = this.position ? nearestPlace(this.position, places, was) : null;
-    if (this.place?.id !== was) {
-      if (this.dismissed && this.dismissed !== this.place?.id) this.dismissed = null;
+    // Spots decide when we arrive and leave; the where/how decides what's said, so walking between two branches
+    // of the same shop doesn't notify again.
+    const wasContext = this.place?.contextId ?? null;
+    this.place = this.position ? nearestPlace(this.position, places, this.place?.id ?? null) : null;
+    if (this.place?.contextId !== wasContext) {
+      if (this.dismissed && this.dismissed !== this.place?.contextId) this.dismissed = null;
       if (this.place) this.notify(this.place);
     }
     this.render();
@@ -74,12 +76,12 @@ class NearYou extends HTMLElement {
 
   render() {
     const p = this.place;
-    if (!p || this.dismissed === p.id) {
+    if (!p || this.dismissed === p.contextId) {
       this.shown = null;
       return this.replaceChildren();
     }
     // Only redraw when something changed, so a reading every few seconds doesn't make it flicker.
-    const key = `${p.id}:${p.count}:${p.name}`;
+    const key = `${p.contextId}:${p.count}:${p.name}`;
     if (this.shown === key) return;
     this.shown = key;
     const things = p.count === 1 ? "1 thing to do" : `${p.count} things to do`;
@@ -103,7 +105,7 @@ class NearYou extends HTMLElement {
     close.className = "link";
     close.textContent = "Not now";
     close.addEventListener("click", () => {
-      this.dismissed = p.id;
+      this.dismissed = p.contextId;
       this.render();
     });
     actions.append(link, close);
@@ -115,7 +117,7 @@ class NearYou extends HTMLElement {
   raiseGroup() {
     const p = this.place;
     if (!p) return;
-    const group = this.list.querySelector(`.task-group[data-context="${CSS.escape(p.id)}"]`);
+    const group = this.list.querySelector(`.task-group[data-context="${CSS.escape(p.contextId)}"]`);
     const first = this.list.querySelector(".task-group");
     if (group && first && group !== first) first.before(group);
   }
@@ -125,7 +127,7 @@ class NearYou extends HTMLElement {
     if (document.visibilityState === "visible" || !("Notification" in window) || Notification.permission !== "granted") return;
     const body = p.count === 1 ? "1 thing to do there" : `${p.count} things to do there`;
     navigator.serviceWorker?.ready
-      .then((reg) => reg.showNotification(`You're near ${p.name}`, { body, tag: `near-${p.id}`, icon: "/img/icon-192.png", data: { url: p.href } }))
+      .then((reg) => reg.showNotification(`You're near ${p.name}`, { body, tag: `near-${p.contextId}`, icon: "/img/icon-192.png", data: { url: p.href } }))
       .catch(() => {});
   }
 }
