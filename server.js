@@ -290,7 +290,7 @@ const renderList = (list, userId, doneToday) => [
 
 /** Datastar: re-render the task list (plus an optional flash). Plain form posts: back to the list.
  *  `grouping` overrides the group cookie, for the request that has just changed it. */
-async function sendTaskList(req, res, { flash, signals, grouping } = {}) {
+async function sendTaskList(req, res, { flash, signals, grouping, script } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
@@ -301,6 +301,7 @@ async function sendTaskList(req, res, { flash, signals, grouping } = {}) {
     for (const html of parts) stream.patchElements(html);
     stream.patchElements(flashHtml);
     if (signals) stream.patchSignals(JSON.stringify(signals));
+    if (script) stream.executeScript(script);
   });
 }
 
@@ -334,16 +335,26 @@ app.post("/tasks", requireHousehold, async (req, res) => {
 });
 
 app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
-  // Finishing a task unblocks whatever was waiting on it; say so.
+  // Finishing a task unblocks whatever was waiting on it (oldest first), and that's where you go next.
   const unblocked = await listBlockedBy(req.actor.householdId, req.params.id);
   const nextId = await setDone(req.actor, req.params.id, true, { today: today(req) });
+  // From the task page: on to the first task it freed up, whose page says so (see freedNotice).
+  if (unblocked.length && req.body.back === "task") {
+    const also = unblocked.slice(1).map((u) => u.id).join(",");
+    const url = `/tasks/${unblocked[0].id}?${new URLSearchParams({ freed: req.params.id, ...(also ? { also } : {}) })}`;
+    if (!isDatastar(req)) return redirect(res, url);
+    return sse(req, res, (stream) => stream.executeScript(`location.assign(${JSON.stringify(url)})`));
+  }
   const next = nextId && (await getTask(req.actor.householdId, nextId));
   const messages = [
     next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
     unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
   ].filter(Boolean);
   const flash = messages.length ? { message: messages.join(" · ") } : undefined;
-  await sendTaskList(req, res, { flash });
+  // From a list: the toast opens the first freed task, and the freed rows on this list glow.
+  if (flash && unblocked.length) flash.link = { href: `/tasks/${unblocked[0].id}`, label: "Open" };
+  const script = unblocked.length ? `highlightTasks(${JSON.stringify(unblocked.map((u) => u.id))})` : null;
+  await sendTaskList(req, res, { flash, script });
 });
 
 app.post("/tasks/:id/reopen", requireHousehold, async (req, res) => {
@@ -622,7 +633,20 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   const comments = await taskComments(req, req.membership, task.id);
-  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id });
+  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id, flash: await freedNotice(req) });
+}
+
+/**
+ * After finishing a task from its page sent you here (?freed=<that task>&also=<other freed tasks>): a toast saying
+ * this one is ready now, naming any others it freed up too.
+ */
+async function freedNotice(req) {
+  const find = (id) => getTask(req.actor.householdId, String(id)).catch(() => null);
+  const done = typeof req.query.freed === "string" ? await find(req.query.freed) : null;
+  if (done?.status !== "done") return null;
+  const also = (await Promise.all(String(req.query.also ?? "").split(",").filter(Boolean).slice(0, 10).map(find))).filter(Boolean);
+  const others = also.length ? ` Also ready: ${also.map((t) => `“${t.title}”`).join(", ")}.` : "";
+  return { message: `“${done.title}” is done, so this one is ready to go.${others}` };
 }
 
 /** The task's comments for its page, which also counts as seeing them (so its row's "new" dot goes). */
