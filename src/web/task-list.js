@@ -1,6 +1,7 @@
 import { inboxCount, listTasks, tagList } from "../services/tasks.js";
 import { tasksWithNewComments } from "../services/comments.js";
-import { getContext } from "../services/contexts.js";
+import { getContext, listPlaces } from "../services/contexts.js";
+import { nearYouPlaces } from "./places-page.js";
 import { getProject } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
 import { cleanTagName } from "../services/tags.js";
@@ -139,7 +140,9 @@ export async function taskListView({ userId, membership, view, project: projectI
   const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...(time ? clockTicks(tasks, today, time, now) : [])];
   const refreshAt = refreshTimes.length ? Math.min(...refreshTimes) : null;
   // Mine suggests the weekly reset when one is due (see src/services/reset.js); the caller works that out.
-  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue };
+  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
+    // The household's places with something to do there, for "Near you" (public/js/near-you.js) on this device.
+    nearYou: nearYouPlaces(await listPlaces(householdId)) };
 
   const single = { inbox: "Not sorted yet", waiting: "Waiting", someday: "Maybe later", done: "Recently done" }[view];
   if (single) return { ...base, groups: tasks.length ? [{ label: single, tone: "accent", tasks }] : [] };

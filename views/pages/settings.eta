@@ -123,6 +123,11 @@
           <% }) %>
         </ul>
       </div>
+      <div class="field">
+        <h3 class="field-title">Where / how</h3>
+        <p class="hint">Put shops and other places on the map, and the app can tell you when you're near one.</p>
+        <a class="button" href="/places">Places and Near you</a>
+      </div>
       <div id="invite">
         <button class="button" data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
       </div>

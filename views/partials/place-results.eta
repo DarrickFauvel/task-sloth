@@ -1,0 +1,20 @@
+<%/* An address search's results for one where/how (a row from placesPageView): tap one to use it. A problem
+     (nothing found, search not answering) shows here, by the form. Empty until someone searches. */%>
+<div class="place-results" id="place-results-<%= it.id %>">
+  <% const s = it.search; %>
+  <% if (s?.error) { %>
+    <p class="flash is-error" role="alert"><%= s.error %></p>
+  <% } else if (s?.results.length) { %>
+    <p class="hint">Tap the right one:</p>
+    <ul class="place-options">
+      <% s.results.forEach((p) => { %>
+        <li>
+          <form method="post" action="/places/<%= it.id %>/pick" data-on:submit="@post('/places/<%= it.id %>/pick', {contentType: 'form'})">
+            <input type="hidden" name="lat" value="<%= p.lat %>"><input type="hidden" name="lng" value="<%= p.lng %>"><input type="hidden" name="label" value="<%= p.label %>">
+            <button class="place-option"><span class="emoji" aria-hidden="true">📍</span> <%= p.label %></button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>

@@ -16,6 +16,7 @@ It's built on the ideas in *Getting Things Done*, but the app never uses GTD jar
 - **Done today.** A badge in the header counts what the household has finished today and cheers when a task is ticked off; the Done tab shows a dot per task in the color of whoever finished it.
 - **Recently done and Activity.** Finished tasks linger for 10 minutes, the Done tab shows the last 24 hours, and the Activity page shows the last 14 days, one line per task, with small changes left out unless you ask for every change.
 - **Weekly reset.** A five-step check-in for each person (empty the inbox, catch up on what's overdue, check what's waiting, look at the week ahead, glance at Maybe later), suggested on Mine a week after the last one.
+- **Near you.** Put a where/how like `@Target` on the map ("I'm here now", or an address search through OpenStreetMap's Nominatim), and while the app is open a phone that has it turned on says what there is to do when it's near one: a banner, that place first when grouped by Where / how, and a notification if the app isn't on screen. Where the phone is gets checked in the browser and isn't sent to the server.
 - **Accounts.** Username and password sign-up with email confirmation, optional Google sign-in, invite links and a QR code for joining a household, avatar photos, member colors, and light/dark themes.
 - **Google Tasks sync (optional).** Two-way sync between each member's tasks and a "Task Sloth" list in their Google Tasks.
 - **Mobile first**, with a bottom nav on phones.
