@@ -130,6 +130,7 @@
                     <span class="field-title">Ask, or tell Claude what's different</span>
                     <textarea name="stepQuestion" data-bind:step-question rows="2" maxlength="1000" placeholder="e.g. How do I do this? / We don't have a car"></textarea>
                   </label>
+                  <%~ include("/partials/ask-photos", { draft: s.draft, photosEnabled: it.photosEnabled, maxPhotos: it.maxPhotos, id: `ask-uploader-${s.id}`, action: `/suggestions/${s.id}/ask/photos` }) %>
                   <button class="button" formaction="/suggestions/<%= s.id %>/ask"
                           data-on:click="evt.preventDefault(); @post('/suggestions/<%= s.id %>/ask'); $stepQuestion = ''; $stepOpen = ''">Ask</button>
                 </div>

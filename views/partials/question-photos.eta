@@ -1,0 +1,20 @@
+<%/* Photos with a question about a step (src/web/step-questions.js): small thumbnails that open the photo viewer on
+     just this question's photos. With it.remove (the asker's draft, not sent yet) each has a ✕. These sit inside a
+     form (the suggestions form, the Ask card), so ✕ is a formaction button: Datastar posts it, and without script
+     it submits the form there. */%>
+<% if (it.photos.length) { const set = JSON.stringify(it.photos.map(({ full, tiny }) => ({ full, tiny }))); %>
+  <ul class="photo-grid question-photos">
+    <% it.photos.forEach((ph, i) => { %>
+      <li>
+        <a href="<%= ph.full %>" data-photos="<%= set %>" data-index="<%= i %>" aria-label="Open photo <%= i + 1 %>"><img src="<%= ph.thumb %>" alt="Photo <%= i + 1 %>" width="160" height="160" loading="lazy"></a>
+        <% if (it.remove) { %>
+          <button class="icon photo-delete" formnovalidate formaction="/step-question-photos/<%= ph.id %>/delete"
+                  data-on:click="evt.preventDefault(); @post('/step-question-photos/<%= ph.id %>/delete')"
+                  aria-label="Remove photo <%= i + 1 %>" title="Remove photo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>

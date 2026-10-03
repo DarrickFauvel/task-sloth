@@ -1,7 +1,8 @@
 <%/* "Ask Claude" on a task in a project with a goal (src/web/step-questions.js taskAskView): what's been asked about
      this step, Claude's offered change (to use or turn down), and the box to ask. Live: re-rendered when an answer
-     arrives. $stepQuestion keeps what's being typed across re-renders. Outlined buttons: Mark done is the page's
-     one filled button. */%>
+     arrives. $stepQuestion keeps what's being typed across re-renders. Photos added for the next question show only
+     to whoever added them; with some, the words are optional. Outlined buttons: Mark done is the page's one filled
+     button. */%>
 <section id="task-ask" class="panel task-card" aria-labelledby="ask-title">
   <h2 id="ask-title" class="card-title"><span class="emoji" aria-hidden="true">✨</span> Ask Claude about this step</h2>
   <form class="stack" method="post" action="/tasks/<%= it.taskId %>/ask"
@@ -27,10 +28,11 @@
     <% } %>
     <label class="stack">
       <span class="field-title">Ask, or tell Claude what's different</span>
-      <textarea name="stepQuestion" data-bind:step-question rows="2" maxlength="1000" required
+      <textarea name="stepQuestion" data-bind:step-question rows="2" maxlength="1000"<%= it.draft?.photos.length ? "" : " required" %>
                 placeholder="e.g. How do I do this? / We don't have a car"
                 data-on:keydown="evt.key === 'Enter' && (evt.ctrlKey || evt.metaKey) && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
     </label>
+    <%~ include("/partials/ask-photos", { ...it, id: `ask-uploader-${it.taskId}`, action: `/tasks/${it.taskId}/ask/photos` }) %>
     <button class="button">Ask</button>
   </form>
 </section>

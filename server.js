@@ -39,7 +39,7 @@ import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, p
 import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getCheckinPhoto, openCheckin, removeCheckinPhoto, startProject } from "./src/services/coach.js";
 import { projectPageView, projectsPageView } from "./src/web/project-page.js";
-import { askAboutSuggestion, askAboutTask, declineProposal, getStepQuestion, getSuggestion, retryQuestion, useProposal } from "./src/services/step-questions.js";
+import { addQuestionPhoto, askAboutSuggestion, askAboutTask, declineProposal, getQuestionPhoto, getStepQuestion, getSuggestion, removeQuestionPhoto, retryQuestion, useProposal } from "./src/services/step-questions.js";
 import { taskAskView } from "./src/web/step-questions.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
@@ -243,7 +243,7 @@ app.get("/events", requireHousehold, async (req, res) => {
     if (goalId) return renderProject(await projectView(req, goalId, membership));
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership), ...(await renderTaskAsk(householdId, checklist.task))];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership), ...(await renderTaskAsk(householdId, checklist.task, req.user.id))];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
     scheduleDrop(list.refreshAt);
@@ -715,7 +715,7 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   const comments = await taskComments(req, req.membership, task.id);
-  const ask = await taskAskView(req.actor.householdId, checklist.task, { enabled: coachConfigured() });
+  const ask = await taskAskView(req.actor.householdId, checklist.task, { enabled: coachConfigured(), userId: req.user.id });
   render(res, "pages/task", { task, checklist, form, photos, comments, ask, userId: req.user.id, nudge: taskNudge(task, today(req)), flash: await freedNotice(req) });
 }
 
@@ -740,8 +740,8 @@ async function taskComments(req, membership, taskId) {
 const renderComments = async (req, taskId, membership = req.membership) => eta.render("partials/comments", await taskComments(req, membership, taskId));
 
 /** The task page's "Ask Claude" card (a task in a project with a goal), as a live part; none otherwise. */
-async function renderTaskAsk(householdId, task) {
-  const view = await taskAskView(householdId, task, { enabled: coachConfigured() });
+async function renderTaskAsk(householdId, task, userId) {
+  const view = await taskAskView(householdId, task, { enabled: coachConfigured(), userId });
   return view ? [eta.render("partials/task-ask", view)] : [];
 }
 
@@ -1068,7 +1068,7 @@ const coachAsks = createRateLimit({ limit: 20, windowMs: 60 * 60_000 });
 const TOO_MANY_ASKS = "That's a lot of questions for one hour. Try again a little later.";
 
 const projectView = (req, projectId, membership = req.membership) =>
-  projectPageView({ householdId: membership.household.id, projectId, membership, ...clock(req) });
+  projectPageView({ householdId: membership.household.id, projectId, membership, userId: req.user.id, ...clock(req) });
 const renderProject = (view) => [eta.render("partials/project-live", view)];
 
 /** Datastar: re-render the project page's live part (plus an optional flash). Plain posts: back to the page. */
@@ -1199,7 +1199,7 @@ async function sendStep(req, res, q, flash) {
 /** Datastar: re-render the task's Ask card (plus an optional flash). Plain posts: back to the task page. */
 async function sendTaskAsk(req, res, taskId, { flash } = {}) {
   if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
-  const parts = await renderTaskAsk(req.actor.householdId, await getTask(req.actor.householdId, taskId));
+  const parts = await renderTaskAsk(req.actor.householdId, await getTask(req.actor.householdId, taskId), req.user.id);
   const flashHtml = eta.render("partials/flash", flash ?? {});
   await sse(req, res, (stream) => {
     for (const html of parts) stream.patchElements(html);
@@ -1229,6 +1229,35 @@ app.post("/suggestions/:id/ask", requireHousehold, requireCoach, async (req, res
 app.post("/tasks/:id/ask", requireHousehold, requireCoach, async (req, res) => {
   const flash = await askStep(req, () => askAboutTask(req.actor, req.params.id, { question: stepQuestionOf(req) }));
   await sendTaskAsk(req, res, req.params.id, { flash });
+});
+
+// A photo to go with your next question about a step. Like /checkins/:id/photos: <task-photo> shrinks it in the
+// browser and posts the bytes; errors come back as text. The first one starts a draft question (only you see it),
+// which the Ask then sends.
+const questionPhoto = (which) => async (req, res) => {
+  try {
+    await addQuestionPhoto(req.actor, which(req), Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return res.status(err.status).type("text").send(err.message);
+    throw err;
+  }
+  res.sendStatus(204);
+};
+const rawPhoto = express.raw({ type: "image/*", limit: PHOTO_MAX_BYTES });
+app.post("/suggestions/:id/ask/photos", requireHousehold, requireCoach, rawPhoto, questionPhoto((req) => ({ suggestionId: req.params.id })));
+app.post("/tasks/:id/ask/photos", requireHousehold, requireCoach, rawPhoto, questionPhoto((req) => ({ taskId: req.params.id })));
+
+app.get("/step-question-photos/:id/:size", requireHousehold, async (req, res) => {
+  const transform = PHOTO_SIZES[req.params.size];
+  if (!transform) return res.sendStatus(404);
+  const photo = await getQuestionPhoto(req.actor.householdId, req.params.id).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
+  if (!photo) return res.sendStatus(404);
+  await relayPhoto(req, res, photo, transform);
+});
+
+app.post("/step-question-photos/:id/delete", requireHousehold, requireCoach, async (req, res) => {
+  const q = await removeQuestionPhoto(req.actor, req.params.id);
+  await sendStep(req, res, q);
 });
 
 app.post("/step-questions/:id/retry", requireHousehold, requireCoach, async (req, res) => {

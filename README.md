@@ -82,7 +82,7 @@ Copy the *API environment variable* from Cloudinary's dashboard (Settings → AP
 
 ### Claude (optional)
 
-Create an API key in the [Claude Console](https://platform.claude.com/) and set `ANTHROPIC_API_KEY`. It turns on **Start a project**: Claude suggests how to start a goal and which steps to take, looks at check-in photos (which needs Cloudinary too) and suggests upkeep. You can also ask it about any one step, or tell it what's different ("we don't have a car"), and it rewords the step or breaks it into a checklist. A project's goal, notes, task titles, questions about steps and photos are sent to Anthropic; photos go as signed Cloudinary links.
+Create an API key in the [Claude Console](https://platform.claude.com/) and set `ANTHROPIC_API_KEY`. It turns on **Start a project**: Claude suggests how to start a goal and which steps to take, looks at check-in photos (which needs Cloudinary too) and suggests upkeep. You can also ask it about any one step, or tell it what's different ("we don't have a car"), and it rewords the step or breaks it into a checklist; a photo can go with the question. A project's goal, notes, task titles, questions about steps and photos are sent to Anthropic; photos go as signed Cloudinary links.
 
 ## Scripts
 
