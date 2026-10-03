@@ -16,8 +16,12 @@
         <p class="field-title">Claude suggests</p>
         <p><strong><%= o.title %></strong></p>
         <% if (o.notes) { %><p class="hint"><%= o.notes %></p><% } %>
+        <% if (o.remove.length) { %>
+          <p class="hint">No longer needed on the checklist:</p>
+          <ul class="substeps"><% o.remove.forEach((x) => { %><li><s><%= x %></s></li><% }) %></ul>
+        <% } %>
         <% if (o.substeps.length) { %>
-          <p class="hint">As checklist items:</p>
+          <p class="hint"><%= o.remove.length ? "New checklist items:" : "As checklist items:" %></p>
           <ul class="substeps"><% o.substeps.forEach((x) => { %><li><%= x %></li><% }) %></ul>
         <% } %>
         <div class="row">

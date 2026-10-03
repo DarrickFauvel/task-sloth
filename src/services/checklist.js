@@ -120,6 +120,13 @@ export async function deleteItem(actor, itemId, { fromGoogle = false } = {}) {
   return item.task_id;
 }
 
+/** Deletes the given unchecked items from a task (ones checked off or gone already stay as they are). */
+export async function removeItems(taskId, ids) {
+  if (!ids.length) return;
+  const photos = await deleteItemsWhere(`task_id = ? AND checked = 0 AND id IN (${ids.map(() => "?").join(", ")})`, [taskId, ...ids]);
+  await destroyImages(photos);
+}
+
 /**
  * Moves an unchecked item to just before `beforeId` (or to the end with none), within its section:
  * sections stay automatic, so the item keeps its category and only its place among them changes.

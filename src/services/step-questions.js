@@ -5,11 +5,12 @@ import { signedImageUrl, uploadImage } from "../lib/cloudinary.js";
 import { changed } from "./changes.js";
 import { getGoalProject, isStale, parseReply, PHOTO_FOR_CLAUDE, SYSTEM } from "./coach.js";
 import { checkImage, destroyImages } from "./photos.js";
+import { removeItems } from "./checklist.js";
 import { getTask, itemInsert, listTasks, updateTask } from "./tasks.js";
 
 // Asking Claude about one step of a project (src/services/coach.js): "how do I do this?", or details it didn't
 // know ("we don't have a car"). The step is a suggestion still waiting to be added, or a task in the project.
-// Claude answers, and may reword the step or break it into sub-steps:
+// Claude answers, and may reword the step, break it into sub-steps, or drop sub-steps that no longer fit:
 //   suggestion - takes the change straight away (it's only a proposal); sub-steps become its task's checklist
 //   task       - offers the change (proposal: open), to use or decline
 // Like a check-in, a question is thinking while Claude answers in the background, then ready or failed. What
@@ -30,17 +31,18 @@ const SCHEMA = {
     change: {
       type: "string",
       enum: ["keep", "reword", "break_down"],
-      description: "keep: the step is fine as it is; reword: a new title or notes fit better; break_down: it needs sub-steps",
+      description: "keep: the step is fine as it is; reword: a new title or notes fit better, or some sub-steps no longer fit; break_down: it needs sub-steps",
     },
     title: { type: "string", description: "The step's title, reworded if that helps; otherwise as it was" },
     notes: { type: "string", description: "The step's notes, rewritten if that helps; otherwise as they were" },
-    substeps: { type: "array", items: { type: "string" }, description: `For break_down: 2 to ${MAX_SUBSTEPS} short sub-steps, in order; otherwise none` },
+    substeps: { type: "array", items: { type: "string" }, description: `For break_down: 2 to ${MAX_SUBSTEPS} short new sub-steps, in order; otherwise none` },
+    remove: { type: "array", items: { type: "integer" }, description: "Numbers of the step's current sub-steps that what they said makes unnecessary or wrong; otherwise none" },
   },
-  required: ["answer", "change", "title", "notes", "substeps"],
+  required: ["answer", "change", "title", "notes", "substeps", "remove"],
   additionalProperties: false,
 };
 
-const ASK = "They're asking about this one step, or telling you something about it. If they sent photos, use what you can see in them. Answer briefly and practically. Only change the step if what they said calls for it: reword it if it doesn't fit their situation, or break it down if it's too big or they asked how to do it.";
+const ASK = "They're asking about this one step, or telling you something about it. If they sent photos, use what you can see in them. Answer briefly and practically. Only change the step if what they said calls for it: reword it if it doesn't fit their situation, or break it down if it's too big or they asked how to do it. If what they said makes some of its sub-steps unnecessary or wrong, list their numbers in remove; leave done ones alone, and don't repeat sub-steps that are staying.";
 
 const clip = (s, n) => String(s ?? "").trim().slice(0, n);
 /** The question as typed; it can be empty when photos go with it. */
@@ -147,8 +149,9 @@ async function answer(actor, id) {
     taskId = q.task_id ?? undefined;
     const step = q.suggestion_id && !q.task_id ? await getSuggestion(actor.householdId, q.suggestion_id) : await getTask(actor.householdId, q.task_id);
     const project = await getGoalProject(actor.householdId, q.project_id);
-    const reply = await askForJson(await buildStepRequest(actor.householdId, project, step, q));
-    await saveReply(actor, q, step, reply);
+    const current = await currentSubsteps(q, step);
+    const reply = await askForJson(await buildStepRequest(actor.householdId, project, step, q, current));
+    await saveReply(actor, q, step, reply, current);
   } catch (err) {
     if (!(err instanceof HttpError)) console.error("step question failed", err);
     const message = err instanceof HttpError ? err.message : "Something went wrong. Try again.";
@@ -230,12 +233,17 @@ export async function removeQuestionPhoto(actor, photoId) {
   return q;
 }
 
+/** The step's sub-steps as Claude is shown them, numbered from 1: a task's checklist items, or a suggestion's list. */
+async function currentSubsteps(question, step) {
+  if (!question.task_id) return parseSubsteps(step.checklist).map((text) => ({ id: null, text, checked: false }));
+  const items = await db.all("SELECT id, text, checked FROM checklist_items WHERE task_id = ? ORDER BY checked, sort_order", [step.id]);
+  return items.map((i) => ({ id: i.id, text: i.text, checked: Boolean(i.checked) }));
+}
+
 /** What Claude is sent: the goal, the rest of the project, this step and what's been said about it, and the question. */
-export async function buildStepRequest(householdId, project, step, question) {
+export async function buildStepRequest(householdId, project, step, question, substeps) {
   const isTask = Boolean(question.task_id);
-  const substeps = isTask
-    ? (await db.all("SELECT text FROM checklist_items WHERE task_id = ? ORDER BY sort_order", [step.id])).map((i) => i.text)
-    : parseSubsteps(step.checklist);
+  substeps ??= await currentSubsteps(question, step);
   const others = [
     ...(await listTasks(householdId, { projectId: project.id })).filter((t) => t.id !== step.id)
       .map((t) => `- [${t.status === "done" ? "done" : "to do"}] ${t.title}`),
@@ -257,7 +265,7 @@ export async function buildStepRequest(householdId, project, step, question) {
   if (others.length) lines.push("", "The rest of the project:", ...others);
   lines.push("", `The step: ${step.title}`);
   if (step.notes) lines.push(`Its notes: ${step.notes}`);
-  if (substeps.length) lines.push("Its sub-steps:", ...substeps.map((s) => `- ${s}`));
+  if (substeps.length) lines.push("Its sub-steps:", ...substeps.map((s, i) => `${i + 1}. ${s.checked ? "[done] " : ""}${s.text}`));
   if (earlier.length) {
     lines.push("", "Earlier about this step:", ...earlier.map((e) => `- They said ${said(e)}; you answered: ${parseReply(e.reply)?.answer ?? ""}`));
   }
@@ -270,19 +278,31 @@ export async function buildStepRequest(householdId, project, step, question) {
   return { system: SYSTEM, content, schema: SCHEMA };
 }
 
-/** Claude's change, cleaned up: null when it keeps the step as it is. */
-function changeOf(step, reply) {
+/**
+ * Claude's change, cleaned up: null when it keeps the step as it is. `remove` is the current sub-steps it drops
+ * (by their numbers; never done ones), as { id, text } so a task's items can be found again when the change is used.
+ */
+function changeOf(step, reply, current) {
   if (!["reword", "break_down"].includes(reply.change)) return null;
   const title = clip(reply.title, 300) || step.title;
   const notes = clip(reply.notes, 1000);
   const substeps = reply.change === "break_down" ? (reply.substeps ?? []).map((s) => clip(s, 300)).filter(Boolean).slice(0, MAX_SUBSTEPS) : [];
-  if (title === step.title && notes === (step.notes ?? "") && !substeps.length) return null;
-  return { title, notes, substeps };
+  const numbers = new Set((Array.isArray(reply.remove) ? reply.remove : []).filter(Number.isInteger));
+  const remove = current.filter((s, i) => numbers.has(i + 1) && !s.checked).map(({ id, text }) => ({ id, text }));
+  if (title === step.title && notes === (step.notes ?? "") && !substeps.length && !remove.length) return null;
+  return { title, notes, substeps, remove };
 }
 
-async function saveReply(actor, q, step, reply) {
-  const change = changeOf(step, reply);
-  const saved = { ...reply, change: change ? reply.change : "keep", title: change?.title ?? step.title, notes: change?.notes ?? step.notes ?? "", substeps: change?.substeps ?? [] };
+async function saveReply(actor, q, step, reply, current) {
+  const change = changeOf(step, reply, current);
+  const saved = {
+    ...reply,
+    change: change ? reply.change : "keep",
+    title: change?.title ?? step.title,
+    notes: change?.notes ?? step.notes ?? "",
+    substeps: change?.substeps ?? [],
+    remove: change?.remove ?? [],
+  };
   const statements = [
     {
       sql: "UPDATE step_questions SET status = 'ready', reply = ?, error = NULL, proposal = ? WHERE id = ?",
@@ -291,7 +311,7 @@ async function saveReply(actor, q, step, reply) {
   ];
   // A suggestion is still only a proposal, so it just changes. (If it was added meanwhile, the task gets the offer.)
   if (change && !q.task_id) {
-    const keep = parseSubsteps(step.checklist);
+    const keep = current.filter((s) => !change.remove.some((r) => r.text === s.text)).map((s) => s.text);
     statements.push({
       sql: "UPDATE project_suggestions SET title = ?, notes = ?, checklist = ? WHERE id = ? AND status = 'new'",
       args: [change.title, change.notes, JSON.stringify(change.substeps.length ? change.substeps : keep), step.id],
@@ -308,11 +328,15 @@ async function openProposal(householdId, id) {
   return q;
 }
 
-/** Applies the offered change to the task: its title and notes, and any sub-steps as checklist items. */
+/**
+ * Applies the offered change to the task: its title and notes, the checklist items it drops (unless they've been
+ * checked off since), and any sub-steps as new checklist items.
+ */
 export async function useProposal(actor, id) {
   const q = await openProposal(actor.householdId, id);
   const reply = parseReply(q.reply) ?? {};
   await updateTask(actor, q.task_id, { title: reply.title, notes: reply.notes });
+  await removeItems(q.task_id, (reply.remove ?? []).map((r) => r.id).filter(Boolean));
   const ts = now();
   await db.batch([
     ...(reply.substeps ?? []).map((text, i) => itemInsert(q.task_id, { text }, i, ts)),
