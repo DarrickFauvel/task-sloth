@@ -45,12 +45,12 @@ export async function destroyImage(publicId) {
 
 /**
  * A signed delivery URL for a private image, e.g. signedImageUrl(id, "c_fill,w_300,h_300") for a square
- * thumbnail; format and quality suit the requesting browser. For the server's own use: whoever has it can
+ * thumbnail; format and quality suit the requesting browser (or pass a fixed `format`, e.g. "f_jpg"). For the server's own use: whoever has it can
  * see the photo. The signature is the first 8 chars of url-safe base64 sha1(<transform>/<public_id> + secret).
  */
-export function signedImageUrl(publicId, transform = "c_limit,w_1600,h_1600") {
+export function signedImageUrl(publicId, transform = "c_limit,w_1600,h_1600", format = "f_auto") {
   const { cloudName, apiSecret } = config.cloudinary;
-  const path = `${transform},f_auto,q_auto/${publicId}`;
+  const path = `${transform},${format},q_auto/${publicId}`;
   const signature = createHash("sha1").update(path + apiSecret).digest("base64url").slice(0, 8);
   return `https://res.cloudinary.com/${cloudName}/image/authenticated/s--${signature}--/${path}`;
 }

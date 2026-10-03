@@ -28,6 +28,7 @@
     </div>
   </div>
   <% if (household) { %><a class="menu-item" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span> Activity</a><% } %>
+  <% if (household && it.coach) { %><a class="menu-item" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span> Projects</a><% } %>
   <% if (household) { %><a class="menu-item" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span> Weekly reset</a><% } %>
   <a class="menu-item" href="/settings"><span class="menu-icon emoji" aria-hidden="true">⚙️</span> Settings</a>
   <a class="menu-item" href="/help"><span class="menu-icon emoji" aria-hidden="true">❓</span> How it works</a>

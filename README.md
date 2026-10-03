@@ -69,6 +69,7 @@ All settings are environment variables, read in [`src/config.js`](src/config.js)
 | `GOOGLE_SYNC_INTERVAL_SECONDS` | How often to poll Google Tasks | `120` |
 | `GOOGLE_TASK_LIST_TITLE` | Name of the synced Google Tasks list | `Task Sloth` |
 | `CLOUDINARY_URL` | Task photos | off |
+| `ANTHROPIC_API_KEY` | Project plans and check-ins from Claude | off |
 | `SMTP_URL`, `MAIL_FROM` | Sending email. **Required in production** | printed to the console |
 
 ### Google (optional)
@@ -78,6 +79,10 @@ Create an OAuth client of type *Web application* in Google Cloud Console, enable
 ### Cloudinary (optional)
 
 Copy the *API environment variable* from Cloudinary's dashboard (Settings → API Keys) into `CLOUDINARY_URL`. Photos are uploaded as `authenticated` assets, so they have no public URL.
+
+### Claude (optional)
+
+Create an API key in the [Claude Console](https://platform.claude.com/) and set `ANTHROPIC_API_KEY`. It turns on **Start a project**: Claude suggests how to start a goal and which steps to take, looks at check-in photos (which needs Cloudinary too) and suggests upkeep. A project's goal, notes, task titles and photos are sent to Anthropic; photos go as signed Cloudinary links.
 
 ## Scripts
 

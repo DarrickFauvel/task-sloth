@@ -1,5 +1,5 @@
 <% layout("/layout") %>
-<%~ include("/partials/app-header", { user: it.user, membership: it.membership, line: it.householdLine, doneToday: it.doneToday }) %>
+<%~ include("/partials/app-header", { user: it.user, membership: it.membership, line: it.householdLine, doneToday: it.doneToday, coach: it.coachEnabled }) %>
 <% if (it.emailNotice) { %><%~ include("/partials/email-notice", it.emailNotice) %><% } %>
 <%~ include("/partials/qr-dialog", it.qr) %>
 <% if (it.membership) { %>
@@ -8,7 +8,7 @@
   <script type="module" src="<%= asset("/js/quick-suggest.js") %>"></script>
   <script type="module" src="<%= asset("/js/elapsed-time.js") %>"></script>
   <script type="module" src="<%= asset("/js/task-board.js") %>"></script>
-  <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString }) %>
+  <%~ include("/partials/more-views", { list: it.list, views: it.views, nav: it.nav, listQueryString: it.listQueryString, coach: it.coachEnabled }) %>
   <%/* Outside the add form (its buttons mustn't submit it) and outside the live-updated parts. */%>
   <dialog id="shortcuts-dialog" class="sheet" aria-labelledby="shortcuts-title" closedby="any"
           data-on:click="evt.target === el && el.close()">

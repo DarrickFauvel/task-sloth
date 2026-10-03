@@ -23,6 +23,8 @@ export const config = {
   // Sending email: SMTP_URL is smtp://<user>:<password>@<host>:<port> (smtps:// for implicit TLS on 465);
   // MAIL_FROM is the sender, e.g. "Task Sloth <noreply@example.com>".
   mail: parseSmtpUrl(env.SMTP_URL, env.MAIL_FROM),
+  // Project plans and check-ins from Claude: an API key from the Claude Console.
+  anthropic: { apiKey: env.ANTHROPIC_API_KEY ?? "" },
 };
 
 function parseSmtpUrl(value, from) {
@@ -56,6 +58,7 @@ function parseCloudinaryUrl(value) {
 export const googleConfigured = () => Boolean(config.google.clientId && config.google.clientSecret);
 export const photosConfigured = () => Boolean(config.cloudinary);
 export const mailConfigured = () => Boolean(config.mail);
+export const coachConfigured = () => Boolean(config.anthropic.apiKey);
 
 if (config.isProduction && config.sessionSecret.startsWith("dev-only")) {
   throw new Error("SESSION_SECRET must be set in production");
