@@ -19,7 +19,7 @@ export const SETUP_MS = 60_000;
 
 const TASK_SELECT = `
   SELECT t.*,
-         p.name AS project_name, p.emoji AS project_emoji, p.color AS project_color,
+         p.name AS project_name, p.emoji AS project_emoji, p.color AS project_color, p.goal IS NOT NULL AS project_has_goal,
          cx.name AS context_name,
          (SELECT group_concat(g.name, ' ') FROM task_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.task_id = t.id) AS tag_names,
          (SELECT COUNT(*) FROM checklist_items c WHERE c.task_id = t.id) AS item_count,

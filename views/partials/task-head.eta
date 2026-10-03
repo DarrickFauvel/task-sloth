@@ -17,7 +17,7 @@
     <% if (t.blockedBy && !done) { %><a class="meta-edit blocked" <%~ edit("waitingTaskId") %>><span class="emoji" aria-hidden="true">⏳</span> Blocked until “<%= t.blockedBy %>” is done</a><% } %>
     <% if (!done && t.list === "someday") { %><a class="meta-edit" <%~ edit("list") %>><span class="emoji" aria-hidden="true">💭</span> Maybe later</a><% } %>
     <% if (t.priority < 0) { %><a class="meta-edit" <%~ edit("priority") %>>Low priority</a><% } %>
-    <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
+    <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="<%= t.projectLink.href %>" title="<%= t.projectLink.title %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
     <%~ include("/partials/context-tags", { t }) %>
     <% if (t.assignee) { %>
       <a class="meta-edit who" <%~ edit("assigneeId") %>><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></a>

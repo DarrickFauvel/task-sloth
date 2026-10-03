@@ -17,7 +17,7 @@
       <% if (t.blockedBy && !done) { %><a class="blocked" href="/tasks/<%= t.waiting_task_id %>" title="Open “<%= t.blockedBy %>”: this one can't start until it's done">⏳ after “<%= t.blockedBy %>”</a><% } %>
       <% if (t.waitingLabel) { %><span title="Waiting on">⏳ <%= t.waitingLabel %></span><% } %>
       <% if (t.blocking.length && !done) { %><span title="Waiting on this">🔗 holding up <%= t.blocking.length %></span><% } %>
-      <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>" title="All open tasks in <%= t.project_name %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
+      <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="<%= t.projectLink.href %>" title="<%= t.projectLink.title %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
       <%~ include("/partials/context-tags", { t }) %>
       <% t.phones.forEach((phone) => { /* the title is already a link, so the number gets its own */ %>
         <a class="chip phone" href="<%= phone.tel %>" title="Call <%= phone.text %>">📞 <%= t.phones.length > 1 ? phone.text : "Call" %></a>

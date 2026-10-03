@@ -1,3 +1,4 @@
+import { coachConfigured } from "../config.js";
 import { inboxCount, isWorking, listTasks, tagList } from "../services/tasks.js";
 import { tasksWithNewComments } from "../services/comments.js";
 import { getContext, listContexts, listPlaces } from "../services/contexts.js";
@@ -76,6 +77,14 @@ export const listQueryString = ({ view, project, context, tag }) =>
  * Adds the display fields views/partials/task-row.eta and views/pages/task.eta use.
  * `time` ("HH:MM" in the viewer's time zone) makes a task due earlier today overdue; without it, only the date counts.
  */
+/** Where a task's project chip goes, and what its tooltip says; null without a project. */
+export function projectLink(t) {
+  if (!t.project_id) return null;
+  return Number(t.project_has_goal) && coachConfigured()
+    ? { href: `/projects/${t.project_id}`, title: `Open the ${t.project_name} project` }
+    : { href: `/?view=all&project=${t.project_id}`, title: `All open tasks in ${t.project_name}` };
+}
+
 export function decorateTask(t, membership, today, time = null) {
   const member = (id) => membership.members.find((m) => m.id === id) ?? null;
   const state = t.due_date ? dueState(t.due_date, today, t.due_time, time) : "";
@@ -99,6 +108,8 @@ export function decorateTask(t, membership, today, time = null) {
     notesParts: splitPhones(t.notes ?? ""),
     repeats: describeRecurrence(parseRule(t.recurrence)),
     tags: tagList(t),
+    // A project started from a goal has its own page (Projects, with Claude); any other opens the list narrowed to it.
+    projectLink: projectLink(t),
     // Blocked by another (still open) task: "patch the walls". It shows on every list the task is on.
     blockedBy: t.waiting_task_id && t.waiting_task_status === "open" ? t.waiting_task_title : "",
     // Open tasks waiting on this one.
