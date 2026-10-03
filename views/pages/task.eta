@@ -5,7 +5,7 @@
 <a class="back" href="/">← All tasks</a>
 <%/* Live updates: the task details and checklist re-render when anyone in the household changes them.
      since and whenShown: as on the home page. */%>
-<div data-signals="{items: '', comment: '', editing: <%= it.form ? 'true' : 'false' %>, editedBy: '', handTo: '', handNote: '', itemRenaming: '', itemText: ''}"
+<div data-signals="{items: '', comment: '', stepQuestion: '', editing: <%= it.form ? 'true' : 'false' %>, editedBy: '', handTo: '', handNote: '', itemRenaming: '', itemText: ''}"
      data-init="whenShown(() => @get('/events?task=<%= t.id %>&since=<%= it.renderedAt %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
   <%~ include("/partials/task-head", { task: t, userId: it.userId, nudge: it.nudge }) %>
   <%~ include("/partials/task-edit", { form: it.form }) %>
@@ -39,6 +39,9 @@
         </task-photo>
       </section>
     <% } %>
+
+    <%/* In a project with a goal: ask Claude about this step (src/web/step-questions.js). */%>
+    <% if (it.ask) { %><%~ include("/partials/task-ask", it.ask) %><% } %>
 
     <%/* Last, like a conversation: the newest comment sits just above the box. Ctrl/⌘+Enter posts too. */%>
     <section class="panel task-card" aria-labelledby="comments-title">

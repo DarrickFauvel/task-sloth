@@ -6,6 +6,7 @@ import { firstOccurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { changed } from "./changes.js";
 import { checkImage, destroyImages } from "./photos.js";
 import { PROJECT_COLORS } from "./projects.js";
+import { moveQuestionsStatement, parseSubsteps, stepNotes } from "./step-questions.js";
 import { createTask, listTasks } from "./tasks.js";
 
 // Projects started from a goal, with Claude's help. Each time Claude is asked is a check-in:
@@ -27,7 +28,7 @@ const PHOTO_FOR_CLAUDE = ["c_limit,w_1568,h_1568", "f_jpg"];
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
-const SYSTEM = `You help people in a shared household reach a practical goal: tidy a room, clear out a garage, get the garden ready for spring, plan a move. You turn a goal into small, concrete tasks for their shared to-do list app, and you cheer them on as they go.
+export const SYSTEM = `You help people in a shared household reach a practical goal: tidy a room, clear out a garage, get the garden ready for spring, plan a move. You turn a goal into small, concrete tasks for their shared to-do list app, and you cheer them on as they go.
 
 How to write:
 - Plain, friendly, everyday words. No productivity jargon (never "GTD", "next actions", "contexts", "sprints").
@@ -313,6 +314,8 @@ export async function buildRequest(householdId, project, checkin, today) {
   if (earlier.length) {
     lines.push("", "Earlier check-ins:", ...earlier.map((c) => `- ${c.created_at.slice(0, 10)}${c.note ? `, they said “${c.note}”` : ""}: ${summarize(c)}`));
   }
+  const notes = await stepNotes(householdId, project.id);
+  if (notes.length) lines.push("", "What they've told you about single steps (keep it in mind):", ...notes);
   if (checkin.note) lines.push("", `What they say today: ${checkin.note}`);
 
   const image = (p) => ({ type: "image", source: { type: "url", url: signedImageUrl(p.public_id, ...PHOTO_FOR_CLAUDE) } });
@@ -405,8 +408,12 @@ export async function addSuggestions(actor, projectId, ids, { today }) {
       projectId,
       list: s.list,
       ...(rule ? { recurrence: rule, dueDate: firstOccurrence(rule, today) } : {}),
-    });
-    await db.run("UPDATE project_suggestions SET status = 'added', task_id = ? WHERE id = ?", [taskId, s.id]);
+    }, { items: parseSubsteps(s.checklist).map((text) => ({ text })) });
+    // What was asked about the step (src/services/step-questions.js) carries on on its task's page.
+    await db.batch([
+      { sql: "UPDATE project_suggestions SET status = 'added', task_id = ? WHERE id = ?", args: [taskId, s.id] },
+      moveQuestionsStatement(s.id, taskId),
+    ]);
   }
   changed(actor.householdId);
   return picked.length;
