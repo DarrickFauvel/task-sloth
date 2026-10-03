@@ -249,12 +249,12 @@ test("the project page shows the plan, the suggestions, progress and the draft",
   assert.equal(view.plan.how_to_start, "Start with the desk.");
   assert.equal(view.suggestions.steps.length, 3);
   assert.equal(view.draft, null);
-  assert.deepEqual(view.progress, { done: 0, total: 0 });
+  assert.deepEqual(view.progress, { done: 0, total: 0, line: "" });
 
   await addSuggestions(actor, projectId, view.suggestions.steps.map((s) => s.id), { today: TODAY });
   await openCheckin(actor, projectId);
   view = await projectPageView({ householdId: "h1", projectId, membership, today: TODAY });
-  assert.deepEqual(view.progress, { done: 0, total: 3 });
+  assert.deepEqual(view.progress, { done: 0, total: 3, line: "Every project starts with one small step." });
   assert.equal(view.suggestions.steps.length, 0);
   assert.equal(view.draft.kind, "checkin");
 });

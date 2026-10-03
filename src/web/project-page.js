@@ -3,6 +3,7 @@ import { getGoalProject, isStale, listCheckinPhotos, listCheckins, listGoalProje
 import { listTasks } from "../services/tasks.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { decorateTask } from "./task-list.js";
+import { progressLine } from "./encouragement.js";
 
 // A project started from a goal (src/services/coach.js), for views/pages/project.eta. Top to bottom: the goal and
 // progress; the plan (or the form that asks for one); what Claude suggests adding; the project's tasks; the
@@ -37,7 +38,7 @@ export async function projectPageView({ householdId, projectId, membership, toda
 
   return {
     project,
-    progress: { done: done.length, total: tasks.length },
+    progress: { done: done.length, total: tasks.length, line: progressLine({ done: done.length, total: tasks.length }) },
     // The plan once Claude has made it; until then, the start check-in (draft, thinking or failed).
     plan,
     start,

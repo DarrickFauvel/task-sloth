@@ -18,7 +18,8 @@ import { completeInSession, endFocus, focusChoices, getFocus, resumeFocus, setAs
 import { focusPageView } from "./src/web/focus-page.js";
 import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, moveTask, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
-import { createProject, listProjects } from "./src/services/projects.js";
+import { createProject, listProjects, projectProgress } from "./src/services/projects.js";
+import { finishedLine, milestoneLine, taskNudge } from "./src/web/encouragement.js";
 import { addSpot, ensureContext, getContext, listContexts, listSpots, removeSpot } from "./src/services/contexts.js";
 import { searchPlaces } from "./src/services/geocode.js";
 import { placesPageView, searchNudge } from "./src/web/places-page.js";
@@ -125,7 +126,7 @@ app.get("/healthz", (req, res) => res.type("text").send("ok"));
 
 const today = (req) => todayIn(req.cookies.tz);
 /** The viewer's date and wall-clock time, for due times (tasks due earlier today are overdue). */
-const clock = (req) => nowIn(req.cookies.tz);
+const clock = (req) => ({ ...nowIn(req.cookies.tz), timeZone: req.cookies.tz });
 /** Whether Mine should suggest this person's weekly reset (see src/services/reset.js). */
 const resetDueFor = (req, membership) => {
   const me = membership.members.find((m) => m.id === req.user.id);
@@ -367,7 +368,12 @@ app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
     return sse(req, res, (stream) => stream.executeScript(`location.assign(${JSON.stringify(url)})`));
   }
   const next = nextId && (await getTask(req.actor.householdId, nextId));
+  // A cozy word first (src/web/encouragement.js): a project milestone if this was one, or else a little cheer.
+  const finished = await getTask(req.actor.householdId, req.params.id);
+  const progress = finished.project_id && (await projectProgress(req.actor.householdId, finished.project_id));
+  const { count: doneCount } = await doneToday(req, req.membership);
   const messages = [
+    (progress && milestoneLine(progress)) || finishedLine({ taskId: finished.id, doneToday: doneCount }),
     next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
     unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
   ].filter(Boolean);
@@ -432,7 +438,12 @@ app.post("/tasks/:id/move/:column", requireHousehold, async (req, res) => {
   const unblocked = req.params.column === "done" ? await listBlockedBy(req.actor.householdId, req.params.id) : [];
   const nextId = await moveTask(req.actor, req.params.id, req.params.column, { until: nextMidnight(req.cookies.tz).toISOString(), today: today(req) });
   const next = nextId && (await getTask(req.actor.householdId, nextId));
+  // A cozy word first (src/web/encouragement.js): a project milestone if this was one, or else a little cheer.
+  const finished = await getTask(req.actor.householdId, req.params.id);
+  const progress = finished.project_id && (await projectProgress(req.actor.householdId, finished.project_id));
+  const { count: doneCount } = await doneToday(req, req.membership);
   const messages = [
+    (progress && milestoneLine(progress)) || finishedLine({ taskId: finished.id, doneToday: doneCount }),
     next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
     unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
   ].filter(Boolean);
@@ -678,7 +689,7 @@ app.get("/help", requireUser, (req, res) =>
 // --- Task page + checklist ------------------------------------------------------------
 
 const renderTaskHead = (req, task, membership = req.membership) =>
-  eta.render("partials/task-head", { task: decorate(req, task, membership), userId: req.user.id });
+  eta.render("partials/task-head", { task: decorate(req, task, membership), userId: req.user.id, nudge: taskNudge(task, today(req)) });
 
 /** Open tasks this one could be blocked by: not someone else's private inbox, not a template. */
 const blockerChoices = async (req) =>
@@ -702,7 +713,7 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   const comments = await taskComments(req, req.membership, task.id);
-  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id, flash: await freedNotice(req) });
+  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id, nudge: taskNudge(task, today(req)), flash: await freedNotice(req) });
 }
 
 /**

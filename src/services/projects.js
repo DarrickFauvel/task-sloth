@@ -14,6 +14,18 @@ export async function listProjects(householdId, { includeArchived = false } = {}
   );
 }
 
+/** A project's name and how many of its tasks are done, or null; for milestones when a task is finished. */
+export async function projectProgress(householdId, id) {
+  const row = await db.get(
+    `SELECT p.name, p.emoji,
+            (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.deleted_at IS NULL AND t.is_template = 0) AS total,
+            (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.deleted_at IS NULL AND t.is_template = 0 AND t.status = 'done') AS done
+       FROM projects p WHERE p.id = ? AND p.household_id = ?`,
+    [id, householdId],
+  );
+  return row ? { name: `${row.emoji} ${row.name}`, done: Number(row.done), total: Number(row.total) } : null;
+}
+
 export async function getProject(householdId, id) {
   const project = await db.get("SELECT * FROM projects WHERE id = ? AND household_id = ?", [id, householdId]);
   if (!project) throw new HttpError(404, "Project not found");
