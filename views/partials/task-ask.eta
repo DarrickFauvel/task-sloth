@@ -1,0 +1,36 @@
+<%/* "Ask Claude" on a task in a project with a goal (src/web/step-questions.js taskAskView): what's been asked about
+     this step, Claude's offered change (to use or turn down), and the box to ask. Live: re-rendered when an answer
+     arrives. $stepQuestion keeps what's being typed across re-renders. Outlined buttons: Mark done is the page's
+     one filled button. */%>
+<section id="task-ask" class="panel task-card" aria-labelledby="ask-title">
+  <h2 id="ask-title" class="card-title"><span class="emoji" aria-hidden="true">✨</span> Ask Claude about this step</h2>
+  <form class="stack" method="post" action="/tasks/<%= it.taskId %>/ask"
+        data-on:submit="@post('/tasks/<%= it.taskId %>/ask'); $stepQuestion = ''">
+    <% if (!it.questions.length) { %>
+      <p class="hint">Not sure how to do it, or it doesn't quite fit your place? Ask, or tell Claude what's different, and it can reword the step or break it into smaller ones.</p>
+    <% } %>
+    <%~ include("/partials/step-qa", { questions: it.questions, showChanges: false }) %>
+    <% if (it.offer) { const o = it.offer; %>
+      <div class="step-offer">
+        <p class="field-title">Claude suggests</p>
+        <p><strong><%= o.title %></strong></p>
+        <% if (o.notes) { %><p class="hint"><%= o.notes %></p><% } %>
+        <% if (o.substeps.length) { %>
+          <p class="hint">As checklist items:</p>
+          <ul class="substeps"><% o.substeps.forEach((x) => { %><li><%= x %></li><% }) %></ul>
+        <% } %>
+        <div class="row">
+          <button class="button" formnovalidate formaction="/step-questions/<%= o.id %>/use" data-on:click="evt.preventDefault(); @post('/step-questions/<%= o.id %>/use')">Use this</button>
+          <button class="link" formnovalidate formaction="/step-questions/<%= o.id %>/decline" data-on:click="evt.preventDefault(); @post('/step-questions/<%= o.id %>/decline')">No thanks</button>
+        </div>
+      </div>
+    <% } %>
+    <label class="stack">
+      <span class="field-title">Ask, or tell Claude what's different</span>
+      <textarea name="stepQuestion" data-bind:step-question rows="2" maxlength="1000" required
+                placeholder="e.g. How do I do this? / We don't have a car"
+                data-on:keydown="evt.key === 'Enter' && (evt.ctrlKey || evt.metaKey) && (evt.preventDefault(), el.form.requestSubmit())"></textarea>
+    </label>
+    <button class="button">Ask</button>
+  </form>
+</section>

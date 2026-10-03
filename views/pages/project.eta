@@ -2,8 +2,9 @@
 <% if (it.photosEnabled) { %><script type="module" src="<%= asset("/js/task-photo.js") %>"></script><% } %>
 <a class="back" href="/projects">← Projects</a>
 <%/* Live updates (?goal=): photos as they upload, Claude's answers as they arrive, tasks done elsewhere.
-     $note holds the check-in note, so a re-render can't wipe what's being typed. */%>
-<div data-signals="{note: ''}"
+     $note holds the check-in note, and $stepQuestion a question about a suggested step (in the box $stepOpen
+     names), so a re-render can't wipe what's being typed. */%>
+<div data-signals="{note: '', stepQuestion: '', stepOpen: ''}"
      data-init="whenShown(() => @get('/events?goal=<%= it.project.id %>&since=<%= it.renderedAt %>', {retry: 'always', retryMaxCount: 1000, filterSignals: {include: /^$/}}))">
   <%~ include("/partials/project-live", it) %>
   <%~ include("/partials/flash", it.flash ?? {}) %>

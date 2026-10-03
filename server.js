@@ -39,6 +39,8 @@ import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, p
 import { signedImageUrl } from "./src/lib/cloudinary.js";
 import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getCheckinPhoto, openCheckin, removeCheckinPhoto, startProject } from "./src/services/coach.js";
 import { projectPageView, projectsPageView } from "./src/web/project-page.js";
+import { askAboutSuggestion, askAboutTask, declineProposal, getStepQuestion, getSuggestion, retryQuestion, useProposal } from "./src/services/step-questions.js";
+import { taskAskView } from "./src/web/step-questions.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
@@ -241,7 +243,7 @@ app.get("/events", requireHousehold, async (req, res) => {
     if (goalId) return renderProject(await projectView(req, goalId, membership));
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
-      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership)];
+      return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership), ...(await renderTaskAsk(householdId, checklist.task))];
     }
     const list = await taskListView({ userId: req.user.id, membership, ...listQuery, groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, membership) });
     scheduleDrop(list.refreshAt);
@@ -713,7 +715,8 @@ async function renderTaskPage(req, res, { editing = false } = {}) {
   const form = editing ? await editView(req, checklist.task, String(req.query.focus ?? "")) : null;
   const photos = await taskPhotosView(req.actor.householdId, task.id);
   const comments = await taskComments(req, req.membership, task.id);
-  render(res, "pages/task", { task, checklist, form, photos, comments, userId: req.user.id, nudge: taskNudge(task, today(req)), flash: await freedNotice(req) });
+  const ask = await taskAskView(req.actor.householdId, checklist.task, { enabled: coachConfigured() });
+  render(res, "pages/task", { task, checklist, form, photos, comments, ask, userId: req.user.id, nudge: taskNudge(task, today(req)), flash: await freedNotice(req) });
 }
 
 /**
@@ -735,6 +738,12 @@ async function taskComments(req, membership, taskId) {
   return commentsView(taskId, { userId: req.user.id, membership, timeZone: req.cookies.tz, today: today(req) });
 }
 const renderComments = async (req, taskId, membership = req.membership) => eta.render("partials/comments", await taskComments(req, membership, taskId));
+
+/** The task page's "Ask Claude" card (a task in a project with a goal), as a live part; none otherwise. */
+async function renderTaskAsk(householdId, task) {
+  const view = await taskAskView(householdId, task, { enabled: coachConfigured() });
+  return view ? [eta.render("partials/task-ask", view)] : [];
+}
 
 // Commenting on a task, and deleting (or, from the toast, restoring) your own comment. Datastar re-renders the list
 // in place (and clears the box); without script, back to the task page.
@@ -1073,11 +1082,18 @@ async function sendProject(req, res, projectId, { flash } = {}) {
   });
 }
 
-/** Sends a check-in to Claude, unless the household has asked too often; the answer arrives by live update. */
-async function ask(req, checkinId, note = "") {
+/** Counts one ask against the household's hourly budget; returns the flash to show instead if it's used up. */
+function coachLimited(req) {
   const { householdId } = req.actor;
   if (coachAsks.isLimited(householdId)) return { message: TOO_MANY_ASKS, error: true };
   coachAsks.hit(householdId);
+  return null;
+}
+
+/** Sends a check-in to Claude, unless the household has asked too often; the answer arrives by live update. */
+async function ask(req, checkinId, note = "") {
+  const limited = coachLimited(req);
+  if (limited) return limited;
   await askCheckin(req.actor, checkinId, { note, today: today(req) });
   return null;
 }
@@ -1168,6 +1184,67 @@ app.post("/projects/:id/suggestions/add", requireHousehold, requireCoach, async 
 app.post("/suggestions/:id/dismiss", requireHousehold, requireCoach, async (req, res) => {
   const projectId = await dismissSuggestion(req.actor, req.params.id);
   await sendProject(req, res, projectId);
+});
+
+// Asking Claude about one step (src/services/step-questions.js): a suggestion, or a task in a goal project. The
+// question is the `stepQuestion` signal; without script, a field of that name (one per suggestion row, so take
+// the one that was filled in). Answers arrive by live update.
+const stepQuestionOf = (req) => [req.body.stepQuestion ?? ""].flat().map(String).find((q) => q.trim()) ?? "";
+
+/** A question goes back to wherever it was asked: the task's page, or the project page. */
+async function sendStep(req, res, q, flash) {
+  return q.task_id ? sendTaskAsk(req, res, q.task_id, { flash }) : sendProject(req, res, q.project_id, { flash });
+}
+
+/** Datastar: re-render the task's Ask card (plus an optional flash). Plain posts: back to the task page. */
+async function sendTaskAsk(req, res, taskId, { flash } = {}) {
+  if (!isDatastar(req)) return redirect(res, `/tasks/${taskId}`);
+  const parts = await renderTaskAsk(req.actor.householdId, await getTask(req.actor.householdId, taskId));
+  const flashHtml = eta.render("partials/flash", flash ?? {});
+  await sse(req, res, (stream) => {
+    for (const html of parts) stream.patchElements(html);
+    stream.patchElements(flashHtml);
+  });
+}
+
+/** Asks unless the household is over its budget, or the question is empty; returns the flash to show, if any. */
+async function askStep(req, asking) {
+  const limited = coachLimited(req);
+  if (limited) return limited;
+  try {
+    await asking();
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    return { message: err.message, error: true };
+  }
+  return null;
+}
+
+app.post("/suggestions/:id/ask", requireHousehold, requireCoach, async (req, res) => {
+  const suggestion = await getSuggestion(req.actor.householdId, req.params.id);
+  const flash = await askStep(req, () => askAboutSuggestion(req.actor, suggestion.id, { question: stepQuestionOf(req) }));
+  await sendProject(req, res, suggestion.project_id, { flash });
+});
+
+app.post("/tasks/:id/ask", requireHousehold, requireCoach, async (req, res) => {
+  const flash = await askStep(req, () => askAboutTask(req.actor, req.params.id, { question: stepQuestionOf(req) }));
+  await sendTaskAsk(req, res, req.params.id, { flash });
+});
+
+app.post("/step-questions/:id/retry", requireHousehold, requireCoach, async (req, res) => {
+  const q = await getStepQuestion(req.actor.householdId, req.params.id);
+  const flash = await askStep(req, () => retryQuestion(req.actor, q.id));
+  await sendStep(req, res, q, flash);
+});
+
+app.post("/step-questions/:id/use", requireHousehold, requireCoach, async (req, res) => {
+  const q = await useProposal(req.actor, req.params.id);
+  await sendStep(req, res, q, { message: "Step updated" });
+});
+
+app.post("/step-questions/:id/decline", requireHousehold, requireCoach, async (req, res) => {
+  const q = await declineProposal(req.actor, req.params.id);
+  await sendStep(req, res, q);
 });
 
 // --- Settings -------------------------------------------------------------------------

@@ -114,9 +114,26 @@
                 <span>
                   <strong><%= s.title %></strong>
                   <% if (s.notes) { %><span class="hint"><%= s.notes %></span><% } %>
+                  <% if (s.substeps.length) { %><span class="substeps"><% s.substeps.forEach((x) => { %><span>• <%= x %></span><% }) %></span><% } %>
                   <% if (s.repeats) { %><span class="hint">↻ <%= s.repeats %></span><% } else if (s.list === "someday") { %><span class="hint">Goes on Maybe later</span><% } %>
                 </span>
               </label>
+              <%/* Asking about one step. $stepOpen says which row's box is open, so a live re-render keeps it open;
+                   rows with questions show them all the time. */%>
+              <div class="step-ask">
+                <%~ include("/partials/step-qa", { questions: s.questions, showChanges: true }) %>
+                <button type="button" class="link" aria-controls="ask-<%= s.id %>"
+                        data-on:click="$stepQuestion = ''; $stepOpen = $stepOpen === '<%= s.id %>' ? '' : '<%= s.id %>'"
+                        data-attr:aria-expanded="$stepOpen === '<%= s.id %>'"><%= s.questions.length ? "Ask more" : "Ask Claude about this step" %></button>
+                <div id="ask-<%= s.id %>" class="stack step-ask-box" data-show="$stepOpen === '<%= s.id %>'">
+                  <label class="stack">
+                    <span class="field-title">Ask, or tell Claude what's different</span>
+                    <textarea name="stepQuestion" data-bind:step-question rows="2" maxlength="1000" placeholder="e.g. How do I do this? / We don't have a car"></textarea>
+                  </label>
+                  <button class="button" formaction="/suggestions/<%= s.id %>/ask"
+                          data-on:click="evt.preventDefault(); @post('/suggestions/<%= s.id %>/ask'); $stepQuestion = ''; $stepOpen = ''">Ask</button>
+                </div>
+              </div>
             </li>
           <% }) %>
         </ul>

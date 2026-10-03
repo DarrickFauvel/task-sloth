@@ -4,6 +4,7 @@ import { listTasks } from "../services/tasks.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
 import { decorateTask } from "./task-list.js";
 import { progressLine } from "./encouragement.js";
+import { suggestionsWithQuestions } from "./step-questions.js";
 
 // A project started from a goal (src/services/coach.js), for views/pages/project.eta. Top to bottom: the goal and
 // progress; the plan (or the form that asks for one); what Claude suggests adding; the project's tasks; the
@@ -29,7 +30,8 @@ export async function projectPageView({ householdId, projectId, membership, toda
   const tasks = (await listTasks(householdId, { projectId })).map((t) => decorateTask(t, membership, today, time));
   const open = tasks.filter((t) => t.status === "open");
   const done = tasks.filter((t) => t.status === "done");
-  const suggestions = await listSuggestions(householdId, projectId);
+  // Each with its sub-steps and what's been asked about it.
+  const suggestions = await suggestionsWithQuestions(householdId, projectId, await listSuggestions(householdId, projectId), now);
   const lastAnswer = later.filter((c) => c.status === "ready" && c.kind === "checkin").at(-1);
   const plan = start?.status === "ready" ? start.reply : null;
   const draft = plan ? later.find((c) => c.status === "draft") ?? null : null;

@@ -1,0 +1,22 @@
+<%/* Questions asked about one step and Claude's answers (src/web/step-questions.js), oldest first. Used inside a
+     form (the suggestions form on the project page, the Ask card on a task page), so Try again is a formaction
+     button: Datastar posts it, and without script it submits the form there. */%>
+<% if (it.questions.length) { %>
+  <ul class="step-qa">
+    <% it.questions.forEach((q) => { %>
+      <li>
+        <p class="step-q">“<%= q.question %>”</p>
+        <% if (q.status === "thinking") { %>
+          <p class="coach-thinking" role="status"><span class="dot" aria-hidden="true"></span> Claude is thinking about it…</p>
+        <% } else if (q.status === "failed") { %>
+          <p class="flash is-error" role="alert"><%= q.error || "That didn't work." %></p>
+          <button class="button" formnovalidate formaction="/step-questions/<%= q.id %>/retry" data-on:click="evt.preventDefault(); @post('/step-questions/<%= q.id %>/retry')">Try again</button>
+        <% } else { %>
+          <p class="step-a"><%= q.answer %></p>
+          <% if (q.changed && it.showChanges) { %><p class="hint">Claude updated this step to fit.</p><% } %>
+          <% if (q.proposal === "used") { %><p class="hint">You used Claude's version.</p><% } %>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>
