@@ -22,7 +22,7 @@ export async function listPhotos(householdId, taskId) {
 }
 
 /** Checks an upload is an image we take; returns its type. */
-function checkImage(bytes) {
+export function checkImage(bytes) {
   const type = imageType(bytes);
   if (!type) throw new HttpError(400, "That isn't a JPEG, PNG or WebP image");
   if (bytes.length > PHOTO_MAX_BYTES) throw new HttpError(400, "That photo is too big");

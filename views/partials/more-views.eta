@@ -20,6 +20,14 @@
           <span class="hint">Work through one project or place, a task at a time</span>
         </a>
       </li>
+      <% if (it.coach) { %>
+        <li>
+          <a href="/projects">
+            <strong>Projects</strong>
+            <span class="hint">Start something new: Claude suggests where to begin and checks in on your photos</span>
+          </a>
+        </li>
+      <% } %>
     </ul>
     <form method="dialog"><button class="button">Close</button></form>
   </div>

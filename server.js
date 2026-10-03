@@ -2,7 +2,7 @@ import express from "express";
 import QRCode from "qrcode";
 import { Eta } from "eta";
 import { fileURLToPath } from "node:url";
-import { config, googleConfigured, photosConfigured } from "./src/config.js";
+import { coachConfigured, config, googleConfigured, photosConfigured } from "./src/config.js";
 import { initDb } from "./src/db/client.js";
 import { migrate } from "./src/db/migrate.js";
 import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http.js";
@@ -36,6 +36,8 @@ import { cancelEmailChange, confirmEmail, describeLink, describeResetLink, email
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
+import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getCheckinPhoto, openCheckin, removeCheckinPhoto, startProject } from "./src/services/coach.js";
+import { projectPageView, projectsPageView } from "./src/web/project-page.js";
 import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
@@ -181,7 +183,7 @@ app.get("/", async (req, res) => {
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })
     : null;
-  render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(),
+  render(res, "pages/home", { user: req.user, membership: req.membership, list, doneToday: req.membership && (await doneToday(req, req.membership)), views: VIEWS, nav: NAV, listQueryString, qr: appQr, shortcuts: shortcutsView(req), photosEnabled: photosConfigured(), coachEnabled: coachConfigured(),
     householdLine: householdLine(req, res),
     emailNotice: await emailNoticeView(req), flash: req.query.password === "changed" ? { message: "Password changed. You're signed in." } : focusEndedNotice(req) ?? (await deletedNotice(req)) });
 });
@@ -215,6 +217,8 @@ app.get("/events", requireHousehold, async (req, res) => {
   const since = Number(req.query.since) || 0;
   const next = Number(req.query.next) || null;
   const taskId = typeof req.query.task === "string" ? req.query.task : null;
+  // A project page (Projects, with Claude); `project` is taken: it narrows the home page's list.
+  const goalId = typeof req.query.goal === "string" && coachConfigured() ? req.query.goal : null;
   const { householdId } = req.actor;
   // The task was deleted: 204 is the one response Datastar's retry: 'always' won't retry.
   if (taskId && !(await getTask(householdId, taskId).then(() => true, (err) => (isNotFound(err) ? false : Promise.reject(err))))) {
@@ -233,6 +237,7 @@ app.get("/events", requireHousehold, async (req, res) => {
 
   /** @returns {Promise<string[]>} the page's live parts */
   const renderPage = async (membership) => {
+    if (goalId) return renderProject(await projectView(req, goalId, membership));
     if (taskId) {
       const checklist = await checklistView(householdId, taskId);
       return [renderTaskHead(req, checklist.task, membership), ...renderChecklist(checklist), await renderPhotos(householdId, taskId), await renderComments(req, taskId, membership)];
@@ -253,7 +258,7 @@ app.get("/events", requireHousehold, async (req, res) => {
         parts = await renderPage(membership);
       } catch (err) {
         if (!isNotFound(err)) throw err;
-        if (!closed) stream.patchElements(eta.render("partials/flash", { message: "This task was deleted", error: true, sticky: true }));
+        if (!closed) stream.patchElements(eta.render("partials/flash", { message: goalId ? "This project is gone" : "This task was deleted", error: true, sticky: true }));
         return res.end();
       }
       if (!closed) for (const html of parts) stream.patchElements(html);
@@ -307,6 +312,7 @@ const renderList = (list, userId, doneToday) => [
  *  `grouping` overrides the group cookie, for the request that has just changed it. */
 async function sendTaskList(req, res, { flash, signals, grouping, layout, script } = {}) {
   if (req.body.back === "task") return sendTaskHead(req, res, req.params.id, { flash });
+  if (req.body.back === "project") return sendProject(req, res, String(req.body.project ?? ""), { flash });
   const listQuery = cleanListQuery(req.body);
   if (!isDatastar(req)) return redirect(res, `/?${listQueryString(listQuery)}`);
   const list = await taskListView({ userId: req.user.id, membership: req.membership, ...listQuery, groupBy: grouping ?? groupBy(req), layout: layout ?? layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) });
@@ -785,6 +791,11 @@ app.get("/photos/:id/:size", requireHousehold, async (req, res) => {
   if (!transform) return res.sendStatus(404);
   const photo = await getPhoto(req.actor.householdId, req.params.id).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
   if (!photo) return res.sendStatus(404);
+  await relayPhoto(req, res, photo, transform);
+});
+
+/** Sends a private Cloudinary photo on to the browser (see GET /photos/:id/:size). */
+async function relayPhoto(req, res, photo, transform) {
   const upstream = await fetch(signedImageUrl(photo.public_id, transform), { headers: { Accept: req.get("accept") ?? "image/*" } });
   if (!upstream.ok) {
     console.error("couldn't fetch photo from Cloudinary", photo.public_id, upstream.status, upstream.headers.get("x-cld-error"));
@@ -797,7 +808,7 @@ app.get("/photos/:id/:size", requireHousehold, async (req, res) => {
     Vary: "Accept",
   });
   res.send(Buffer.from(await upstream.arrayBuffer()));
-});
+}
 
 app.post("/photos/:id/delete", requireHousehold, async (req, res) => {
   const taskId = await removePhoto(req.actor, req.params.id);
@@ -1025,6 +1036,127 @@ app.post("/places/:id/search", requireHousehold, async (req, res) => {
   await sse(req, res, (stream) => {
     stream.patchElements(eta.render("partials/place-results", row));
   });
+});
+
+// --- Projects (with Claude) ----------------------------------------------------------
+
+// A project started from a goal: Claude suggests how to start and the first tasks, then checks in on photos
+// and suggests upkeep (src/services/coach.js). All of it needs ANTHROPIC_API_KEY.
+const requireCoach = (req, res, next) => (coachConfigured() ? next() : res.sendStatus(404));
+// Each answer costs money, so 20 an hour per household.
+const coachAsks = createRateLimit({ limit: 20, windowMs: 60 * 60_000 });
+const TOO_MANY_ASKS = "That's a lot of questions for one hour. Try again a little later.";
+
+const projectView = (req, projectId, membership = req.membership) =>
+  projectPageView({ householdId: membership.household.id, projectId, membership, ...clock(req) });
+const renderProject = (view) => [eta.render("partials/project-live", view)];
+
+/** Datastar: re-render the project page's live part (plus an optional flash). Plain posts: back to the page. */
+async function sendProject(req, res, projectId, { flash } = {}) {
+  if (!isDatastar(req)) return redirect(res, `/projects/${projectId}`);
+  const parts = renderProject(await projectView(req, projectId));
+  const flashHtml = eta.render("partials/flash", flash ?? {});
+  await sse(req, res, (stream) => {
+    for (const html of parts) stream.patchElements(html);
+    stream.patchElements(flashHtml);
+  });
+}
+
+/** Sends a check-in to Claude, unless the household has asked too often; the answer arrives by live update. */
+async function ask(req, checkinId, note = "") {
+  const { householdId } = req.actor;
+  if (coachAsks.isLimited(householdId)) return { message: TOO_MANY_ASKS, error: true };
+  coachAsks.hit(householdId);
+  await askCheckin(req.actor, checkinId, { note, today: today(req) });
+  return null;
+}
+
+const renderProjects = async (req, res, { error = null, form = {}, status = 200 } = {}) =>
+  render(res, "pages/projects", { projects: await projectsPageView(req.actor.householdId), photosEnabled: photosConfigured(), error, form }, status);
+
+app.get("/projects", requireHousehold, requireCoach, (req, res) => renderProjects(req, res));
+
+// A plain form post. With photos, the project page asks for them first; without, Claude gets the goal right away.
+app.post("/projects", requireHousehold, requireCoach, async (req, res) => {
+  let id;
+  try {
+    id = await startProject(req.actor, { goal: req.body.goal, notes: req.body.notes });
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    return renderProjects(req, res, { error: err.message, form: req.body, status: 400 });
+  }
+  if (!photosConfigured()) {
+    const view = await projectView(req, id);
+    await ask(req, view.start.id);
+  }
+  redirect(res, `/projects/${id}`);
+});
+
+app.get("/projects/:id", requireHousehold, requireCoach, async (req, res) => {
+  const view = await projectView(req, req.params.id);
+  render(res, "pages/project", { ...view, renderedAt: res.locals.renderedAt });
+});
+
+// Start a check-in (photos and a note come next), or ask for upkeep tasks straight away.
+app.post("/projects/:id/checkins", requireHousehold, requireCoach, async (req, res) => {
+  await openCheckin(req.actor, req.params.id);
+  await sendProject(req, res, req.params.id);
+});
+
+app.post("/projects/:id/upkeep", requireHousehold, requireCoach, async (req, res) => {
+  const id = await openCheckin(req.actor, req.params.id, "upkeep");
+  const flash = await ask(req, id);
+  await sendProject(req, res, req.params.id, { flash });
+});
+
+// Datastar sends the note as the `note` signal; a plain form sends it as a field.
+app.post("/checkins/:id/ask", requireHousehold, requireCoach, async (req, res) => {
+  const checkin = await getCheckin(req.actor.householdId, req.params.id);
+  const flash = await ask(req, checkin.id, String(req.body.note ?? ""));
+  await sendProject(req, res, checkin.project_id, { flash });
+});
+
+app.post("/checkins/:id/discard", requireHousehold, requireCoach, async (req, res) => {
+  const checkin = await getCheckin(req.actor.householdId, req.params.id);
+  await discardCheckin(req.actor, checkin.id);
+  await sendProject(req, res, checkin.project_id);
+});
+
+// Like /tasks/:id/photos: <task-photo> shrinks it in the browser and posts the bytes; errors come back as text.
+app.post("/checkins/:id/photos", requireHousehold, requireCoach, express.raw({ type: "image/*", limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  try {
+    await addCheckinPhoto(req.actor, req.params.id, Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  } catch (err) {
+    if (err instanceof HttpError && err.status < 500) return res.status(err.status).type("text").send(err.message);
+    throw err;
+  }
+  res.sendStatus(204);
+});
+
+app.get("/checkin-photos/:id/:size", requireHousehold, async (req, res) => {
+  const transform = PHOTO_SIZES[req.params.size];
+  if (!transform) return res.sendStatus(404);
+  const photo = await getCheckinPhoto(req.actor.householdId, req.params.id).catch((err) => (isNotFound(err) ? null : Promise.reject(err)));
+  if (!photo) return res.sendStatus(404);
+  await relayPhoto(req, res, photo, transform);
+});
+
+app.post("/checkin-photos/:id/delete", requireHousehold, requireCoach, async (req, res) => {
+  const projectId = await removeCheckinPhoto(req.actor, req.params.id);
+  await sendProject(req, res, projectId);
+});
+
+// The ticked suggestions (checkboxes named `pick`) become tasks in the project.
+app.post("/projects/:id/suggestions/add", requireHousehold, requireCoach, async (req, res) => {
+  const picked = [req.body.pick ?? []].flat().map(String);
+  const n = await addSuggestions(req.actor, req.params.id, picked, { today: today(req) });
+  const flash = { message: n ? `Added ${n} ${n === 1 ? "task" : "tasks"} to the project` : "Tick the ones you want first", error: !n };
+  await sendProject(req, res, req.params.id, { flash });
+});
+
+app.post("/suggestions/:id/dismiss", requireHousehold, requireCoach, async (req, res) => {
+  const projectId = await dismissSuggestion(req.actor, req.params.id);
+  await sendProject(req, res, projectId);
 });
 
 // --- Settings -------------------------------------------------------------------------

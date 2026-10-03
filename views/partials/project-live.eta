@@ -1,0 +1,210 @@
+<%/* A project page's live part (src/web/project-page.js), re-rendered on every change in the household: the goal and
+     progress, the plan (or asking for it), suggestions to add, the check-in being put together, the tasks, and the
+     check-ins so far. it.primary picks the one filled button. */%>
+<% const p = it.project; const btn = (key) => (it.primary === key ? "button primary" : "button"); %>
+<% const date = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); %>
+<%/* Photos: thumbnails that open the viewer; `remove` adds a ✕ while Claude doesn't have them yet. The viewer takes
+     every data-photos="" link on the page in order, so data-index counts across all the grids. */%>
+<% let photoIndex = 0; %>
+<% const photoGrid = (photos, remove) => { %>
+  <% if (photos.length) { %>
+    <ul class="photo-grid">
+      <% photos.forEach((ph, i) => { %>
+        <li>
+          <a href="<%= ph.full %>" data-photos="" data-index="<%= photoIndex++ %>" aria-label="Open photo <%= i + 1 %>"><img src="<%= ph.thumb %>" alt="Photo <%= i + 1 %>" width="160" height="160" loading="lazy"></a>
+          <% if (remove) { %>
+            <form method="post" action="/checkin-photos/<%= ph.id %>/delete" data-on:submit="@post('/checkin-photos/<%= ph.id %>/delete')">
+              <button class="icon photo-delete" aria-label="Remove photo <%= i + 1 %>" title="Remove photo">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </form>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+<% } %>
+<%/* "Take photo" opens the camera on a phone; "Choose" picks from the library. Up to it.maxPhotos. */%>
+<% const uploader = (c) => { %>
+  <% if (it.photosEnabled && c.photos.length < it.maxPhotos) { %>
+    <task-photo id="uploader-<%= c.id %>" action="/checkins/<%= c.id %>/photos" class="photo-buttons">
+      <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden">Take photo</label>
+      <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
+      <p class="hint" role="status" hidden></p>
+    </task-photo>
+  <% } %>
+<% } %>
+<% const thinking = (text) => { %>
+  <p class="coach-thinking" role="status"><span class="dot" aria-hidden="true"></span> <%= text %></p>
+<% } %>
+<% const failed = (c, label) => { %>
+  <p class="flash is-error" role="alert"><%= c.error || "That didn't work." %></p>
+  <form method="post" action="/checkins/<%= c.id %>/ask" data-on:submit="@post('/checkins/<%= c.id %>/ask')"><button class="button"><%= label %></button></form>
+<% } %>
+<% const taskRow = (t) => { const done = t.status === "done"; const action = done ? "reopen" : "done"; %>
+  <li class="task<%= done ? ' is-done' : '' %>">
+    <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">
+      <input type="hidden" name="back" value="project"><input type="hidden" name="project" value="<%= p.id %>">
+      <button class="check" aria-label="<%= done ? 'Mark not done' : 'Mark done' %>"><span aria-hidden="true">✓</span></button>
+    </form>
+    <div class="task-body">
+      <a class="task-title" href="/tasks/<%= t.id %>"><span><%= t.title %></span></a>
+      <span class="meta">
+        <% if (t.list === "someday" && !done) { %><span>Maybe later</span><% } %>
+        <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
+        <% if (t.repeats) { %><span title="Repeats">↻ <%= t.repeats %></span><% } %>
+        <% if (t.assignee) { %><span><%= t.assignee.name.split(" ")[0] %></span><% } %>
+      </span>
+    </div>
+  </li>
+<% } %>
+
+<div id="project-live" class="project-page">
+  <header class="project-head">
+    <h1><span class="emoji" aria-hidden="true"><%= p.emoji %></span> <%= p.name %></h1>
+    <p class="hint">Goal: <%= p.goal %></p>
+    <% if (it.progress.total) { %>
+      <div class="focus-progress">
+        <progress max="<%= it.progress.total %>" value="<%= it.progress.done %>"></progress>
+        <span class="hint"><%= it.progress.done %> of <%= it.progress.total %> done</span>
+      </div>
+    <% } %>
+  </header>
+
+  <% if (!it.plan) { const s = it.start; %>
+    <section class="panel" aria-labelledby="plan-title">
+      <h2 id="plan-title" class="card-title"><span class="emoji" aria-hidden="true">🧭</span> Get a plan</h2>
+      <% if (s.status === "thinking") { %>
+        <% thinking("Claude is working out where to start…") %>
+        <% photoGrid(s.photos, false) %>
+      <% } else { %>
+        <% if (it.photosEnabled) { %>
+          <p class="hint">Add a photo or two of how it looks now, so the plan fits what's really there. Or skip them.</p>
+          <% photoGrid(s.photos, true) %>
+          <% uploader(s) %>
+        <% } %>
+        <% if (s.status === "failed") { %>
+          <% failed(s, "Try again") %>
+        <% } else { %>
+          <form method="post" action="/checkins/<%= s.id %>/ask" data-on:submit="@post('/checkins/<%= s.id %>/ask')"><button class="<%= btn('plan') %>">Suggest a plan</button></form>
+        <% } %>
+      <% } %>
+    </section>
+  <% } else { %>
+    <section class="panel" aria-labelledby="start-title">
+      <h2 id="start-title" class="card-title"><span class="emoji" aria-hidden="true">🧭</span> How to start</h2>
+      <% if (it.plan.noticed) { %><p><%= it.plan.noticed %></p><% } %>
+      <p><%= it.plan.how_to_start %></p>
+      <% photoGrid(it.start.photos, false) %>
+    </section>
+  <% } %>
+
+  <% const sug = it.suggestions; %>
+  <% if (sug.steps.length || sug.upkeep.length) { %>
+    <section class="panel" aria-labelledby="suggest-title">
+      <h2 id="suggest-title" class="card-title"><span class="emoji" aria-hidden="true">✨</span> Suggested <%= sug.steps.length ? "steps" : "upkeep" %></h2>
+      <p class="hint">Untick any you don't want; the rest go on the list as tasks in this project.<% if (sug.upkeep.length) { %> Upkeep tasks repeat by themselves.<% } %></p>
+      <form method="post" action="/projects/<%= p.id %>/suggestions/add" data-on:submit="@post('/projects/<%= p.id %>/suggestions/add', {contentType: 'form'})">
+        <ul class="suggestions">
+          <% [...sug.steps, ...sug.upkeep].forEach((s) => { %>
+            <li>
+              <label class="suggestion">
+                <input type="checkbox" name="pick" value="<%= s.id %>" checked>
+                <span>
+                  <strong><%= s.title %></strong>
+                  <% if (s.notes) { %><span class="hint"><%= s.notes %></span><% } %>
+                  <% if (s.repeats) { %><span class="hint">↻ <%= s.repeats %></span><% } else if (s.list === "someday") { %><span class="hint">Goes on Maybe later</span><% } %>
+                </span>
+              </label>
+            </li>
+          <% }) %>
+        </ul>
+        <button class="<%= btn('add') %>">Add these</button>
+      </form>
+      <details class="dismiss-list">
+        <summary class="hint">Not for you? Dismiss some for good</summary>
+        <ul class="suggestions">
+          <% [...sug.steps, ...sug.upkeep].forEach((s) => { %>
+            <li class="dismiss-row">
+              <span><%= s.title %></span>
+              <form method="post" action="/suggestions/<%= s.id %>/dismiss" data-on:submit="@post('/suggestions/<%= s.id %>/dismiss')"><button class="link">Dismiss</button></form>
+            </li>
+          <% }) %>
+        </ul>
+      </details>
+    </section>
+  <% } %>
+
+  <% it.pending.forEach((c) => { %>
+    <section class="panel" aria-label="<%= c.kind === 'upkeep' ? 'Upkeep' : 'Check-in' %>">
+      <% if (c.status === "thinking") { %>
+        <% thinking(c.kind === "upkeep" ? "Claude is thinking about how to keep it this way…" : "Claude is looking at your check-in…") %>
+        <% photoGrid(c.photos, false) %>
+      <% } else { %>
+        <% photoGrid(c.photos, true) %>
+        <% uploader(c) %>
+        <% failed(c, "Try again") %>
+      <% } %>
+    </section>
+  <% }) %>
+
+  <% if (it.draft) { const d = it.draft; %>
+    <section class="panel" aria-labelledby="checkin-title">
+      <h2 id="checkin-title" class="card-title"><span class="emoji" aria-hidden="true">📸</span> Check in</h2>
+      <p class="hint"><%= it.photosEnabled ? "Take a photo from about where you took the first ones, so Claude can see what's changed." : "Say how it's going, and Claude will suggest what's next." %></p>
+      <% photoGrid(d.photos, true) %>
+      <% uploader(d) %>
+      <label class="stack">
+        <span class="field-title">How's it going? <span class="count">Optional</span></span>
+        <textarea data-bind:note rows="2" maxlength="2000" placeholder="e.g. Desk's done, the shelves are still a mess"></textarea>
+      </label>
+      <form method="post" action="/checkins/<%= d.id %>/ask" data-on:submit="@post('/checkins/<%= d.id %>/ask'); $note = ''"><button class="<%= btn('ask') %>">See what's next</button></form>
+      <form method="post" action="/checkins/<%= d.id %>/discard" data-on:submit="@post('/checkins/<%= d.id %>/discard')"><button class="link">Never mind</button></form>
+    </section>
+  <% } else if (it.plan) { %>
+    <div class="project-actions">
+      <% if (it.goalReached && !it.hasUpkeep) { %>
+        <p class="hint">Looks like you've done it. 🎉 Want a few small repeating tasks to keep it that way?</p>
+        <form method="post" action="/projects/<%= p.id %>/upkeep" data-on:submit="@post('/projects/<%= p.id %>/upkeep')"><button class="<%= btn('upkeep') %>">Keep it this way</button></form>
+      <% } %>
+      <form method="post" action="/projects/<%= p.id %>/checkins" data-on:submit="@post('/projects/<%= p.id %>/checkins')"><button class="<%= btn('checkin') %>">Check in</button></form>
+      <% if (!(it.goalReached && !it.hasUpkeep)) { %><p class="hint">Made some progress? Check in<%= it.photosEnabled ? " with a photo" : "" %> for a fresh look and the next steps.</p><% } %>
+    </div>
+  <% } %>
+
+  <section class="panel" aria-labelledby="tasks-title">
+    <h2 id="tasks-title" class="card-title"><span class="emoji" aria-hidden="true">☑</span> Tasks</h2>
+    <% if (it.open.length) { %>
+      <ul class="tasks"><% it.open.forEach((t) => taskRow(t)) %></ul>
+    <% } else if (it.done.length) { %>
+      <p class="hint">Everything's done.</p>
+    <% } else { %>
+      <p class="hint">No tasks yet. <%= it.plan ? "Add the suggested steps, or add your own from your lists by typing" : "Once there's a plan, its steps can go here. You can also add your own by typing" %> <span class="token">#<%= p.name.split(" ")[0] %></span> in a new task.</p>
+    <% } %>
+    <% if (it.done.length) { %>
+      <details>
+        <summary class="hint">Done (<%= it.done.length %>)</summary>
+        <ul class="tasks"><% it.done.forEach((t) => taskRow(t)) %></ul>
+      </details>
+    <% } %>
+  </section>
+
+  <% if (it.history.length) { %>
+    <section aria-labelledby="history-title" class="stack">
+      <h2 id="history-title">Check-ins</h2>
+      <% it.history.forEach((c) => { const r = c.reply ?? {}; %>
+        <article class="panel checkin">
+          <p class="hint"><%= date(c.created_at) %><%= c.kind === "upkeep" ? " · Upkeep" : "" %></p>
+          <% if (c.note) { %><p class="checkin-note">“<%= c.note %>”</p><% } %>
+          <% photoGrid(c.photos, false) %>
+          <% if (c.kind === "upkeep") { %>
+            <p><%= r.intro %></p>
+          <% } else { %>
+            <% if (r.what_changed) { %><p><%= r.what_changed %></p><% } %>
+            <% if (r.encouragement) { %><p class="encouragement"><%= r.encouragement %></p><% } %>
+          <% } %>
+        </article>
+      <% }) %>
+    </section>
+  <% } %>
+</div>
