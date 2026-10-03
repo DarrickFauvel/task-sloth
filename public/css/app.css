@@ -1605,3 +1605,8 @@ body:has(.landing) { overflow-x: clip; }
 .checkin { gap: var(--space-xs); }
 .checkin-note { font-style: italic; }
 .encouragement { font-weight: 600; }
+
+/* Cozy encouragement (src/web/encouragement.js): the hello on Mine, a kind word on a task, a project's progress line. */
+.greeting { margin: var(--space-xs) 0 0; font-size: var(--step-0); }
+.nudge { margin: var(--space-xs) 0 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); color: var(--fg); font-size: var(--step--1); }
+.progress-line { margin: var(--space-2xs) 0 0; color: var(--muted); font-size: var(--step--1); }

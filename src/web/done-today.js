@@ -18,6 +18,15 @@ export function doneTodayMessage(count) {
   return { emoji: "🏆", text: `${count} done today. Legendary!` };
 }
 
+/** How many tasks `userId` finished yesterday (their local day), for the greeting on Mine. */
+export async function doneYesterdayBy({ householdId, userId, timeZone, now = Date.now() }) {
+  const yesterday = todayIn(timeZone, new Date(now - 24 * 3_600_000));
+  const today = todayIn(timeZone, new Date(now));
+  // Yesterday and today are at most 50 hours long together.
+  const rows = await listCompletedSince(householdId, new Date(now - 50 * 3_600_000).toISOString());
+  return rows.filter((t) => t.completed_by === userId && todayIn(timeZone, new Date(t.completed_at)) === yesterday && yesterday !== today).length;
+}
+
 /** For views/partials/done-today.eta and done-today-dots.eta. */
 export async function doneTodayView({ membership, timeZone, now = Date.now() }) {
   const at = new Date(now);

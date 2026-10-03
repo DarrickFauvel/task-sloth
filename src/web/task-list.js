@@ -7,6 +7,8 @@ import { focusLines } from "./focus-page.js";
 import { focusChoices } from "../services/focus.js";
 import { getProject, listProjects } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
+import { doneYesterdayBy } from "./done-today.js";
+import { greeting } from "./encouragement.js";
 import { cleanTagName, listTags } from "../services/tags.js";
 import { addDays, dueState, onItLabel, relativeLabel, sinceLabel } from "../../public/js/lib/dates.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
@@ -131,7 +133,7 @@ export function decorateTask(t, membership, today, time = null) {
  * `refreshAt` (ms since the epoch, or null) is when the list next changes on its own, so a live page can re-render
  * then: a finished task dropping off, and with `time`, a due time passing or midnight.
  */
-export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", layout = "list", today, time = null, resetDue = false, now = Date.now() }) {
+export async function taskListView({ userId, membership, view, project: projectId = null, context: contextId = null, tag = null, groupBy = "when", layout = "list", today, time = null, timeZone = "UTC", resetDue = false, now = Date.now() }) {
   const householdId = membership.household.id;
   const project = projectId ? await getProject(householdId, projectId).catch(() => null) : null;
   const context = contextId ? await getContext(householdId, contextId).catch(() => null) : null;
@@ -160,7 +162,17 @@ export async function taskListView({ userId, membership, view, project: projectI
   const refreshTimes = [...doneTimes.map((at) => at + keepFor), ...workingUntil, ...(time ? clockTicks(tasks, today, time, now) : [])];
   const refreshAt = refreshTimes.length ? Math.min(...refreshTimes) : null;
   // Mine suggests the weekly reset when one is due (see src/services/reset.js); the caller works that out.
-  const base = { ...query, filterLabel, refreshAt, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
+  // Mine, unfiltered, opens with a hello: what's ahead today and what you finished yesterday (src/web/encouragement.js).
+  const greetingLine = view === "mine" && !project && !context && !tag
+    ? greeting({
+        name: membership.members.find((m) => m.id === userId)?.name,
+        userId, today, time,
+        dueToday: tasks.filter((t) => t.status === "open" && t.due_date === today && !t.pastDue).length,
+        overdue: tasks.filter((t) => t.status === "open" && t.pastDue).length,
+        doneYesterday: await doneYesterdayBy({ householdId, userId, timeZone, now }),
+      })
+    : "";
+  const base = { ...query, filterLabel, refreshAt, greeting: greetingLine, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
     // The household's places with something to do there, for "Near you" (public/js/near-you.js) on this device.
     nearYou: nearYouPlaces(await listPlaces(householdId)),
     suggest: await suggestData(householdId, userId, membership, today),

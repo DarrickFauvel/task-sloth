@@ -25,6 +25,7 @@
   </nav>
   <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>
   <% if (inMore) { %><h2 class="view-title"><%= it.views[l.view] %></h2><% } %>
+  <% if (l.greeting) { %><p class="greeting"><%= l.greeting %></p><% } %>
   <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
   <%/* On Mine, once a week (see src/services/reset.js): the weekly reset. "Not now" hides it for a day. */%>
   <% if (l.resetDue) { %>
