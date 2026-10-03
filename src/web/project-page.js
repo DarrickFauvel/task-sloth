@@ -13,7 +13,7 @@ import { suggestionsWithQuestions } from "./step-questions.js";
 /** Served by the app (GET /checkin-photos/:id/:size), which checks the household, never straight from Cloudinary. */
 const photoUrls = (p) => ({ id: p.id, thumb: `/checkin-photos/${p.id}/thumb`, full: `/checkin-photos/${p.id}/full` });
 
-export async function projectPageView({ householdId, projectId, membership, today, time = null, now = Date.now() }) {
+export async function projectPageView({ householdId, projectId, membership, userId, today, time = null, now = Date.now() }) {
   const project = await getGoalProject(householdId, projectId);
   const checkins = (await listCheckins(householdId, projectId)).map((c) => ({
     ...c,
@@ -31,7 +31,7 @@ export async function projectPageView({ householdId, projectId, membership, toda
   const open = tasks.filter((t) => t.status === "open");
   const done = tasks.filter((t) => t.status === "done");
   // Each with its sub-steps and what's been asked about it.
-  const suggestions = await suggestionsWithQuestions(householdId, projectId, await listSuggestions(householdId, projectId), now);
+  const suggestions = await suggestionsWithQuestions(householdId, projectId, await listSuggestions(householdId, projectId), { userId, at: now });
   const lastAnswer = later.filter((c) => c.status === "ready" && c.kind === "checkin").at(-1);
   const plan = start?.status === "ready" ? start.reply : null;
   const draft = plan ? later.find((c) => c.status === "draft") ?? null : null;

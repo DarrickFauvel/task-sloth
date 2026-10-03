@@ -5,7 +5,8 @@
   <ul class="step-qa">
     <% it.questions.forEach((q) => { %>
       <li>
-        <p class="step-q">“<%= q.question %>”</p>
+        <% if (q.question) { %><p class="step-q">“<%= q.question %>”</p><% } %>
+        <%~ include("/partials/question-photos", { photos: q.photos, remove: false }) %>
         <% if (q.status === "thinking") { %>
           <p class="coach-thinking" role="status"><span class="dot" aria-hidden="true"></span> Claude is thinking about it…</p>
         <% } else if (q.status === "failed") { %>

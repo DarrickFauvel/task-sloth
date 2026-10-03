@@ -1,0 +1,14 @@
+<%/* Photos to go with your next question about a step: the ones added so far (it.draft, only shown to you) and
+     "Take photo" / "Choose" (<task-photo>, which posts each to it.action; the live update shows it). Up to
+     it.maxPhotos. it.id keeps the uploader in place across live re-renders, so an upload isn't cut off. */%>
+<% if (it.photosEnabled) { const photos = it.draft?.photos ?? []; %>
+  <%~ include("/partials/question-photos", { photos, remove: true }) %>
+  <% if (photos.length < it.maxPhotos) { %>
+    <task-photo id="<%= it.id %>" action="<%= it.action %>" class="photo-buttons">
+      <label class="button"><input type="file" accept="image/*" capture="environment" class="visually-hidden">Take photo</label>
+      <label class="button"><input type="file" accept="image/*" multiple class="visually-hidden">Choose</label>
+      <p class="hint" role="status" hidden></p>
+    </task-photo>
+  <% } %>
+  <% if (!photos.length) { %><p class="hint">Easier to show than tell? Add a photo.</p><% } %>
+<% } %>

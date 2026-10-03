@@ -24,7 +24,7 @@ const MAX_STEPS = 8;
 /** A check-in still thinking after this (the server restarted mid-answer, say) counts as failed. */
 export const THINKING_TIMEOUT_MS = 5 * 60_000;
 /** What Claude sees of each photo: big enough to read a room, in a format it takes. */
-const PHOTO_FOR_CLAUDE = ["c_limit,w_1568,h_1568", "f_jpg"];
+export const PHOTO_FOR_CLAUDE = ["c_limit,w_1568,h_1568", "f_jpg"];
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 

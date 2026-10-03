@@ -1613,6 +1613,9 @@ body:has(.landing) { overflow-x: clip; }
 .step-qa p { margin: 0; }
 .step-q { font-style: italic; }
 .step-qa .button { justify-self: start; }
+/* Photos with a question (views/partials/question-photos.eta): smaller than a task's. */
+.photo-grid.question-photos { grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr)); max-width: 20rem; }
+.question-photos button.icon.photo-delete { position: absolute; top: 0.25rem; right: 0.25rem; }
 .step-offer { display: grid; gap: var(--space-2xs); padding: var(--space-s); border: 1px solid var(--line); border-radius: var(--radius); }
 .step-offer p { margin: 0; }
 #task-ask form { display: grid; gap: var(--space-s); }
