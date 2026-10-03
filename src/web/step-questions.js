@@ -36,6 +36,7 @@ export function questionView(q, at = Date.now(), photos = []) {
     title: reply?.title ?? "",
     notes: reply?.notes ?? "",
     substeps: reply?.substeps ?? [],
+    remove: (reply?.remove ?? []).map((r) => r.text),
   };
 }
 

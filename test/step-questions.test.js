@@ -11,6 +11,7 @@ import {
   addQuestionPhoto, askAboutSuggestion, askAboutTask, declineProposal, getStepQuestion, listQuestionPhotos, listStepQuestions, removeQuestionPhoto,
   retryQuestion, stepNotes, useProposal,
 } from "../src/services/step-questions.js";
+import { addItems, deleteItem, setItemChecked } from "../src/services/checklist.js";
 import { createTask, getTask, listTasks } from "../src/services/tasks.js";
 import { createProject } from "../src/services/projects.js";
 import { projectPageView } from "../src/web/project-page.js";
@@ -179,6 +180,39 @@ test("asking about a project task offers Claude's change, to use or turn down", 
   await declineProposal(actor, id);
   assert.equal((await getTask("h1", task.id)).title, "Get old papers recycled");
   assert.equal((await taskAskView("h1", await getTask("h1", task.id), { enabled: true })).offer, null);
+});
+
+test("Claude's change can drop checklist items that no longer fit; using it removes the ones still there", async () => {
+  const { projectId, tip } = await plannedProject();
+  await addSuggestions(actor, projectId, [tip.id], { today: TODAY });
+  const task = (await listTasks("h1", { projectId })).find((t) => t.title === "Take old papers to the tip");
+  await addItems(actor, task.id, "Load the car, Rent a van, Drive to the tip, Sweep up");
+  const itemsOf = async () => db.all("SELECT id, text FROM checklist_items WHERE task_id = ? ORDER BY checked, sort_order", [task.id]);
+  await setItemChecked(actor, (await itemsOf()).find((i) => i.text === "Drive to the tip").id, true);
+
+  // Done items come last, and Claude can't drop them; numbers that aren't there are ignored.
+  reply = { answer: "Then you won't need those.", change: "reword", title: task.title, notes: task.notes ?? "", substeps: [], remove: [1, 2, 4, 9] };
+  await (await askAboutTask(actor, task.id, { question: "We don't have a car" })).done;
+  const text = textOf(asked[0]);
+  assert.match(text, /Its sub-steps:\n1\. Load the car\n2\. Rent a van\n3\. Sweep up\n4\. \[done\] Drive to the tip/);
+  assert.equal((await itemsOf()).length, 4, "a task only changes when someone says so");
+
+  const { offer } = await taskAskView("h1", await getTask("h1", task.id), { enabled: true });
+  assert.deepEqual(offer.remove, ["Load the car", "Rent a van"], "dropping items is a change on its own");
+
+  await deleteItem(actor, (await itemsOf()).find((i) => i.text === "Rent a van").id);
+  await useProposal(actor, offer.id);
+  assert.deepEqual((await itemsOf()).map((i) => i.text), ["Sweep up", "Drive to the tip"]);
+});
+
+test("a suggestion drops the sub-steps Claude says no longer fit", async () => {
+  const { projectId, desk } = await plannedProject();
+  reply = { answer: "Do it in three goes.", change: "break_down", title: "Clear the desk", notes: "", substeps: ["Bin the rubbish", "File the papers", "Wipe it down"], remove: [] };
+  await (await askAboutSuggestion(actor, desk.id, { question: "How do I do this?" })).done;
+  reply = { answer: "Then skip the filing.", change: "reword", title: "Clear the desk", notes: "", substeps: [], remove: [2] };
+  await (await askAboutSuggestion(actor, desk.id, { question: "We went paperless" })).done;
+  assert.match(textOf(asked[1]), /2\. File the papers/);
+  assert.deepEqual(JSON.parse((await listSuggestions("h1", projectId)).find((x) => x.id === desk.id).checklist), ["Bin the rubbish", "Wipe it down"]);
 });
 
 test("only tasks in a goal project can be asked about, and only by their household", async () => {
