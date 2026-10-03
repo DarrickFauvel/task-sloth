@@ -10,8 +10,10 @@ import {
   addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getGoalProject, isStale,
   listGoalProjects, listSuggestions, openCheckin, removeCheckinPhoto, startProject, upkeepRule,
 } from "../src/services/coach.js";
-import { listTasks, setDone } from "../src/services/tasks.js";
+import { createTask, getTask, listTasks, setDone } from "../src/services/tasks.js";
 import { projectPageView } from "../src/web/project-page.js";
+import { createProject } from "../src/services/projects.js";
+import { projectLink } from "../src/web/task-list.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-test-"));
 const actor = { id: "u1", householdId: "h1" };
@@ -255,4 +257,19 @@ test("the project page shows the plan, the suggestions, progress and the draft",
   assert.deepEqual(view.progress, { done: 0, total: 3 });
   assert.equal(view.suggestions.steps.length, 0);
   assert.equal(view.draft.kind, "checkin");
+});
+
+test("a project chip opens the project page for a goal project, and the narrowed list otherwise", async () => {
+  const { projectId } = await plannedProject("Fix the gate");
+  const plain = await createProject("h1", { name: "Birthday" });
+  const goalTask = await getTask("h1", await createTask(actor, { title: "Buy a hinge", projectId }));
+  const plainTask = await getTask("h1", await createTask(actor, { title: "Order cake", projectId: plain }));
+
+  assert.equal(projectLink(goalTask).href, `/projects/${projectId}`);
+  assert.equal(projectLink(plainTask).href, `/?view=all&project=${plain}`);
+  assert.equal(projectLink({ project_id: null }), null);
+
+  config.anthropic.apiKey = "";
+  assert.equal(projectLink(goalTask).href, `/?view=all&project=${projectId}`, "no project pages without Claude");
+  config.anthropic.apiKey = "test-key";
 });

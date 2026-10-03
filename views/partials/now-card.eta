@@ -7,7 +7,7 @@
   <span class="meta">
     <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
     <%~ include("/partials/context-tags", { t }) %>
-    <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="/?view=all&project=<%= t.project_id %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
+    <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="<%= t.projectLink.href %>" title="<%= t.projectLink.title %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
     <% if (Number(t.item_count)) { %><span title="Checklist">☑ <%= t.item_done %>/<%= t.item_count %></span><% } %>
     <elapsed-time class="now-for" since="<%= t.working_since %>"><%= t.workingFor %></elapsed-time>
   </span>
