@@ -1679,7 +1679,8 @@ body:has(.landing) { overflow-x: clip; }
    tail points back at it. The hello on Mine, a kind word on a task, a project's progress line, the weekly
    reset nudge. The bubble is solid (the tint mixed into the surface) so the tail can overlap it cleanly. */
 .sloth-says { --bubble: color-mix(in srgb, var(--accent) 10%, var(--surface)); display: flex; align-items: flex-end; gap: var(--space-s); margin: var(--space-s) 0 0; }
-.sloth-avatar { --head: 2.5rem; position: relative; display: block; flex: none; width: var(--head); height: var(--head); }
+/* isolation: the hat layers' z-index (below) stays inside the head, so sticky bars scroll over it. */
+.sloth-avatar { --head: 2.5rem; position: relative; isolation: isolate; display: block; flex: none; width: var(--head); height: var(--head); }
 .sloth-head { display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--gradient-soft); box-shadow: inset 0 0 0 1px var(--tint-line); }
 
 /* Its hat (Settings > Appearance; data-hat on the page, src/web/sloth-hats.js). The space helmet, the default, is a
