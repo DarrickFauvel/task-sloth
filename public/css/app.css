@@ -1695,21 +1695,45 @@ body:has(.landing) { overflow-x: clip; }
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface) 50%, transparent);
 }
 [data-hat="space"] .sloth-avatar::after {
-  content: ""; position: absolute; left: 4%; right: 4%; bottom: -10%; z-index: 2; height: 20%; border-radius: var(--radius-pill);
+  content: ""; position: absolute; left: 16%; right: 16%; bottom: -19%; z-index: 2; height: 12%; border-radius: var(--radius-pill);
+  rotate: -20deg; transform-origin: 50% calc(var(--head) * -0.57); /* turns about the helmet's center, with the antenna */
   background: linear-gradient(var(--surface), color-mix(in srgb, var(--muted) 45%, var(--surface)));
   border: 1px solid color-mix(in srgb, var(--muted) 55%, transparent);
 }
+/* The helmet's antenna: a thin stalk standing up from the top of the dome, centered, with a softly glowing bobble. */
+.sloth-antenna { display: none; }
+[data-hat="space"] .sloth-antenna {
+  display: block; position: absolute; left: 50%; bottom: 110%; z-index: 0; width: 2px; height: 26%; translate: -50% 0;
+  rotate: -20deg; transform-origin: 50% calc(var(--head) * 0.86); /* turns about the helmet's center (its box ends 0.36 heads above it) */
+  background: color-mix(in srgb, var(--muted) 70%, transparent); border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+[data-hat="space"] .sloth-antenna::after {
+  content: ""; position: absolute; left: 50%; top: 0; width: calc(var(--head) * 0.17); aspect-ratio: 1; translate: -50% -60%;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 0.35rem color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: antenna-glow 2.4s ease-in-out infinite alternate;
+}
+@keyframes antenna-glow { from { box-shadow: 0 0 0.1rem color-mix(in srgb, var(--accent) 30%, transparent); } }
 /* The dome is wider than the head, so it gets room on each side to keep clear of the bubble's tail. */
 [data-hat="space"] .sloth-avatar { margin-inline: calc(var(--head) * 0.14); }
-[data-hat]:not([data-hat="space"], [data-hat="none"]) .sloth-avatar::after {
-  position: absolute; left: 50%; bottom: 72%; z-index: 1; translate: -50% 0; rotate: -14deg; pointer-events: none;
-  font-size: calc(var(--head) * 0.62); line-height: 1;
+/* Shared by the emoji hats: perched on the top left of the head, leaning with it. :where() keeps it weak so a hat
+   below can set its own position and tilt. */
+:where([data-hat]:not([data-hat="space"], [data-hat="none"])) .sloth-avatar::after {
+  position: absolute; left: 50%; bottom: 54%; z-index: 1; translate: -80% 0; rotate: -24deg; pointer-events: none;
+  font-size: calc(var(--head) * 0.72); line-height: 1;
 }
-[data-hat="mushroom"] .sloth-avatar::after { content: "\1F344"; }
-[data-hat="top"] .sloth-avatar::after { content: "\1F3A9"; }
-[data-hat="crown"] .sloth-avatar::after { content: "\1F451"; rotate: -8deg; }
-[data-hat="sun"] .sloth-avatar::after { content: "\1F452"; }
-[data-hat="cap"] .sloth-avatar::after { content: "\1F9E2"; }
+[data-hat="mushroom"] .sloth-avatar::after { content: "\1F344"; bottom: 62%; }
+[data-hat="top"] .sloth-avatar::after { content: "\1F3A9"; translate: -72% 0; font-size: calc(var(--head) * 0.84); }
+[data-hat="crown"] .sloth-avatar::after { content: "\1F451"; }
+/* Mirrored, so the brim and bill point forward with the head. */
+[data-hat="sun"] .sloth-avatar::after {
+  content: "\1F452"; bottom: 38%; translate: -70% 0; rotate: 6deg; scale: -1 1; font-size: calc(var(--head) * 0.84);
+  filter: drop-shadow(0 0.06em 0.05em color-mix(in srgb, var(--shade) 40%, transparent));
+}
+[data-hat="cap"] .sloth-avatar::after {
+  content: "\1F9E2"; bottom: 45%; translate: -65% 0; rotate: -29deg; scale: -1 1;
+  filter: drop-shadow(0 0.06em 0.05em color-mix(in srgb, var(--shade) 40%, transparent));
+}
 /* Room above the head for a hat that pokes up. */
 [data-hat]:not([data-hat="none"]) .sloth-says { margin-top: var(--space-m); }
 .sloth-says .bubble {
@@ -1755,8 +1779,11 @@ body:has(.landing) { overflow-x: clip; }
 /* Settings shows the head beside the hat choices, so a pick shows at once. */
 .hat-picker { display: flex; align-items: center; gap: var(--space-m); padding-top: var(--space-s); }
 .hat-picker .pills { flex: 1; min-width: 0; }
+/* Hats worn mirrored on the head (flip in src/web/sloth-hats.js) are mirrored here too. */
+.hat-picker :where(.emoji.is-flipped) { display: inline-block; scale: -1 1; } /* weak, so icons off still hides it */
 
 @media (prefers-reduced-motion: reduce) {
   .sloth-says .bubble { animation: none; }
   .sloth-toggle .sloth-avatar { transition: none; }
+  [data-hat="space"] .sloth-antenna::after { animation: none; }
 }
