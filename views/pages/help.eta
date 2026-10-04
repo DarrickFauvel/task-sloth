@@ -70,7 +70,7 @@
     </li>
   </ol>
 
-  <section class="help-card" id="shortcuts">
+  <section class="panel help-card" id="shortcuts">
     <h2>Shortcuts you can type</h2>
     <p class="hint">You never need these, but they save taps. Type them anywhere in a task. Start with <code>@</code>, <code>#</code> or <code>+</code>, or a day like <code>tom</code>, and the add box suggests the rest: tap one to use it.</p>
     <%~ include("/partials/shortcuts", it.shortcuts) %>
@@ -78,6 +78,7 @@
 
   <footer class="help-footer">
     <a class="button primary" href="/">Back to my tasks</a>
+    <p class="hint"><a href="/about">About Task Sloth</a> · who made it and why</p>
     <p class="hint">This way of working comes from a method called <em>Getting Things Done</em> by David Allen. You don't need to know it to use the app.</p>
   </footer>
 </article>

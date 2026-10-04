@@ -1187,37 +1187,42 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
    screens; it animates in and out like the other sheets. */
 .menu {
   position: fixed; inset: auto 0 0; width: 100%; margin: 0; padding: var(--space-s) var(--space-m) max(var(--space-m), env(safe-area-inset-bottom));
-  border: 0; border-radius: 1.25rem 1.25rem 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
+  border: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
   opacity: 0; transform: translateY(100%);
   transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
 }
 .menu:popover-open { display: grid; gap: var(--space-2xs); opacity: 1; transform: none; }
 @starting-style { .menu:popover-open { opacity: 0; transform: translateY(100%); } }
-.menu::backdrop { background: rgb(0 0 0 / 0); transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
-.menu:popover-open::backdrop { background: rgb(0 0 0 / 0.45); }
-@starting-style { .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); } }
+.menu::backdrop { background: transparent; transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
+.menu:popover-open::backdrop { background: color-mix(in srgb, var(--shade) 45%, transparent); }
+@starting-style { .menu:popover-open::backdrop { background: transparent; } }
 .menu-icon { display: inline-grid; place-items: center; width: 1.5rem; }
 .menu-head { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); border-bottom: 1px solid var(--line); margin-bottom: var(--space-2xs); }
 .menu-head div { display: grid; min-width: 0; }
 .menu-head .hint { overflow-wrap: anywhere; }
-/* "Around the house" and "You": small labels over the two groups, with a hairline between. */
-.menu-group { margin: var(--space-2xs) 0 0; padding: 0 var(--space-xs); font-size: var(--step--2); font-weight: 600; color: var(--muted); }
-.menu-divider { margin: var(--space-2xs) 0; border: 0; border-top: 1px solid var(--line); }
-.menu-close { margin-top: var(--space-xs); }
-.menu form { margin: 0; }
-.menu-item {
-  display: flex; align-items: center; gap: var(--space-s); width: 100%; min-height: var(--tap); padding: 0 var(--space-xs);
-  border: 0; border-radius: var(--radius); background: none; color: var(--fg); text-decoration: none; justify-content: flex-start; font: inherit;
+/* Compact tiles, four to a row (around the house, then you and the app), so the sheet fits in half a phone screen:
+   the icon over a short label. A hairline between the two rows. */
+.menu-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2xs); }
+.menu-tiles + .menu-tiles { padding-top: var(--space-2xs); border-top: 1px solid var(--line); }
+.menu-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-width: 0; min-height: 4.25rem;
+  padding: var(--space-2xs); border: 0; border-radius: var(--radius); background: none; color: var(--fg);
+  font: inherit; font-size: var(--step--2); font-weight: 600; line-height: 1.2; text-align: center; text-decoration: none; overflow-wrap: anywhere;
 }
-@media (hover: hover) { .menu-item:hover { background: var(--tint); text-decoration: none; } }
+.menu-tile .menu-icon { width: auto; font-size: var(--step-1); line-height: 1; }
+@media (hover: hover) { .menu-tile:hover { background: var(--tint); text-decoration: none; } }
+/* Sign out (quiet, on the left) and Close share the last row. */
+.menu-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-s); padding-top: var(--space-2xs); border-top: 1px solid var(--line); }
+.menu-foot .link { min-height: var(--tap); padding-inline: var(--space-xs); color: var(--muted); }
+.menu-close { min-width: 8rem; }
 @media (min-width: 30rem) {
   .menu {
-    inset: 4.25rem max(var(--space-m), calc((100vw - 46rem) / 2 + var(--space-m))) auto auto; width: 16rem;
+    inset: 4.25rem max(var(--space-m), calc((100vw - 46rem) / 2 + var(--space-m))) auto auto; width: 21rem;
     padding: var(--space-xs); border: 1px solid var(--line); border-radius: var(--radius-lg);
-    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.18); transform: translateY(-0.5rem) scale(0.97); transform-origin: top right;
+    box-shadow: var(--shadow-lift); transform: translateY(-0.5rem) scale(0.97); transform-origin: top right;
   }
   @starting-style { .menu:popover-open { opacity: 0; transform: translateY(-0.5rem) scale(0.97); } }
-  .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); }
+  .menu:popover-open::backdrop { background: transparent; }
   .menu-head { padding: var(--space-xs); }
   .menu-close { display: none; }
 }
