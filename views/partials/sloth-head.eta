@@ -1,8 +1,9 @@
 <%/* Task Sloth's head (cropped from the logo) beside something the app says: a .sloth-says speech bubble or a
      cheering toast. With it.toggle, it's a button: tapping it tucks the encouraging words away everywhere, leaving
      a "…" to tap for them back (toggleSloth in the layout). Hidden with the other icons when they're off.
-     It wears the hat picked in Settings (data-hat on the page; drawn in app.css), hence the wrapper. */%>
-<% const img = `<span class="sloth-avatar"><img class="sloth-head" src="${asset("/img/sloth-head.png")}" alt="" width="100" height="100"></span>`; %>
+     It wears the hat picked in Settings (data-hat on the page; drawn in app.css), hence the wrapper; the
+     space helmet's antenna needs an element of its own. */%>
+<% const img = `<span class="sloth-avatar"><img class="sloth-head" src="${asset("/img/sloth-head.png")}" alt="" width="100" height="100"><span class="sloth-antenna"></span></span>`; %>
 <% if (it.toggle) { %>
   <button type="button" class="sloth-toggle" aria-label="Show or hide what Task Sloth says" data-on:click="toggleSloth()"><%~ img %></button>
 <% } else { %>
