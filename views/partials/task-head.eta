@@ -46,8 +46,8 @@
     <%/* A plain post: it leaves the page for your lists, where a toast offers Undo (see ?deleted= on the home route). */%>
     <form method="post" action="/tasks/<%= t.id %>/delete">
       <input type="hidden" name="back" value="task-page">
-      <button class="button is-danger">Delete</button>
+      <button class="link danger">Delete</button>
     </form>
-    <span class="hint">or tap a detail to change it</span>
   </div>
+  <p class="hint">Tap any detail to change it.</p>
 </header>

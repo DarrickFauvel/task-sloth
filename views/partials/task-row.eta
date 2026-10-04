@@ -76,8 +76,8 @@
     <input id="rename-<%= t.id %>" name="title" value="<%= t.title %>" data-bind:rename-text required maxlength="300"
            autocomplete="off" autocapitalize="none" aria-label="Task name" data-on:keydown="evt.key === 'Escape' && ($renaming = '')">
     <div class="rename-actions">
-      <button class="button primary">Save</button>
-      <button type="button" class="button" data-on:click="$renaming = ''">Cancel</button>
+      <button class="button">Save</button>
+      <button type="button" class="link" data-on:click="$renaming = ''">Cancel</button>
       <a href="/tasks/<%= t.id %>/edit">All details →</a>
       <button class="link danger" formaction="/tasks/<%= t.id %>/delete" formnovalidate
               data-on:click__prevent="@post('/tasks/<%= t.id %>/delete')">Delete</button>

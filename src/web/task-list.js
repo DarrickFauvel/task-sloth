@@ -61,6 +61,18 @@ export function quickAddList(parsed, view) {
   return details.some((k) => k in parsed) ? "todo" : "inbox";
 }
 
+/**
+ * The toast after a quick add, when the new task won't show on the tab it was added from: where it went, with a
+ * link there. `null` when it's right there on the list.
+ */
+export function addedFlash({ id, list, assigneeId = null }, view, userId) {
+  if (list === "inbox") return view === "inbox" ? null : { message: "Added to your Inbox.", link: { href: `/sort?task=${id}`, label: "Sort it now" } };
+  if (list !== "todo") return list === view ? null : { message: `Added to ${VIEWS[list]}.`, link: { href: `/?view=${list}`, label: "Show me" } };
+  const shownOn = assigneeId === userId ? "mine" : assigneeId ? "all" : "grabs";
+  if (view === "all" || view === shownOn) return null;
+  return { message: `Added to ${VIEWS[shownOn]}.`, link: { href: `/?view=${shownOn}`, label: "Show me" } };
+}
+
 export const cleanView = (view) => (view in VIEWS ? view : "mine");
 
 const cleanId = (id) => (typeof id === "string" && id ? id.slice(0, 64) : null);

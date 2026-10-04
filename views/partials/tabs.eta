@@ -39,7 +39,7 @@
   <% } %>
   <%/* View as and Group by are with the list itself (partials/list-switches), under the Working on now card. */%>
   <% if (l.view === "inbox" && l.inboxCount) { %>
-    <p><a class="button primary" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>
+    <p><a class="button" href="/sort">Sort my inbox (<%= l.inboxCount %>)</a></p>
   <% } %>
   <% if (l.filterLabel) { %>
     <p class="filter">Only <strong><%= l.filterLabel %></strong> <a href="/?view=<%= l.view %>">Show all</a></p>
