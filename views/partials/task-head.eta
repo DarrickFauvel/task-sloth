@@ -9,7 +9,7 @@
   <h1 class="task-title tap-edit" <%~ editOnTap("title") %>><%~ include("/partials/phone-text", { parts: t.titleParts }) %></h1>
   <span class="meta">
     <% if (done) { %><span>Done</span><% } %>
-    <% if (t.worker) { %><span class="working"><span class="dot" style="background: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're working on this now" : `${t.worker.name.split(" ")[0]} is working on this now` %></span><% } %>
+    <% if (t.worker) { %><span class="working"><span class="dot" style="--c: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're working on this now" : `${t.worker.name.split(" ")[0]} is working on this now` %></span><% } %>
     <% if (t.dueLabel) { %><a class="meta-edit due <%= t.dueState %>" <%~ edit("dueDate") %>><%= t.dueText %></a><% } %>
     <% if (t.repeats) { %><a class="meta-edit" <%~ edit("recurrence") %>><span class="emoji" aria-hidden="true">↻</span> <%= t.repeats %></a><% } %>
     <% if (!done && t.list === "inbox") { %><span><span class="emoji" aria-hidden="true">📥</span> In <%= t.creator_id === it.userId ? "your" : "someone's" %> Inbox<% if (t.creator_id === it.userId) { %> · <a href="/sort?task=<%= t.id %>">Sort it</a><% } %></span><% } %>
@@ -20,7 +20,7 @@
     <% if (t.project_name) { %><a class="chip project" style="--c: <%= t.project_color %>" href="<%= t.projectLink.href %>" title="<%= t.projectLink.title %>"><%= t.project_emoji %> <%= t.project_name %></a><% } %>
     <%~ include("/partials/context-tags", { t }) %>
     <% if (t.assignee) { %>
-      <a class="meta-edit who" <%~ edit("assigneeId") %>><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></a>
+      <a class="meta-edit who" <%~ edit("assigneeId") %>><span class="dot" style="--c: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></a>
     <% } else if (!done) { %><a class="meta-edit" <%~ edit("assigneeId") %>>Up for grabs</a><% } %>
   </span>
   <% if (t.blocking.length && !done) { %>

@@ -29,8 +29,12 @@ Never write a literal color in CSS or a template. Use these tokens, which alread
 
 ## Shape
 
-- **Corners:** `--radius` (0.85rem) for controls and `--radius-lg` (1.25rem) for cards. Pills and progress bars are fully round (`999px`). No sharp corners.
+- **Corners:** `--radius` (0.85rem) for controls and `--radius-lg` (1.25rem) for cards. Pills, badges and progress bars are fully round (`--radius-pill`). No sharp corners.
 - **Cards:** a `.panel` has a 1px `--line` border, a `--surface` background and `--shadow-soft`. Don't stack heavy borders inside cards; use spacing instead.
+- **Callouts:** a soft tinted note inside a page or card is `.callout` (tips and notices share its look); add only layout on top.
+- **Progress bars:** a plain `<progress>` is already styled; vary it with `--bar-h`, `--bar-track` and `--bar-fill`.
+- **Dots:** a member or project color dot is `<span class="dot" style="--c: …">`, never an inline `background`.
+- **Empty lists:** `.empty-state.is-inline` with an `.empty-icon`, a title and a line that teaches (see `EMPTY_STATES` in `src/web/task-list.js`).
 
 ## Type
 

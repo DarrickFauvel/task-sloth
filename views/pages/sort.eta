@@ -54,7 +54,7 @@
     </div>
 
     <%/* Follow-up steps. Enter in a field saves that step (requestSubmit with its button). */%>
-    <section class="sort-step" data-show="$pick === 'todo'"<%~ it.pick === 'todo' ? '' : ' style="display: none"' %>>
+    <section class="panel sort-step" data-show="$pick === 'todo'"<%~ it.pick === 'todo' ? '' : ' style="display: none"' %>>
       <h2><span class="emoji" aria-hidden="true"><%= c.todo.icon %></span> <%= c.todo.label %></h2>
       <p class="hint">Both optional.</p>
       <label>Where / how
@@ -75,7 +75,7 @@
       <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
     </section>
 
-    <section class="sort-step" data-show="$pick === 'date'"<%~ it.pick === 'date' ? '' : ' style="display: none"' %>>
+    <section class="panel sort-step" data-show="$pick === 'date'"<%~ it.pick === 'date' ? '' : ' style="display: none"' %>>
       <h2><span class="emoji" aria-hidden="true"><%= c.date.icon %></span> <%= c.date.label %></h2>
       <div class="pills" role="group" aria-label="Quick dates">
         <% it.quickDates.forEach((d) => { %>
@@ -87,7 +87,7 @@
       <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
     </section>
 
-    <section class="sort-step" data-show="$pick === 'waiting'"<%~ it.pick === 'waiting' ? '' : ' style="display: none"' %>
+    <section class="panel sort-step" data-show="$pick === 'waiting'"<%~ it.pick === 'waiting' ? '' : ' style="display: none"' %>
              data-effect="$pick === 'waiting' && setTimeout(() => document.getElementById('waiting-on').focus())">
       <h2><span class="emoji" aria-hidden="true"><%= c.waiting.icon %></span> <%= c.waiting.label %></h2>
       <label>Who or what?

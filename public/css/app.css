@@ -40,6 +40,7 @@
   --tap: 2.75rem; /* 44px: the smallest comfortable touch target */
   --radius: 0.85rem;    /* controls: inputs, buttons, tiles */
   --radius-lg: 1.25rem; /* cards and panels */
+  --radius-pill: 999px; /* fully round: pills, badges, chips, progress bars */
   /* The accent tint used for highlighted cards, tips and selected rows. */
   --tint: color-mix(in srgb, var(--accent) 8%, transparent);
   --tint-strong: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -155,7 +156,23 @@ button.icon:focus-visible { opacity: 1; }
 .is-done .check span { opacity: 1; scale: 1; }
 @media (prefers-reduced-motion: reduce) { .check, .check span { transition: none; } }
 
+/* Progress bars: fully round, a soft track and the gradient fill (a project, a focus session, the Working on
+   now card). Vary them with --bar-h, --bar-track and --bar-fill rather than restyling the pseudo-elements. */
+progress {
+  width: 100%; height: var(--bar-h, 0.5rem); appearance: none; border: 0; border-radius: var(--radius-pill); overflow: hidden;
+  background: var(--bar-track, var(--tint-strong));
+}
+progress::-webkit-progress-bar { background: var(--bar-track, var(--tint-strong)); }
+progress::-webkit-progress-value { background: var(--bar-fill, var(--gradient)); border-radius: var(--radius-pill); }
+progress::-moz-progress-bar { background: var(--bar-fill, var(--gradient)); border-radius: var(--radius-pill); }
+
 /* --- Layout helpers -------------------------------------------------------------------- */
+
+/* Callouts: a soft tinted note inside a page or card. One look (tips, "Holding up", a focus session's line, the
+   email notices, someone else's edit); each rule below only adds its own layout. */
+.callout, .tip, .holding-up, .focus-line, .email-status, .email-notice, .edit-notice {
+  padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1);
+}
 
 /* A card: sign in / sign up, invite, the welcome screen. (Edit groups, sort steps and the help
    shortcuts card use the same border, radius and padding.) */
@@ -176,6 +193,11 @@ button.icon:focus-visible { opacity: 1; }
 .empty-state { display: grid; justify-items: center; gap: var(--space-s); text-align: center; padding: var(--space-l) 0; }
 .empty-state h1 { margin: 0; }
 .empty-state p { margin: 0; }
+/* Inside a list (an empty tab): smaller, so the add box above stays the focus. */
+.empty-state.is-inline { gap: var(--space-xs); padding: var(--space-m) 0; }
+.empty-state.is-inline h2 { margin: 0; font-size: var(--step-1); }
+.empty-state.is-inline .empty-icon { width: 4rem; height: 4rem; font-size: 2.1rem; }
+.empty-state.is-inline .hint { max-width: 28rem; }
 /* The empty-state picture sits on a soft round patch of moss, like a clearing in the woods. */
 .empty-icon {
   display: grid; place-items: center; width: 5.5rem; height: 5.5rem; margin: 0 0 var(--space-2xs); border-radius: 50%;
@@ -288,7 +310,7 @@ button.icon:focus-visible { opacity: 1; }
 /* Your name and avatar: one button that opens the account menu. A long name is cut short. */
 .account-button {
   display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0;
-  padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: 2rem; background: none;
+  padding: 0.25rem 0.25rem 0.25rem var(--space-s); border: 1px solid transparent; border-radius: var(--radius-pill); background: none;
 }
 .account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: hover) { .account-button:hover { border-color: var(--line); } }
@@ -314,12 +336,12 @@ button.icon:focus-visible { opacity: 1; }
 .header-end { display: flex; align-items: center; gap: var(--space-2xs); min-width: 0; }
 .done-badge {
   position: relative; display: inline-flex; align-items: center; gap: 0.3em; flex: none; min-height: var(--tap); padding: 0 var(--space-xs);
-  border-radius: 999px; color: var(--fg); font-size: var(--step--1); font-weight: 600; text-decoration: none; white-space: nowrap;
+  border-radius: var(--radius-pill); color: var(--fg); font-size: var(--step--1); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .done-badge.is-zero { color: var(--muted); font-weight: normal; }
 .done-emoji { display: inline-block; animation: done-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
 .done-cheer {
-  position: absolute; top: calc(100% - 0.2rem); right: 0; z-index: 3; padding: 0.3rem 0.7rem; border-radius: 999px;
+  position: absolute; top: calc(100% - 0.2rem); right: 0; z-index: 3; padding: 0.3rem 0.7rem; border-radius: var(--radius-pill);
   background: var(--gradient); color: var(--bg); font-size: var(--step--1); font-weight: 600; white-space: nowrap; pointer-events: none;
   box-shadow: var(--shadow-lift); transform-origin: top right; opacity: 0; animation: done-cheer 2.8s ease both;
 }
@@ -372,21 +394,21 @@ button.icon:focus-visible { opacity: 1; }
 /* Suggestions under the add box (public/js/quick-suggest.js): a card as wide as the add bar (it hangs from the
    sticky form, inside its side padding), one big row each: the name, and under it what it sets. Scrolls if long. */
 quick-suggest { display: contents; }
-.suggestions {
+.add-suggestions {
   position: absolute; top: calc(100% - var(--space-2xs)); left: var(--space-m); right: var(--space-m); z-index: 2;
   max-height: 45vh; overflow-y: auto; overscroll-behavior: contain;
   margin: 0; padding: var(--space-2xs); list-style: none;
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg);
   box-shadow: var(--shadow-lift);
 }
-.suggestions[hidden] { display: none; }
-.suggestions [role=option] {
+.add-suggestions[hidden] { display: none; }
+.add-suggestions [role=option] {
   display: grid; align-content: center; gap: 0.05rem;
   min-height: var(--tap); padding: var(--space-2xs) var(--space-s); border-radius: var(--radius); cursor: pointer;
 }
-.suggestions [role=option] + [role=option] { margin-top: 1px; }
-.suggestions [aria-selected=true] { background: var(--tint-strong); }
-@media (hover: hover) { .suggestions [role=option]:hover { background: var(--tint); } }
+.add-suggestions [role=option] + [role=option] { margin-top: 1px; }
+.add-suggestions [aria-selected=true] { background: var(--tint-strong); }
+@media (hover: hover) { .add-suggestions [role=option]:hover { background: var(--tint); } }
 .suggestion-label { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
 .suggestion-kind { color: var(--muted); font-size: var(--step--1); }
 .suggestion-label .dot { width: 0.6rem; height: 0.6rem; }
@@ -403,7 +425,7 @@ quick-suggest { display: contents; }
 }
 .tabs a[aria-current] { color: var(--fg); border-color: var(--accent); font-weight: 600; }
 .badge {
-  display: inline-block; min-width: 1.4em; padding: 0 0.4em; border-radius: 1em; text-align: center;
+  display: inline-block; min-width: 1.4em; padding: 0 0.4em; border-radius: var(--radius-pill); text-align: center;
   background: var(--gradient); color: var(--bg); font-size: var(--step--2); font-weight: 600; line-height: 1.5;
 }
 .tab-hint { margin: var(--space-2xs) 0 var(--space-xs); }
@@ -461,11 +483,11 @@ body:has(#task-edit:not([style*="none"]) .edit-actions) .toasts { bottom: calc(v
 .toast.is-error { background: var(--danger); color: #fff; }
 .toast-message { flex: 1; min-width: 0; }
 .toast-action {
-  min-height: 2.25rem; padding: 0 var(--space-xs); border: 0; background: none; font-weight: 700;
+  min-height: var(--tap); padding: 0 var(--space-xs); border: 0; background: none; font-weight: 700;
   color: color-mix(in srgb, var(--accent) 55%, var(--bg)); text-decoration: none;
 }
 .toast.is-error .toast-action { color: #fff; text-decoration: underline; }
-.toast-close { min-height: 2.25rem; min-width: 2.25rem; padding: 0; border: 0; background: none; color: inherit; opacity: 0.7; font-size: var(--step-1); }
+.toast-close { min-height: var(--tap); min-width: var(--tap); padding: 0; border: 0; background: none; color: inherit; opacity: 0.7; font-size: var(--step-1); }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
 /* Inline form errors (sign in, sign up, the sort page) keep the old in-place style. */
@@ -508,7 +530,7 @@ body:has(#task-edit:not([style*="none"]) .edit-actions) .toasts { bottom: calc(v
    pulled up by the card's top padding plus half its own height. */
 .task-group > .group {
   width: fit-content; margin: calc(-1 * var(--space-2xs) - 0.75em - 1px) 0 0;
-  padding: 0.15em 0.65em; line-height: 1.2; border: 1px solid color-mix(in oklch, var(--glow-1) 35%, transparent); border-radius: 2rem;
+  padding: 0.15em 0.65em; line-height: 1.2; border: 1px solid color-mix(in oklch, var(--glow-1) 35%, transparent); border-radius: var(--radius-pill);
   background: linear-gradient(135deg, color-mix(in oklch, var(--glow-1) 12%, transparent), color-mix(in oklch, var(--glow-2) 8%, transparent)), var(--bg);
 }
 .task-group .task:last-child { border-bottom: 0; }
@@ -540,7 +562,7 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
 /* Blocked by another task: still on the list, but visibly not ready yet. */
 .task.is-blocked .task-title { color: var(--muted); }
 .blocked { color: var(--fg); }
-.holding-up { margin: var(--space-xs) 0 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1); }
+.holding-up { margin: var(--space-xs) 0 0; }
 .task.is-high .task-title::before { content: "! "; color: var(--danger); font-weight: 600; }
 .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-s); font-size: var(--step--1); color: var(--muted); align-items: center; }
 /* Actions in the meta line (Claim, Sort, Hide, 📷, chips) and the rename box's text links look like small
@@ -558,7 +580,7 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
 .due.today { color: var(--accent); font-weight: 600; }
 .project { color: var(--c); }
 .who { display: inline-flex; align-items: center; gap: 0.3rem; }
-.dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; flex: none; }
+.dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; flex: none; background: var(--c, var(--accent)); }
 .who .dot { width: 0.6rem; height: 0.6rem; }
 /* Something being worked on now: the "Working on now" group card keeps the usual group border, in its own color;
    the focus screen's task card (.is-working) gets a still tint and a border in the worker's color (--worker). */
@@ -586,17 +608,11 @@ a.task-title { position: relative; z-index: 1; color: inherit; text-decoration: 
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-s);
   margin-top: var(--space-l); padding: 0 var(--space-2xs) var(--space-s); font-size: var(--step--1);
 }
-.now-focus progress {
-  flex: 1 1 5rem; height: 0.45rem; appearance: none; border: 0; border-radius: 999px; overflow: hidden;
-  background: color-mix(in oklch, var(--glow-1) 18%, transparent);
-}
-.now-focus progress::-webkit-progress-bar { background: color-mix(in oklch, var(--glow-1) 18%, transparent); }
-.now-focus progress::-webkit-progress-value { background: var(--glow-1); border-radius: 999px; }
-.now-focus progress::-moz-progress-bar { background: var(--glow-1); border-radius: 999px; }
+.now-focus progress { flex: 1 1 5rem; width: auto; --bar-track: color-mix(in oklch, var(--glow-1) 18%, transparent); --bar-fill: var(--glow-1); }
 /* Quieter than the task above it: muted text, a softer bar and link. */
 .now-focus { color: var(--muted); font-size: var(--step--2); opacity: 0.85; }
 .now-focus strong { font-weight: normal; color: inherit; }
-.now-focus progress { opacity: 0.45; height: 0.35rem; }
+.now-focus progress { opacity: 0.45; --bar-h: 0.35rem; }
 .now-focus a { font-weight: normal; color: inherit; text-decoration: underline; text-decoration-color: color-mix(in oklch, currentColor 40%, transparent); text-underline-offset: 0.2em; }
 /* Its "Working on now" heading pill breathes: a soft band of the group's color drifts across it and back, with
    a faint glow that swells and fades. */
@@ -741,7 +757,7 @@ button.link.danger { color: var(--danger); }
 .hand-over .button { justify-self: start; }
 .edit-notice {
   grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-s);
-  margin: 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius-lg); background: var(--tint); font-size: var(--step--1);
+  margin: 0;
 }
 .edit-actions .button { min-width: 8rem; }
 .edit-actions {
@@ -855,7 +871,6 @@ reorder-items { display: block; }
 .sort-tile.is-delete strong { color: var(--danger); }
 @media (hover: hover) { .sort-tile:hover { border-color: var(--accent); } }
 
-.sort-step { display: grid; gap: var(--space-s); padding: var(--space-m); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .sort-step h2 { margin: 0; font-size: var(--step-1); }
 .sort-step .hint { margin: -0.4rem 0 0; }
 .sort-step > .link { justify-self: start; }
@@ -869,7 +884,7 @@ label.pill { position: relative; display: inline-flex; }
 .pill input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 label.pill span, button.pill, a.pill {
   display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-s);
-  border: 1px solid var(--line); border-radius: 999px; cursor: pointer; background: none;
+  border: 1px solid var(--line); border-radius: var(--radius-pill); cursor: pointer; background: none;
 }
 .pill input:checked + span, button.pill.is-on, a.pill.is-on { background: var(--gradient); border-color: transparent; color: var(--bg); }
 .pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -907,7 +922,6 @@ label.pill span, button.pill, a.pill {
 .mock-input, .mock-button { padding: var(--space-xs) var(--space-s); border: 1px solid var(--line); border-radius: var(--radius); }
 .mock-input { flex: 1; min-width: 0; }
 .mock-result { font-size: var(--step--1); }
-.tip { padding: var(--space-xs) var(--space-s); border-radius: var(--radius); font-size: var(--step--1); background: var(--tint); }
 
 .choice-tiles { list-style: none; margin: var(--space-s) 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-xs); }
 .choice-tiles li { display: grid; align-content: start; gap: 0.15rem; padding: var(--space-s); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -922,7 +936,7 @@ label.pill span, button.pill, a.pill {
 .guide-icon { grid-row: span 2; display: grid; place-items: center; color: var(--accent); }
 .list-guide ul { grid-column: 2; list-style: none; margin: var(--space-2xs) 0 0; padding: 0 0 0 var(--space-s); border-left: 2px solid var(--line); display: grid; gap: var(--space-2xs); font-size: var(--step--1); }
 
-.help-card { padding: var(--space-m); border: 1px solid var(--line); border-radius: var(--radius-lg); scroll-margin-top: var(--space-m); }
+.help-card { scroll-margin-top: var(--space-m); }
 .help-card h2 { margin-top: 0; }
 .help-footer { display: grid; gap: var(--space-s); justify-items: center; text-align: center; margin: var(--space-l) 0; }
 .help-footer .button { width: 100%; }
@@ -946,7 +960,7 @@ label.pill span, button.pill, a.pill {
   .bottom-nav, .view-title { display: none; }
   main:has(.bottom-nav) { padding-bottom: var(--space-l); }
   .quick-add { margin-inline: 0; padding-inline: 0; }
-  .suggestions { left: 0; right: 0; }
+  .add-suggestions { left: 0; right: 0; }
   .edit-actions { margin-inline: 0; padding-inline: 0; }
   /* Cards in pairs (When | Who & where, List & waiting | More); the name and notes and Done span both columns.
      Folded, More keeps its own height instead of stretching to its neighbor's. */
@@ -979,7 +993,7 @@ label.pill span, button.pill, a.pill {
 dialog.sheet {
   --sheet-hidden: translateY(100%);
   width: 100%; max-width: 100%; max-height: 90dvh; overflow: auto;
-  margin: auto 0 0; padding: 0; border: 0; border-radius: 1.25rem 1.25rem 0 0;
+  margin: auto 0 0; padding: 0; border: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
   opacity: 0; transform: var(--sheet-hidden);
   transition:
@@ -990,18 +1004,18 @@ dialog.sheet[open] { opacity: 1; transform: none; }
 @starting-style { dialog.sheet[open] { opacity: 0; transform: var(--sheet-hidden); } }
 
 dialog.sheet::backdrop {
-  background: rgb(0 0 0 / 0);
+  background: transparent;
   transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete;
 }
 dialog.sheet[open]::backdrop { background: color-mix(in srgb, var(--shade) 45%, transparent); }
-@starting-style { dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0); } }
+@starting-style { dialog.sheet[open]::backdrop { background: transparent; } }
 
 .sheet-body {
   display: grid; justify-items: center; gap: var(--space-xs); text-align: center;
   padding: var(--space-l) var(--space-m) max(var(--space-l), env(safe-area-inset-bottom));
 }
 /* The little grab handle that says "this is a sheet". */
-.sheet-body::before { content: ""; width: 2.5rem; height: 0.3rem; border-radius: 1rem; background: var(--line); margin-bottom: var(--space-xs); }
+.sheet-body::before { content: ""; width: 2.5rem; height: 0.3rem; border-radius: var(--radius-pill); background: var(--line); margin-bottom: var(--space-xs); }
 .sheet-body h2 { margin: 0; font-size: var(--step-1); }
 .sheet-body .hint { margin: 0; }
 .sheet-body form { width: 100%; margin: var(--space-xs) 0 0; }
@@ -1110,7 +1124,7 @@ html:has(dialog[open]) { overflow: hidden; }
 @media (min-width: 30rem) {
   dialog.sheet {
     --sheet-hidden: translateY(0.75rem) scale(0.94);
-    width: min(24rem, calc(100% - 2rem)); margin: auto; border-radius: 1.25rem;
+    width: min(24rem, calc(100% - 2rem)); margin: auto; border-radius: var(--radius-lg);
     box-shadow: 0 1rem 3rem -0.5rem color-mix(in srgb, var(--shade) 30%, transparent);
   }
   .sheet-body { padding-bottom: var(--space-l); }
@@ -1139,9 +1153,9 @@ html:has(dialog[open]) { overflow: hidden; }
 .shortcut-example .token { height: auto; padding-block: 0.35rem; text-align: left; justify-content: flex-start; }
 code.token { display: inline-flex; align-items: center; min-height: 1.9rem; }
 .token {
-  min-height: 2.25rem; padding: 0 var(--space-xs); border-radius: 1rem;
+  min-height: 2.25rem; padding: 0 var(--space-xs); border-radius: var(--radius-pill);
   font-family: ui-monospace, monospace; font-size: var(--step--1);
-  background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: var(--tint); border-color: var(--tint-line);
 }
 .sheet-body > .hint:not(.shortcut-example) { text-align: center; }
 @media (hover: hover) { .token:hover { border-color: var(--accent); } .help-button:hover { color: var(--accent); } }
@@ -1173,37 +1187,42 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
    screens; it animates in and out like the other sheets. */
 .menu {
   position: fixed; inset: auto 0 0; width: 100%; margin: 0; padding: var(--space-s) var(--space-m) max(var(--space-m), env(safe-area-inset-bottom));
-  border: 0; border-radius: 1.25rem 1.25rem 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
+  border: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
   opacity: 0; transform: translateY(100%);
   transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
 }
 .menu:popover-open { display: grid; gap: var(--space-2xs); opacity: 1; transform: none; }
 @starting-style { .menu:popover-open { opacity: 0; transform: translateY(100%); } }
-.menu::backdrop { background: rgb(0 0 0 / 0); transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
-.menu:popover-open::backdrop { background: rgb(0 0 0 / 0.45); }
-@starting-style { .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); } }
+.menu::backdrop { background: transparent; transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete; }
+.menu:popover-open::backdrop { background: color-mix(in srgb, var(--shade) 45%, transparent); }
+@starting-style { .menu:popover-open::backdrop { background: transparent; } }
 .menu-icon { display: inline-grid; place-items: center; width: 1.5rem; }
 .menu-head { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); border-bottom: 1px solid var(--line); margin-bottom: var(--space-2xs); }
 .menu-head div { display: grid; min-width: 0; }
 .menu-head .hint { overflow-wrap: anywhere; }
-/* "Around the house" and "You": small labels over the two groups, with a hairline between. */
-.menu-group { margin: var(--space-2xs) 0 0; padding: 0 var(--space-xs); font-size: var(--step--2); font-weight: 600; color: var(--muted); }
-.menu-divider { margin: var(--space-2xs) 0; border: 0; border-top: 1px solid var(--line); }
-.menu-close { margin-top: var(--space-xs); }
-.menu form { margin: 0; }
-.menu-item {
-  display: flex; align-items: center; gap: var(--space-s); width: 100%; min-height: var(--tap); padding: 0 var(--space-xs);
-  border: 0; border-radius: var(--radius); background: none; color: var(--fg); text-decoration: none; justify-content: flex-start; font: inherit;
+/* Compact tiles, four to a row (around the house, then you and the app), so the sheet fits in half a phone screen:
+   the icon over a short label. A hairline between the two rows. */
+.menu-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2xs); }
+.menu-tiles + .menu-tiles { padding-top: var(--space-2xs); border-top: 1px solid var(--line); }
+.menu-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-width: 0; min-height: 4.25rem;
+  padding: var(--space-2xs); border: 0; border-radius: var(--radius); background: none; color: var(--fg);
+  font: inherit; font-size: var(--step--2); font-weight: 600; line-height: 1.2; text-align: center; text-decoration: none; overflow-wrap: anywhere;
 }
-@media (hover: hover) { .menu-item:hover { background: var(--tint); text-decoration: none; } }
+.menu-tile .menu-icon { width: auto; font-size: var(--step-1); line-height: 1; }
+@media (hover: hover) { .menu-tile:hover { background: var(--tint); text-decoration: none; } }
+/* Sign out (quiet, on the left) and Close share the last row. */
+.menu-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-s); padding-top: var(--space-2xs); border-top: 1px solid var(--line); }
+.menu-foot .link { min-height: var(--tap); padding-inline: var(--space-xs); color: var(--muted); }
+.menu-close { min-width: 8rem; }
 @media (min-width: 30rem) {
   .menu {
-    inset: 4.25rem max(var(--space-m), calc((100vw - 46rem) / 2 + var(--space-m))) auto auto; width: 16rem;
+    inset: 4.25rem max(var(--space-m), calc((100vw - 46rem) / 2 + var(--space-m))) auto auto; width: 21rem;
     padding: var(--space-xs); border: 1px solid var(--line); border-radius: var(--radius-lg);
-    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.18); transform: translateY(-0.5rem) scale(0.97); transform-origin: top right;
+    box-shadow: var(--shadow-lift); transform: translateY(-0.5rem) scale(0.97); transform-origin: top right;
   }
   @starting-style { .menu:popover-open { opacity: 0; transform: translateY(-0.5rem) scale(0.97); } }
-  .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); }
+  .menu:popover-open::backdrop { background: transparent; }
   .menu-head { padding: var(--space-xs); }
   .menu-close { display: none; }
 }
@@ -1274,7 +1293,7 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .spot-where { flex: 1; min-width: 0; padding: var(--space-2xs) 0; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
 .spot-where:hover, .spot-where:focus-visible { color: var(--accent); }
 /* A quiet ×, with a full-size tap target. */
-.spot-remove { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; border: 0; border-radius: 50%;
+.spot-remove { display: grid; place-items: center; width: var(--tap); height: var(--tap); min-height: 0; padding: 0; border: 0; border-radius: 50%;
   background: none; color: var(--muted); font-size: 1.4rem; line-height: 1; cursor: pointer; }
 .spot-remove:hover, .spot-remove:focus-visible { color: var(--danger); background: var(--tint); }
 .add-spot { justify-self: start; }
@@ -1336,7 +1355,7 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 /* Members: avatar, name, and a quiet note for whoever set the household up. */
 .settings .members { gap: var(--space-xs); }
 .member-name { flex: 1; min-width: 0; }
-.member-note { font-size: var(--step--1); color: var(--muted); padding: 0.1rem var(--space-xs); border-radius: 1rem; background: var(--tint); }
+.member-note { font-size: var(--step--1); color: var(--muted); padding: 0.1rem var(--space-xs); border-radius: var(--radius-pill); background: var(--tint); }
 .inline-field { display: flex; gap: var(--space-xs); }
 .inline-field input { flex: 1; min-width: 0; }
 .panel .inline-field .button.primary { flex: none; width: auto; }
@@ -1365,10 +1384,7 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
   mask-image: linear-gradient(to right, transparent, #000 65%);
 }
 /* An email waiting to be confirmed: in Settings' Account card, and as a nudge under the home page's header. */
-.email-status, .email-notice {
-  display: grid; gap: var(--space-2xs); padding: var(--space-xs) var(--space-s); border-radius: var(--radius);
-  background: var(--tint); font-size: var(--step--1);
-}
+.email-status, .email-notice { display: grid; gap: var(--space-2xs); }
 .email-status p, .email-notice p { margin: 0; overflow-wrap: anywhere; }
 .email-status-actions { display: flex; flex-wrap: wrap; gap: 0 var(--space-m); }
 .email-status form, .email-notice form { margin: 0; }
@@ -1558,7 +1574,7 @@ body:has(.landing) { overflow-x: clip; }
 .board-card {
   display: grid; gap: 0.2rem; padding: var(--space-xs) var(--space-s);
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
-  cursor: grab; box-shadow: 0 0.1rem 0.3rem rgb(0 0 0 / 0.05);
+  cursor: grab; box-shadow: var(--shadow-soft);
 }
 .board-card.is-dragging { opacity: 0.4; }
 .board-card.is-done .board-title { color: var(--muted); text-decoration: line-through; }
@@ -1583,7 +1599,6 @@ body:has(.landing) { overflow-x: clip; }
    project or place. */
 .focus-line {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); margin: var(--space-s) 0 0;
-  padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); font-size: var(--step--1);
 }
 .focus-line .dot { width: 0.6rem; height: 0.6rem; }
 .focus-line a { font-weight: 600; text-decoration: none; }
@@ -1593,12 +1608,7 @@ body:has(.landing) { overflow-x: clip; }
 .focus-pick-title:first-child { margin-top: 0; }
 .focus-target { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .focus-progress { display: flex; align-items: center; gap: var(--space-s); }
-.focus-progress progress {
-  flex: 1; height: 0.6rem; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: var(--tint-strong);
-}
-.focus-progress progress::-webkit-progress-bar { background: var(--tint-strong); }
-.focus-progress progress::-webkit-progress-value { background: var(--gradient); border-radius: 999px; }
-.focus-progress progress::-moz-progress-bar { background: var(--gradient); border-radius: 999px; }
+.focus-progress progress { flex: 1; width: auto; --bar-h: 0.6rem; }
 .focus-card { margin-top: var(--space-s); display: grid; gap: var(--space-s); }
 .focus-title { margin: 0; font-size: var(--step-3); line-height: 1.2; overflow-wrap: anywhere; }
 .focus-title a { color: inherit; text-decoration: none; }
@@ -1617,10 +1627,6 @@ body:has(.landing) { overflow-x: clip; }
 @media (min-width: 40rem) { .project-cards { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } }
 .project-card { color: inherit; text-decoration: none; background: var(--tint); border-left: 0.3rem solid var(--c, var(--accent)); }
 .project-card .hint { margin: 0; }
-.project-card progress { width: 100%; height: 0.5rem; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: var(--tint-strong); }
-.project-card progress::-webkit-progress-bar { background: var(--tint-strong); }
-.project-card progress::-webkit-progress-value { background: var(--gradient); border-radius: 999px; }
-.project-card progress::-moz-progress-bar { background: var(--gradient); border-radius: 999px; }
 .project-page { display: grid; gap: var(--space-m); }
 .project-head h1 { margin: 0; font-size: var(--step-3); line-height: 1.2; overflow-wrap: anywhere; }
 .project-head .hint { margin: var(--space-2xs) 0 var(--space-xs); }
@@ -1696,7 +1702,7 @@ body:has(.landing) { overflow-x: clip; }
 .sloth-toggle .sloth-head { transition: scale 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
 .sloth-toggle::after {
   content: "…"; position: absolute; left: calc(100% + 0.2rem); bottom: 0.2rem; display: none;
-  padding: 0 0.5rem; border: 1px solid var(--tint-line); border-radius: 999px 999px 999px 0.3rem;
+  padding: 0 0.5rem; border: 1px solid var(--tint-line); border-radius: var(--radius-pill) var(--radius-pill) var(--radius-pill) 0.3rem;
   background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--muted); font-weight: 700; line-height: 1.4;
 }
 [data-sloth="quiet"] .sloth-says:has(.sloth-toggle) .bubble { display: none; }

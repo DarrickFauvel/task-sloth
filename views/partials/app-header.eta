@@ -32,38 +32,41 @@
       <span class="hint"><%= household ?? "No household yet" %><%= u.username ? ` · @${u.username}` : "" %></span>
     </div>
   </div>
-  <%/* Two groups: places around the household, then you and the app. */%>
+  <%/* Compact tiles, four to a row, so the menu fits in half a phone screen: around the household first, then you
+       and the app. About is on the How it works page. Sign out and Close share the last row. */%>
   <% if (household) { %>
-    <p class="menu-group">Around the house</p>
-    <a class="menu-item" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span> Activity</a>
-    <% if (it.coach) { %><a class="menu-item" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span> Projects</a><% } %>
-    <a class="menu-item" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span> Weekly reset</a>
-    <a class="menu-item" href="/places"><span class="menu-icon emoji" aria-hidden="true">📍</span> Where / how</a>
-    <hr class="menu-divider">
-    <p class="menu-group">You</p>
+    <nav class="menu-tiles" aria-label="Around the house">
+      <a class="menu-tile" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span>Activity</a>
+      <% if (it.coach) { %><a class="menu-tile" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span>Projects</a><% } %>
+      <a class="menu-tile" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span>Weekly reset</a>
+      <a class="menu-tile" href="/places"><span class="menu-icon emoji" aria-hidden="true">📍</span>Where / how</a>
+    </nav>
   <% } %>
-  <a class="menu-item" href="/settings"><span class="menu-icon emoji" aria-hidden="true">⚙️</span> Settings</a>
-  <a class="menu-item" href="/help"><span class="menu-icon emoji" aria-hidden="true">❓</span> How it works</a>
-  <a class="menu-item" href="/about"><span class="menu-icon emoji" aria-hidden="true">ℹ️</span> About</a>
-  <button type="button" class="menu-item" aria-haspopup="dialog"
-          data-on:click="document.getElementById('account-menu').hidePopover(); document.getElementById('qr-dialog').showModal()">
-    <span class="menu-icon emoji" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 18v3M17 21h.01"/></svg>
-    </span>
-    Show QR code
-  </button>
-  <%/* Says "Dark mode" (moon) while light and "Light mode" (sun) while dark; CSS picks. toggleTheme() is in the layout.
-       The menu stays open, so the label visibly flips. */%>
-  <button type="button" class="menu-item theme-toggle" data-on:click="toggleTheme(el)">
-    <span class="menu-icon emoji" aria-hidden="true">
-      <svg class="moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-      <svg class="sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-    </span>
-    <span class="moon">Dark mode</span><span class="sun">Light mode</span>
-  </button>
-  <form method="post" action="/logout"><button class="menu-item"><span class="menu-icon emoji" aria-hidden="true">↪</span> Sign out</button></form>
+  <div class="menu-tiles" role="group" aria-label="You and the app">
+    <a class="menu-tile" href="/settings"><span class="menu-icon emoji" aria-hidden="true">⚙️</span>Settings</a>
+    <a class="menu-tile" href="/help"><span class="menu-icon emoji" aria-hidden="true">❓</span>How it works</a>
+    <button type="button" class="menu-tile" aria-haspopup="dialog"
+            data-on:click="document.getElementById('account-menu').hidePopover(); document.getElementById('qr-dialog').showModal()">
+      <span class="menu-icon emoji" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 18v3M17 21h.01"/></svg>
+      </span>
+      QR code
+    </button>
+    <%/* Says "Dark mode" (moon) while light and "Light mode" (sun) while dark; CSS picks. toggleTheme() is in the layout.
+         The menu stays open, so the label visibly flips. */%>
+    <button type="button" class="menu-tile theme-toggle" data-on:click="toggleTheme(el)">
+      <span class="menu-icon emoji" aria-hidden="true">
+        <svg class="moon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </span>
+      <span class="moon">Dark mode</span><span class="sun">Light mode</span>
+    </button>
+  </div>
   <%/* On a phone the menu is a bottom sheet, and every sheet ends with Close (hidden on wider screens). */%>
-  <button type="button" class="button menu-close" popovertarget="account-menu" popovertargetaction="hide">Close</button>
+  <div class="menu-foot">
+    <form method="post" action="/logout"><button class="link">Sign out</button></form>
+    <button type="button" class="button menu-close" popovertarget="account-menu" popovertargetaction="hide">Close</button>
+  </div>
 </div>
 <% if (household) { %><script type="module" src="<%= asset("/js/type-writer.js") %>"></script><% } %>
 <script type="module" src="<%= asset("/js/sticky-header.js") %>"></script>
