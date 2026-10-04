@@ -112,6 +112,7 @@ views/
   partials/          Reusable pieces, also sent alone as Datastar patches
 public/
   css/app.css        All styles (mobile first)
+  fonts/             Nunito, self-hosted (SIL OFL)
   js/                Browser modules and web components
   js/lib/            Pure logic shared by server and browser (quick-add parser, dates, recurrence)
 migrations/          Numbered SQL files, applied in order at startup

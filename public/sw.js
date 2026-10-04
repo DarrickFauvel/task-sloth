@@ -1,7 +1,7 @@
 // The service worker that makes Task Sloth an installable app (registered in views/layout.eta).
 // Pages always come from the server, never from a cache: they hold the household's tasks, and they must be
 // current. With no connection, a page load shows /offline.html instead of the browser's error.
-// Styles, scripts and images are served from the cache and refreshed in the background (stale-while-
+// Styles, scripts, fonts and images are served from the cache and refreshed in the background (stale-while-
 // revalidate), so pages start faster. Pages link to them with ?v=<hash of the file> (src/lib/assets.js), so
 // after a deploy a changed file has a new URL and comes from the network; older versions are dropped. Registered with ?dev=1 outside production, where they come from the
 // network first (an edited stylesheet shows on the next load, not the one after) and the cache only offline.
@@ -29,7 +29,7 @@ self.addEventListener("activate", (event) => {
 
 const isAsset = (url) =>
   url.origin === self.location.origin
-    ? /^\/(css|js|img)\//.test(url.pathname) || url.pathname === "/favicon.png"
+    ? /^\/(css|js|img|fonts)\//.test(url.pathname) || url.pathname === "/favicon.png"
     : url.href.startsWith(DATASTAR);
 
 self.addEventListener("fetch", (event) => {

@@ -1,7 +1,7 @@
 import { db, newId, now } from "../db/client.js";
 import { HttpError } from "../lib/http.js";
 
-export const PROJECT_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b", "#3a86ff", "#8d6e63", "#7cb342"];
+export const PROJECT_COLORS = ["#5b8a3c", "#b04a6b", "#2f8f6b", "#c0693b", "#3c7fa6", "#8a6a4f", "#7a68b5"];
 
 export async function listProjects(householdId, { includeArchived = false } = {}) {
   return db.all(

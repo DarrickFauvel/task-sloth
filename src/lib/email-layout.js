@@ -3,10 +3,10 @@
 // mail apps render reliably: tables, inline styles, no images, no external CSS. The button is a colored table
 // cell around a link ("bulletproof" in email circles), and the raw link follows it for mail apps that block it.
 
-const ACCENT = "#6d5dfc";
-const INK = "#1d1b1a";
-const MUTED = "#6b6560";
-const PAGE = "#f4f2ef";
+const ACCENT = "#4a7535";
+const INK = "#232a1f";
+const MUTED = "#676c5c";
+const PAGE = "#f5f2e8";
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 const escape = (s) =>
@@ -52,7 +52,7 @@ export function renderEmail({ preview, heading, paragraphs, button, footnote }) 
   <tr><td align="center" style="padding:32px 16px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px">
       <tr><td style="padding:0 4px 16px;font:700 18px/1 ${FONT};color:${INK}">Task Sloth</td></tr>
-      <tr><td style="background:#ffffff;border-radius:14px;padding:32px 28px">
+      <tr><td style="background:#fbf9f1;border-radius:14px;padding:32px 28px">
         <h1 style="margin:0 0 16px;font:700 22px/1.3 ${FONT};color:${INK}">${escape(heading)}</h1>
         ${paragraphs.map(para).join("\n        ")}
         ${buttonHtml}

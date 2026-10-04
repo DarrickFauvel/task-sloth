@@ -7,12 +7,20 @@
 
 :root {
   color-scheme: light dark;
-  --bg: #fbfaf8;
-  --fg: #1d1b19;
-  --muted: #6b665f;
-  --accent: #6d5dfc;
-  --line: #e4e0da;
-  --danger: #c8372d;
+  /* Forest sloth: parchment and bark-brown ink by day, a mossy forest floor by night. --surface lifts
+     cards a touch off the page; --accent is moss until someone signs in and it takes their color. */
+  --bg: #f5f2e8;
+  --surface: #fbf9f1;
+  --fg: #232a1f;
+  --muted: #676c5c;
+  --accent: #4a7535;
+  --line: #dfdacb;
+  --danger: #b5462f;
+  /* Shadows are tinted with --shade (the bark ink by day, near-black at night), so they read as warm
+     shade rather than grey smudge. soft: resting cards; lift: things floating above the page. */
+  --shade: #232a1f;
+  --shadow-soft: 0 0.15rem 0.6rem -0.2rem color-mix(in srgb, var(--shade) 14%, transparent);
+  --shadow-lift: 0 0.6rem 1.6rem -0.4rem color-mix(in srgb, var(--shade) 24%, transparent);
 
   /* Type scale: ~16px -> ~18px body between a 320px phone and a wide window. */
   --step--2: clamp(0.78rem, 0.76rem + 0.1vw, 0.83rem);
@@ -30,8 +38,8 @@
   --space-l: clamp(1.25rem, 1rem + 1.2vw, 2rem);
 
   --tap: 2.75rem; /* 44px: the smallest comfortable touch target */
-  --radius: 0.6rem;     /* controls: inputs, buttons, tiles */
-  --radius-lg: 0.9rem;  /* cards and panels */
+  --radius: 0.85rem;    /* controls: inputs, buttons, tiles */
+  --radius-lg: 1.25rem; /* cards and panels */
   /* The accent tint used for highlighted cards, tips and selected rows. */
   --tint: color-mix(in srgb, var(--accent) 8%, transparent);
   --tint-strong: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -45,13 +53,13 @@
 }
 /* Dark follows the device unless someone picked a theme (data-theme on <html>, from the theme cookie). */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; --group-l: 0.78; }
+  :root:not([data-theme="light"]) { --bg: #131913; --surface: #1a221a; --fg: #e8eadf; --muted: #a2a893; --accent: #9cc47f; --line: #2a3428; --danger: #ff8a73; --shade: #050805; --group-l: 0.78; }
 }
-:root[data-theme="dark"] { color-scheme: dark; --bg: #171614; --fg: #ecebe8; --muted: #a39e96; --accent: #9d92ff; --line: #2e2b28; --danger: #ff7a6e; --group-l: 0.78; }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #131913; --surface: #1a221a; --fg: #e8eadf; --muted: #a2a893; --accent: #9cc47f; --line: #2a3428; --danger: #ff8a73; --shade: #050805; --group-l: 0.78; }
 :root[data-theme="light"] { color-scheme: light; }
 /* Signed in, the accent follows your color (--you on <html>, from views/layout.eta; Settings changes it
    live). Its lightness is clamped so every member color passes contrast as link text and behind button
-   text: darker in light mode, lighter in dark. Browsers without relative colors keep the purple. */
+   text: darker in light mode, lighter in dark. Browsers without relative colors keep the moss green. */
 @supports (color: oklch(from red l c h)) {
   :root[style*="--you"] { --accent: oklch(from var(--you) min(l, 0.53) c h); }
   @media (prefers-color-scheme: dark) {
@@ -61,10 +69,16 @@
 }
 
 @supports (color: oklch(from red l c h)) {
-  :root { --accent-2: oklch(from var(--accent) calc(l + 0.02) c calc(h + 50)); }
+  :root { --accent-2: oklch(from var(--accent) calc(l + 0.02) c calc(h + 25)); }
 }
 
 /* --- Base ------------------------------------------------------------------------------ */
+
+/* Nunito: a soft, rounded face (SIL OFL, public/fonts/OFL.txt). One variable file covers every weight. */
+@font-face {
+  font-family: "Nunito"; src: url("/fonts/nunito-latin-var.woff2") format("woff2");
+  font-weight: 200 1000; font-style: normal; font-display: swap;
+}
 
 * { box-sizing: border-box; }
 /* Author display rules (like button's inline-flex) would otherwise beat the browser's [hidden]. */
@@ -72,7 +86,7 @@
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
-  font-family: system-ui, sans-serif; font-size: var(--step-0); line-height: 1.5;
+  font-family: "Nunito", system-ui, sans-serif; font-size: var(--step-0); line-height: 1.5;
   -webkit-tap-highlight-color: transparent;
 }
 main {
@@ -105,10 +119,17 @@ select { background: var(--bg); }
 textarea { resize: vertical; field-sizing: content; max-height: 12rem; }
 button, .button { cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.4em; }
 button:active, .button:active { transform: scale(0.97); }
+/* Buttons and chips settle back with a little spring after a press, and lift a hair under a pointer. */
+button, .button, label.pill span { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@media (hover: hover) { :is(.button, button.pill, a.pill, label.pill span):hover { transform: translateY(-1px); } }
+@media (prefers-reduced-motion: reduce) {
+  button, .button, label.pill span { transition: none; }
+  :is(.button, button.pill, a.pill, label.pill span):hover { transform: none; }
+}
 .button.primary {
   background: var(--gradient); background-size: 160% 100%; background-position: 0 0; border-color: transparent;
   color: var(--bg); font-weight: 600; box-shadow: 0 0.35rem 1rem -0.4rem color-mix(in srgb, var(--accent) 60%, transparent);
-  transition: background-position 0.4s ease, box-shadow 0.3s ease;
+  transition: background-position 0.4s ease, box-shadow 0.3s ease, transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 @media (hover: hover) { .button.primary:hover { background-position: 100% 0; box-shadow: 0 0.5rem 1.3rem -0.4rem color-mix(in srgb, var(--accent-2) 65%, transparent); } }
 label { display: grid; gap: var(--space-2xs); }
@@ -138,7 +159,10 @@ button.icon:focus-visible { opacity: 1; }
 
 /* A card: sign in / sign up, invite, the welcome screen. (Edit groups, sort steps and the help
    shortcuts card use the same border, radius and padding.) */
-.panel { display: grid; gap: var(--space-s); padding: var(--space-m); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.panel {
+  display: grid; gap: var(--space-s); padding: var(--space-m); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--surface); box-shadow: var(--shadow-soft);
+}
 .panel h1, .panel h2 { margin: 0; }
 .panel form .button.primary, .panel > .button.primary { width: 100%; }
 /* The small brand line at the top of pages that don't have the full header. */
@@ -152,7 +176,11 @@ button.icon:focus-visible { opacity: 1; }
 .empty-state { display: grid; justify-items: center; gap: var(--space-s); text-align: center; padding: var(--space-l) 0; }
 .empty-state h1 { margin: 0; }
 .empty-state p { margin: 0; }
-.empty-icon { font-size: 3rem; line-height: 1; }
+/* The empty-state picture sits on a soft round patch of moss, like a clearing in the woods. */
+.empty-icon {
+  display: grid; place-items: center; width: 5.5rem; height: 5.5rem; margin: 0 0 var(--space-2xs); border-radius: 50%;
+  font-size: 3rem; line-height: 1; background: var(--gradient-soft); box-shadow: inset 0 0 0 1px var(--tint-line);
+}
 /* Icons off (Settings > Appearance): decorative emoji and menu icons hide; the words beside them stay. */
 [data-icons="off"] .emoji { display: none; }
 .offline-logo { width: 7rem; height: 7rem; } /* public/offline.html */
@@ -296,7 +324,7 @@ button.icon:focus-visible { opacity: 1; }
 .done-cheer {
   position: absolute; top: calc(100% - 0.2rem); right: 0; z-index: 3; padding: 0.3rem 0.7rem; border-radius: 999px;
   background: var(--gradient); color: var(--bg); font-size: var(--step--1); font-weight: 600; white-space: nowrap; pointer-events: none;
-  box-shadow: 0 0.3rem 1rem rgb(0 0 0 / 0.15); transform-origin: top right; opacity: 0; animation: done-cheer 2.8s ease both;
+  box-shadow: var(--shadow-lift); transform-origin: top right; opacity: 0; animation: done-cheer 2.8s ease both;
 }
 /* Its tail points up at the badge. */
 .done-cheer::before {
@@ -352,7 +380,7 @@ quick-suggest { display: contents; }
   max-height: 45vh; overflow-y: auto; overscroll-behavior: contain;
   margin: 0; padding: var(--space-2xs); list-style: none;
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--bg);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+  box-shadow: var(--shadow-lift);
 }
 .suggestions[hidden] { display: none; }
 .suggestions [role=option] {
@@ -425,7 +453,7 @@ body:has(#task-edit:not([style*="none"]) .edit-actions) .toasts { bottom: calc(v
 .toast {
   pointer-events: auto; display: flex; align-items: center; gap: var(--space-2xs) var(--space-s); flex-wrap: wrap;
   width: min(100%, 26rem); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
-  border-radius: var(--radius-lg); background: var(--fg); color: var(--bg); box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.25);
+  border-radius: var(--radius-lg); background: var(--fg); color: var(--bg); box-shadow: var(--shadow-lift);
   font-size: var(--step--1);
   transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
@@ -776,7 +804,7 @@ button.icon.photo-delete::after { content: ""; position: absolute; inset: calc((
    scrolling the page (the rest of the row still scrolls). */
 reorder-items { display: block; }
 .drag-handle { cursor: grab; touch-action: none; color: var(--muted); }
-.item.is-dragging { position: relative; z-index: 1; background: var(--bg); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); border-radius: var(--radius); cursor: grabbing; }
+.item.is-dragging { position: relative; z-index: 1; background: var(--bg); box-shadow: var(--shadow-lift); border-radius: var(--radius); cursor: grabbing; }
 .item.is-dragging .drag-handle { cursor: grabbing; }
 .qty { font-weight: 600; }
 /* An item's photo: a small rounded square before its name that opens the viewer. The camera beside the
@@ -843,7 +871,7 @@ label.pill { position: relative; display: inline-flex; }
 .pill input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 label.pill span, button.pill, a.pill {
   display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-s);
-  border: 1px solid var(--line); border-radius: 2rem; cursor: pointer; background: none;
+  border: 1px solid var(--line); border-radius: 999px; cursor: pointer; background: none;
 }
 .pill input:checked + span, button.pill.is-on, a.pill.is-on { background: var(--gradient); border-color: transparent; color: var(--bg); }
 .pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -955,7 +983,7 @@ dialog.sheet {
   --sheet-hidden: translateY(100%);
   width: 100%; max-width: 100%; max-height: 90dvh; overflow: auto;
   margin: auto 0 0; padding: 0; border: 0; border-radius: 1.25rem 1.25rem 0 0;
-  background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem rgb(0 0 0 / 0.2);
+  background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
   opacity: 0; transform: var(--sheet-hidden);
   transition:
     opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1),
@@ -968,7 +996,7 @@ dialog.sheet::backdrop {
   background: rgb(0 0 0 / 0);
   transition: background 0.3s ease, overlay 0.35s allow-discrete, display 0.35s allow-discrete;
 }
-dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0.45); }
+dialog.sheet[open]::backdrop { background: color-mix(in srgb, var(--shade) 45%, transparent); }
 @starting-style { dialog.sheet[open]::backdrop { background: rgb(0 0 0 / 0); } }
 
 .sheet-body {
@@ -1086,7 +1114,7 @@ html:has(dialog[open]) { overflow: hidden; }
   dialog.sheet {
     --sheet-hidden: translateY(0.75rem) scale(0.94);
     width: min(24rem, calc(100% - 2rem)); margin: auto; border-radius: 1.25rem;
-    box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.25);
+    box-shadow: 0 1rem 3rem -0.5rem color-mix(in srgb, var(--shade) 30%, transparent);
   }
   .sheet-body { padding-bottom: var(--space-l); }
   .sheet-body::before { display: none; }
@@ -1148,7 +1176,7 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
    screens; it animates in and out like the other sheets. */
 .menu {
   position: fixed; inset: auto 0 0; width: 100%; margin: 0; padding: var(--space-s) var(--space-m) max(var(--space-m), env(safe-area-inset-bottom));
-  border: 0; border-radius: 1.25rem 1.25rem 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem rgb(0 0 0 / 0.2);
+  border: 0; border-radius: 1.25rem 1.25rem 0 0; background: var(--bg); color: var(--fg); box-shadow: 0 -0.5rem 2rem color-mix(in srgb, var(--shade) 20%, transparent);
   opacity: 0; transform: translateY(100%);
   transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), overlay 0.35s allow-discrete, display 0.35s allow-discrete;
 }
@@ -1407,7 +1435,7 @@ body:has(.landing) { overflow-x: clip; }
 }
 .demo-screen {
   padding: var(--space-s) var(--space-m) var(--space-m); border: 1px solid var(--line); border-radius: 1.75rem; background: var(--bg);
-  box-shadow: 0 1.5rem 3rem -1rem rgb(0 0 0 / 0.25); pointer-events: none; user-select: none;
+  box-shadow: 0 1.5rem 3rem -1rem color-mix(in srgb, var(--shade) 25%, transparent); pointer-events: none; user-select: none;
   animation: demo-float 7s ease-in-out infinite;
 }
 .demo-top { display: flex; align-items: center; gap: var(--space-xs); }
