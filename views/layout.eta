@@ -2,9 +2,10 @@
 <%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js.
      it.you is the signed-in member's color: the accent follows it (see --you in app.css).
      it.icons is "off" when someone turned icons off in Settings (the icons cookie): .emoji hides.
-     it.sloth is "quiet" when someone tapped Task Sloth's head to tuck its words away (the sloth cookie). */%>
+     it.sloth is "quiet" when someone tapped Task Sloth's head to tuck its words away (the sloth cookie).
+     it.hat is what Task Sloth wears on its head (the hat cookie; src/web/sloth-hats.js). */%>
 <% const you = /^#[0-9a-f]{6}$/i.test(it.you ?? "") ? it.you : null; %>
-<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ it.icons === "off" ? ' data-icons="off"' : "" %><%~ it.sloth === "quiet" ? ' data-sloth="quiet"' : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ it.icons === "off" ? ' data-icons="off"' : "" %><%~ it.sloth === "quiet" ? ' data-sloth="quiet"' : "" %><%~ it.hat ? ` data-hat="${it.hat}"` : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -85,6 +86,12 @@
       if (quiet) root.dataset.sloth = "quiet";
       else delete root.dataset.sloth;
       document.cookie = quiet ? "sloth=quiet; path=/; max-age=31536000; samesite=lax" : "sloth=; path=/; max-age=0; samesite=lax";
+    }
+    // Task Sloth's hat (Settings > Appearance): every head on the page changes at once. The space helmet is the default.
+    function setHat(hat) {
+      document.documentElement.dataset.hat = hat;
+      document.cookie = hat === "space" ? "hat=; path=/; max-age=0; samesite=lax" : `hat=${hat}; path=/; max-age=31536000; samesite=lax`;
+      document.querySelectorAll("[data-hat-choice]").forEach((b) => b.classList.toggle("is-on", b.dataset.hatChoice === hat));
     }
     function setTheme(choice, origin) {
       const root = document.documentElement;
