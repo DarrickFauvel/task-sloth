@@ -1,9 +1,10 @@
 <!doctype html>
 <%/* it.theme is "light", "dark", or unset (follow the device); see the theme cookie in server.js.
      it.you is the signed-in member's color: the accent follows it (see --you in app.css).
-     it.icons is "off" when someone turned icons off in Settings (the icons cookie): .emoji hides. */%>
+     it.icons is "off" when someone turned icons off in Settings (the icons cookie): .emoji hides.
+     it.sloth is "quiet" when someone tapped Task Sloth's head to tuck its words away (the sloth cookie). */%>
 <% const you = /^#[0-9a-f]{6}$/i.test(it.you ?? "") ? it.you : null; %>
-<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ it.icons === "off" ? ' data-icons="off"' : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
+<html lang="en"<%~ it.theme ? ` data-theme="${it.theme}"` : "" %><%~ it.icons === "off" ? ' data-icons="off"' : "" %><%~ it.sloth === "quiet" ? ' data-sloth="quiet"' : "" %><%~ you ? ` style="--you: ${you}"` : "" %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -76,6 +77,15 @@
       document.cookie = on ? "icons=; path=/; max-age=0; samesite=lax" : "icons=off; path=/; max-age=31536000; samesite=lax";
       document.querySelectorAll("[data-icons-choice]").forEach((b) => b.classList.toggle("is-on", b.dataset.iconsChoice === (on ? "on" : "off")));
     }
+    // Tapping Task Sloth's head (partials/sloth-head) tucks its encouraging words away, or brings them back,
+    // everywhere at once; the choice is kept on this device.
+    function toggleSloth() {
+      const root = document.documentElement;
+      const quiet = root.dataset.sloth !== "quiet";
+      if (quiet) root.dataset.sloth = "quiet";
+      else delete root.dataset.sloth;
+      document.cookie = quiet ? "sloth=quiet; path=/; max-age=31536000; samesite=lax" : "sloth=; path=/; max-age=0; samesite=lax";
+    }
     function setTheme(choice, origin) {
       const root = document.documentElement;
       const next = shownTheme(choice);
@@ -145,7 +155,18 @@
 </head>
 <body>
   <main<%~ it.wide ? ' class="is-wide"' : "" %>>
+    <%/* Pages other than home ask for the app's header and account menu with appNav: "slim", plus the phone's bottom
+         bar and its More sheet with appNav: "full" (it.chrome is set per request in server.js). Home draws its own. */%>
+    <% const c = it.appNav && it.chrome; %>
+    <% if (c) { %>
+      <%~ include("/partials/app-header", { user: c.user, membership: c.membership, coach: c.coach, slim: true }) %>
+      <%~ include("/partials/qr-dialog", c.qr) %>
+    <% } %>
     <%~ it.body %>
+    <% if (c && it.appNav === "full") { %>
+      <%~ include("/partials/bottom-nav", { bar: c.nav.bar, views: c.views, href: (view) => `/?view=${view}`, inboxCount: c.inboxCount }) %>
+      <%~ include("/partials/more-views", { list: { view: c.lastView }, views: c.views, nav: c.nav, listQueryString: c.listQueryString, offHome: true }) %>
+    <% } %>
   </main>
 </body>
 </html>

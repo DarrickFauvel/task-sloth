@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { coachConfigured, config, googleConfigured, photosConfigured } from "./src/config.js";
 import { initDb } from "./src/db/client.js";
 import { migrate } from "./src/db/migrate.js";
-import { HttpError, parseCookies, redirect, sendHtml, sse } from "./src/lib/http.js";
+import { HttpError, parseCookies, redirect, sendHtml, setCookie, sse } from "./src/lib/http.js";
 import { assetUrls, hashAssets } from "./src/lib/assets.js";
 import { publish, subscribe } from "./src/lib/pubsub.js";
 import { endSession, loadSession, startSession } from "./src/auth/session.js";
@@ -16,7 +16,7 @@ import { acceptInvite, createHousehold, createInvite, getHouseholdForUser, getIn
 import { changed, lastChangedAt, onChange } from "./src/services/changes.js";
 import { completeInSession, endFocus, focusChoices, getFocus, resumeFocus, setAsideInSession, skipInSession, startFocus } from "./src/services/focus.js";
 import { focusPageView } from "./src/web/focus-page.js";
-import { addComment, assignTask, createTask, deleteTask, getTask, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, moveTask, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
+import { addComment, assignTask, createTask, deleteTask, getTask, inboxCount, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, moveTask, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
 import { createProject, listProjects, projectProgress } from "./src/services/projects.js";
 import { finishedLine, milestoneLine, taskNudge } from "./src/web/encouragement.js";
@@ -25,6 +25,7 @@ import { searchPlaces } from "./src/services/geocode.js";
 import { placesPageView, searchNudge } from "./src/web/places-page.js";
 import { cleanCoords } from "./public/js/lib/places.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
+import { lastViewOf, backLink, LAST_VIEW_COOKIE } from "./src/web/app-chrome.js";
 import { addedFlash, cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
 import { doneTodayView } from "./src/web/done-today.js";
@@ -70,7 +71,7 @@ const { asset, importMap } = assetUrls(hashAssets(dir("./public")));
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction, asset, functionHeader: "const asset = this.config.asset;" });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, sloth: res.locals.sloth, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, chrome: res.locals.chrome, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -117,9 +118,21 @@ app.use(async (req, res, next) => {
   res.locals.user = req.user;
   res.locals.theme = ["light", "dark"].includes(req.cookies.theme) ? req.cookies.theme : null;
   res.locals.icons = req.cookies.icons === "off" ? "off" : null;
+  res.locals.sloth = req.cookies.sloth === "quiet" ? "quiet" : null;
   res.locals.config = config;
+  // The header, bottom bar and back link that pages other than home show (see the layout's `nav`).
+  if (req.membership && !isDatastar(req)) {
+    const lastView = lastViewOf(req.cookies);
+    res.locals.chrome = {
+      user: req.user, membership: req.membership, coach: coachConfigured(), qr: appQr, views: VIEWS, nav: NAV, listQueryString,
+      inboxCount: await inboxCount(req.membership.household.id, req.user.id), lastView, back: backLink(lastView),
+    };
+  }
   next();
 });
+
+/** Remembers the list someone is looking at, so other pages' back links and bottom bar lead back to it. */
+const rememberView = (res, view) => setCookie(res, LAST_VIEW_COOKIE, view, { maxAge: 365 * 86_400 });
 
 const requireUser = (req, res, next) =>
   req.user ? next() : redirect(res, `/login?next=${encodeURIComponent(req.originalUrl)}`);
@@ -183,6 +196,7 @@ async function deletedNotice(req) {
 app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
   if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
+  if (req.membership) rememberView(res, cleanView(req.query.view));
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })
     : null;
@@ -223,6 +237,8 @@ app.get("/events", requireHousehold, async (req, res) => {
   // A project page (Projects, with Claude); `project` is taken: it narrows the home page's list.
   const goalId = typeof req.query.goal === "string" && coachConfigured() ? req.query.goal : null;
   const { householdId } = req.actor;
+  // Switching lists on the home page (public/js/list-nav.js) streams the new one from here.
+  if (!taskId && !goalId && typeof req.query.view === "string") rememberView(res, listQuery.view);
   // The task was deleted: 204 is the one response Datastar's retry: 'always' won't retry.
   if (taskId && !(await getTask(householdId, taskId).then(() => true, (err) => (isNotFound(err) ? false : Promise.reject(err))))) {
     return res.status(204).end();
@@ -377,7 +393,8 @@ app.post("/tasks/:id/done", requireHousehold, async (req, res) => {
     next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
     unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
   ].filter(Boolean);
-  const flash = messages.length ? { message: messages.join(" · ") } : undefined;
+  // The cheer is Task Sloth talking, so the toast wears its head.
+  const flash = messages.length ? { message: messages.join(" · "), sloth: true } : undefined;
   // From a list: the toast opens the first freed task, and the freed rows on this list glow.
   if (flash && unblocked.length) flash.link = { href: `/tasks/${unblocked[0].id}`, label: "Open" };
   const script = unblocked.length ? `highlightTasks(${JSON.stringify(unblocked.map((u) => u.id))})` : null;
@@ -447,7 +464,7 @@ app.post("/tasks/:id/move/:column", requireHousehold, async (req, res) => {
     next && `Next one due ${relativeLabel(next.due_date, today(req))}`,
     unblocked.length && `Ready to go: ${unblocked.map((u) => `“${u.title}”`).join(", ")}`,
   ].filter(Boolean);
-  await sendTaskList(req, res, { flash: messages.length ? { message: messages.join(" · ") } : undefined });
+  await sendTaskList(req, res, { flash: messages.length ? { message: messages.join(" · "), sloth: true } : undefined });
 });
 
 app.post("/tasks/:id/delete", requireHousehold, async (req, res) => {

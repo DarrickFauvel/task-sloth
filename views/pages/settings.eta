@@ -1,11 +1,12 @@
-<% layout("/layout", { title: "Settings" }) %>
+<% layout("/layout", { title: "Settings", appNav: "full" }) %>
 <script type="module" src="<%= asset("/js/photo-picker.js") %>"></script>
 <%/* Profile, appearance, household and account: one card each. Everything saves as you go (the name when you
      leave its box, a color or theme when you pick it, a photo once chosen); the household name is the only
-     field with a Save button. A fieldset groups the choices that answer one question (photo, color, theme). */%>
+     field with a Save button. A fieldset groups the choices that answer one question (photo, color, theme).
+     Where / how (places) is in the account menu; changing how you sign in folds away under Account. */%>
 <% const u = it.user; %>
 <div class="settings-page">
-<a class="back" href="/">← All tasks</a>
+<a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
 <h1>Settings</h1>
 <%/* Saved messages are toasts; errors too, except the sign-in form's, which show in its card. */%>
 <% const pageError = it.signIn ? null : it.error; %>
@@ -40,7 +41,7 @@
         <%/* data-bind starts the $name signal from this value; the server sends it back tidied (or restored after an error). */%>
         <input name="name" value="<%= u.name %>" required maxlength="60" autocomplete="name"
                data-bind:name data-on:change="@post('/settings/name')">
-        <small class="hint">Shown next to your tasks. Type @ and a name to give someone a task. Saves as you leave the box.</small>
+        <small class="hint">Shown next to your tasks. Saves as you leave the box.</small>
       </label>
       <%/* Picking a color takes effect straight away: the app's accent and your avatars on this page change to
            it, and it saves in the background. */%>
@@ -71,7 +72,6 @@
                     data-on:click__prevent="setTheme(<%= value === 'system' ? 'null' : `'${value}'` %>, el); @post('/settings/theme?theme=<%= value %>')"><%= label %></button>
           <% }) %>
         </div>
-        <small class="hint">Also in the menu under your picture.</small>
       </fieldset>
     </form>
     <form method="post" action="/settings/icons">
@@ -84,11 +84,11 @@
                     data-on:click__prevent="setIcons(<%= value === 'on' %>); @post('/settings/icons?icons=<%= value %>')"><%= label %></button>
           <% }) %>
         </div>
-        <small class="hint">Hide the little pictures beside headings and menus. Task details like ☑ 2/5 stay.</small>
+        <small class="hint">The little pictures beside headings and menus.</small>
       </fieldset>
     </form>
     <%/* Theme and icons are cookies, unlike name and color, which follow the account. */%>
-    <p class="hint">These are saved on this device.</p>
+    <p class="hint">Saved on this device only.</p>
   </section>
 
   <% if (it.membership) { const m = it.membership; const owner = m.members.find((p) => p.id === m.ownerId); %>
@@ -123,11 +123,6 @@
           <% }) %>
         </ul>
       </div>
-      <div class="field">
-        <h3 class="field-title">Where / how</h3>
-        <p class="hint">Put shops and other places on the map, and the app can tell you when you're near one.</p>
-        <a class="button" href="/places">Where / how and Near you</a>
-      </div>
       <div id="invite">
         <button class="button" data-on:click="@post('/household/invite')" data-indicator:inviting data-attr:disabled="$inviting">Invite someone</button>
       </div>
@@ -156,6 +151,13 @@
           </div>
         </div>
       <% } %>
+      <%/* What you sign in with, at a glance; changing it is folded away (five fields) and opens after an error. */%>
+      <dl class="account">
+        <dt>Username</dt><dd><%= u.username %></dd>
+        <dt>Email</dt><dd><%= u.email %></dd>
+      </dl>
+      <details class="change-sign-in"<%~ it.signIn ? " open" : "" %>>
+        <summary>Change username, email or password</summary>
       <form method="post" action="/settings/sign-in" class="stack">
         <fieldset class="field sign-in-fields">
           <legend class="visually-hidden">How you sign in</legend>
@@ -186,6 +188,7 @@
         <% if (it.signIn && it.error) { %><p class="flash is-error" role="alert"><%= it.error %></p><% } %>
         <button class="button primary">Save changes</button>
       </form>
+      </details>
     <% } else { /* Google (or dev) sign-in: Google owns the email, and there's no username */ %>
       <dl class="account">
         <dt>Email</dt><dd><%= u.email %> <span class="hint">· from Google</span></dd>

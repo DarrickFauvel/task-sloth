@@ -1,8 +1,8 @@
-<% layout("/layout", { title: "Weekly reset" }) %>
+<% layout("/layout", { title: "Weekly reset", appNav: "slim" }) %>
 <%/* The weekly reset (src/web/reset-page.js): a start screen, one screen per step, and a finish screen. Each step is
      a card like the rest of the app; its task list (partials/reset-step) re-renders in place after each answer. */%>
 <% if (it.start) { %>
-  <a class="back" href="/?view=mine">← Mine</a>
+  <a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
   <h1>Weekly reset</h1>
   <p class="hint">About ten minutes, once a week, to get your tasks back to something you can trust: nothing loose, nothing quietly late, nothing stuck.<%= it.last ? ` Your last one was ${it.last.toLowerCase()}.` : "" %></p>
   <section class="panel reset-card">

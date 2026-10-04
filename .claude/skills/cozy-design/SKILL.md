@@ -47,6 +47,7 @@ Never write a literal color in CSS or a template. Use these tokens, which alread
 
 - **Emoji:** they are the illustrations. Use the `.emoji` class so `data-icons="off"` hides them, plus `aria-hidden="true"`. Empty states use `<p class="empty-icon emoji">`, which sits on a round moss patch. Nature emoji fit the theme: 🌱 🌿 🍃 🌳 🦥 🍄 ☕.
 - **Words:** warm, plain and encouraging, never guilt-tripping. Match the voice of `src/web/encouragement.js`. Avoid GTD jargon, and give every screen a hint or an empty state that teaches.
+- **Task Sloth talking:** when the app itself speaks (encouragement, a kind nudge, a cheer), use a `.sloth-says` speech bubble: `partials/sloth-head` (pass `toggle: true` so tapping the head tucks the words away, remembered in the `sloth` cookie) and a `.bubble`. Cheering toasts pass `sloth: true` to `partials/flash`. Plain status messages and form errors stay as they are.
 
 ## Before shipping UI
 

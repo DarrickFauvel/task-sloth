@@ -1,8 +1,8 @@
-<% layout("/layout", { title: "Focus" }) %>
+<% layout("/layout", { title: "Focus", appNav: "slim" }) %>
 <%/* A focus session (src/web/focus-page.js): one task at a time from one project or where/how. Each answer is a
      plain post that comes back here with the next task. Without a session, a picker. */%>
 <% if (!it.session) { const c = it.choices; %>
-  <a class="back" href="/">← Lists</a>
+  <a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
   <h1>Focus on one thing</h1>
   <p class="hint">Pick a project or a place and work through its tasks one at a time: yours, and any nobody's taken yet. The household sees what you're on.</p>
   <section class="panel focus-card">
@@ -23,7 +23,7 @@
 
 <% } else { const t = it.current; %>
   <nav class="reset-top">
-    <a class="back" href="/" title="Your session keeps going; come back from the line at the top of your lists">← Lists</a>
+    <a class="back" href="<%= it.chrome?.back.href ?? '/' %>" title="Your session keeps going; come back from the line at the top of your lists">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
     <span class="focus-target"><%= it.target.label %></span>
   </nav>
   <div class="focus-progress">

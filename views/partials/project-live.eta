@@ -68,7 +68,7 @@
         <progress max="<%= it.progress.total %>" value="<%= it.progress.done %>"></progress>
         <span class="hint"><%= it.progress.done %> of <%= it.progress.total %> done</span>
       </div>
-      <p class="progress-line"><%= it.progress.line %></p>
+      <div class="sloth-says progress-line"><%~ include("/partials/sloth-head", { toggle: true }) %><p class="bubble"><%= it.progress.line %></p></div>
     <% } %>
   </header>
 

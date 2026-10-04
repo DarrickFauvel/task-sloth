@@ -1,4 +1,4 @@
-<% layout("/layout", { title: it.project.name }) %>
+<% layout("/layout", { title: it.project.name, appNav: "full" }) %>
 <% if (it.photosEnabled) { %><script type="module" src="<%= asset("/js/task-photo.js") %>"></script><% } %>
 <a class="back" href="/projects">← Projects</a>
 <%/* Live updates (?goal=): photos as they upload, Claude's answers as they arrive, tasks done elsewhere.

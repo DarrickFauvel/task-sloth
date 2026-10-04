@@ -1,6 +1,6 @@
-<% layout("/layout", { title: "About" }) %>
+<% layout("/layout", { title: "About", appNav: "full" }) %>
 <%/* What Task Sloth is and who made it. Open to everyone, signed in or not. */%>
-<a class="back" href="/"><%= it.user ? "← All tasks" : "← Home" %></a>
+<% if (it.chrome) { %><a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a><% } else { %><a class="back" href="/"><%= it.user ? "← All tasks" : "← Home" %></a><% } %>
 <article class="about">
   <img class="about-logo" src="<%= asset("/img/logo.png") %>" alt="" width="192" height="192">
   <h1>Task Sloth</h1>

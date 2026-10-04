@@ -1,0 +1,17 @@
+<%/* The phone's bottom bar: Inbox, Mine, Everyone and "More" (the sheet in partials/more-views). Home re-renders it
+     with its tabs (partials/tabs) and marks the list on screen; other pages show it as plain links back to the lists.
+     it: { bar, views, href(view), current(view), inboxCount, moreCurrent } */%>
+<% const badge = it.inboxCount ? `<span class="badge">${it.inboxCount}</span>` : ""; %>
+<nav class="bottom-nav" aria-label="Lists">
+  <% it.bar.forEach((key) => { %>
+    <a href="<%= it.href(key) %>"<%~ it.current?.(key) ? ' aria-current="page"' : "" %>>
+      <span class="nav-icon"><%~ include("/partials/nav-icon", { name: key }) %><% if (key === "inbox") { %><%~ badge %><% } %></span>
+      <span><%= it.views[key] %></span>
+    </a>
+  <% }) %>
+  <button type="button" aria-haspopup="dialog"<%~ it.moreCurrent ? ' aria-current="page"' : "" %>
+          data-on:click="document.getElementById('more-views').showModal()">
+    <span class="nav-icon"><%~ include("/partials/nav-icon", { name: "more" }) %></span>
+    <span>More</span>
+  </button>
+</nav>
