@@ -7,12 +7,14 @@ import { HttpError } from "../lib/http.js";
 export const getUser = (id) => db.get("SELECT * FROM users WHERE id = ?", [id]);
 
 /** Colors a member can pick for their avatar and the dot beside their tasks. */
-export const MEMBER_COLORS = ["#6d5dfc", "#e0527a", "#1f9d8b", "#e38b1b", "#3a86ff", "#8d6e63", "#7cb342"];
+/** Forest colors: each has white text contrast of about 4:1 or better (avatars), and the theme clamps their
+ * lightness further where they become the accent (public/css/app.css). Migration 019 moved the old ones over. */
+export const MEMBER_COLORS = ["#5b8a3c", "#b04a6b", "#2f8f6b", "#c0693b", "#3c7fa6", "#8a6a4f", "#7a68b5"];
 
 /** Names for the colors, for screen readers and tooltips. */
 export const MEMBER_COLOR_NAMES = {
-  "#6d5dfc": "Purple", "#e0527a": "Pink", "#1f9d8b": "Teal", "#e38b1b": "Orange",
-  "#3a86ff": "Blue", "#8d6e63": "Brown", "#7cb342": "Green",
+  "#5b8a3c": "Moss", "#b04a6b": "Berry", "#2f8f6b": "Fern", "#c0693b": "Clay",
+  "#3c7fa6": "River", "#8a6a4f": "Bark", "#7a68b5": "Heather",
 };
 
 /** Changes just the member's color (Settings saves it as soon as a swatch is picked). */
@@ -106,9 +108,9 @@ export async function upsertGoogleUser(profile, tokens) {
   }
   const id = newId();
   await db.run(
-    `INSERT INTO users (id, google_sub, email, name, avatar_url, google_refresh_token, google_access_token, google_token_expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, profile.sub, profile.email, profile.name ?? profile.email, profile.picture ?? null, refresh, encrypt(tokens.access_token), expires, now()],
+    `INSERT INTO users (id, google_sub, email, name, avatar_url, google_refresh_token, google_access_token, google_token_expires_at, color, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, profile.sub, profile.email, profile.name ?? profile.email, profile.picture ?? null, refresh, encrypt(tokens.access_token), expires, MEMBER_COLORS[0], now()],
   );
   return id;
 }
@@ -120,8 +122,8 @@ export async function upsertDevUser(handle) {
   if (existing) return existing.id;
   const id = newId();
   const name = handle.replace(/^./, (c) => c.toUpperCase());
-  await db.run("INSERT INTO users (id, google_sub, email, name, created_at) VALUES (?, ?, ?, ?, ?)", [
-    id, sub, `${handle}@example.test`, name, now(),
+  await db.run("INSERT INTO users (id, google_sub, email, name, color, created_at) VALUES (?, ?, ?, ?, ?, ?)", [
+    id, sub, `${handle}@example.test`, name, MEMBER_COLORS[0], now(),
   ]);
   return id;
 }
@@ -173,8 +175,8 @@ export async function createPasswordUser(input) {
   const id = newId();
   try {
     await db.run(
-      "INSERT INTO users (id, email, name, username, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, email, username, username, await hashPassword(password), now()],
+      "INSERT INTO users (id, email, name, username, password_hash, color, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [id, email, username, username, await hashPassword(password), MEMBER_COLORS[0], now()],
     );
   } catch (err) {
     // Lost a race with a simultaneous sign-up for the same name or email.

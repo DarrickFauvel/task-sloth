@@ -36,6 +36,7 @@ A shared household to-do list: Express 5 + Eta server rendering, Datastar for in
 
 ## UI conventions
 
+- **Forest sloth look.** Load the `cozy-design` skill before UI work: it covers the palette tokens, shapes, font, motion and voice.
 - **Plain language.** Not everyone using the app knows GTD, so no GTD jargon in the UI. Use the app's own labels (Inbox, To do, Waiting on, Maybe later, Where / how) and make every screen explain itself with hints and empty states that teach.
 - **Mobile first.** Base styles target phones, with `min-width` media queries for larger screens. Use the fluid `clamp()` type and spacing tokens in `public/css/app.css` rather than fixed sizes, and keep tap targets large.
 - **Consistency:**

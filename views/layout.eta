@@ -8,10 +8,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <% if (it.theme) { %>
-    <meta name="theme-color" content="<%= it.theme === 'dark' ? '#171614' : '#fbfaf8' %>">
+    <meta name="theme-color" content="<%= it.theme === 'dark' ? '#131913' : '#f5f2e8' %>">
   <% } else { %>
-    <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f2e8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#131913" media="(prefers-color-scheme: dark)">
   <% } %>
   <title><%= it.title ? `${it.title} · Task Sloth` : "Task Sloth" %></title>
   <% if (it.description) { %>
@@ -24,6 +24,8 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <%/* Installable as an app; public/sw.js shows an offline page and caches styles, scripts and images. */%>
   <link rel="manifest" href="/manifest.webmanifest">
+  <%/* The rounded Nunito face app.css uses; preloaded so text doesn't swap fonts after it shows. */%>
+  <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="<%= asset("/css/app.css") %>">
   <%/* Gives a module's own imports (./lib/dates.js) the same versioned URLs as asset(); see src/lib/assets.js.
        It has to come before any module script. */%>
@@ -83,7 +85,7 @@
         document.cookie = choice ? `theme=${choice}; path=/; max-age=31536000; samesite=lax` : "theme=; path=/; max-age=0; samesite=lax";
         document.querySelectorAll("meta[name=theme-color]").forEach((m) => {
           m.removeAttribute("media");
-          m.content = next === "dark" ? "#171614" : "#fbfaf8";
+          m.content = next === "dark" ? "#131913" : "#f5f2e8";
         });
         document.querySelectorAll("[data-theme-choice]").forEach((b) => b.classList.toggle("is-on", b.dataset.themeChoice === (choice ?? "system")));
       };
