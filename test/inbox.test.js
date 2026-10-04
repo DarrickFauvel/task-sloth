@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { db, initDb } from "../src/db/client.js";
 import { migrate } from "../src/db/migrate.js";
 import { createTask, getTask, inboxCount, listTasks, nextToSort, updateTask } from "../src/services/tasks.js";
-import { quickAddList } from "../src/web/task-list.js";
-import { SORT_CHOICES, sortDecision } from "../src/web/sort-page.js";
+import { addedFlash, quickAddList } from "../src/web/task-list.js";
+import { nextSortUrl, SORT_CHOICES, sortDecision } from "../src/web/sort-page.js";
 import { sinceLabel } from "../public/js/lib/dates.js";
 
 test("quickAddList: bare titles go to the inbox, details skip it", () => {
@@ -20,6 +20,24 @@ test("quickAddList: bare titles go to the inbox, details skip it", () => {
   assert.equal(quickAddList({ title: "x", tags: ["kids"] }, "mine"), "todo");
   assert.equal(quickAddList({ title: "x" }, "waiting"), "waiting", "adding on a tab puts it there");
   assert.equal(quickAddList({ title: "x", dueDate: "2026-10-01" }, "someday"), "someday");
+});
+
+test("addedFlash says where a quick add went when it isn't on this tab", () => {
+  assert.equal(addedFlash({ id: "t", list: "inbox" }, "inbox", "u1"), null);
+  assert.deepEqual(addedFlash({ id: "t", list: "inbox" }, "mine", "u1").link, { href: "/sort?task=t", label: "Sort it now" });
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: "u1" }, "mine", "u1"), null);
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: "u2" }, "all", "u1"), null, "Everyone shows it all");
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: null }, "grabs", "u1"), null);
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: "u2" }, "mine", "u1").message, "Added to Everyone.");
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: null }, "mine", "u1").message, "Added to Up for grabs.");
+  assert.equal(addedFlash({ id: "t", list: "todo", assigneeId: "u1" }, "inbox", "u1").message, "Added to Mine.");
+  assert.equal(addedFlash({ id: "t", list: "waiting" }, "waiting", "u1"), null);
+});
+
+test("nextSortUrl: answering goes back to the oldest, unless something was skipped", () => {
+  assert.equal(nextSortUrl("t"), "/sort");
+  assert.equal(nextSortUrl("t", { skipping: true }), "/sort?after=t");
+  assert.equal(nextSortUrl("t", { deleted: true }), "/sort?undo=t");
 });
 
 test("sortDecision maps each answer", () => {
@@ -86,6 +104,8 @@ test("the inbox is personal, and nextToSort walks it oldest first with skipping"
   const end = await nextToSort("h1", "u1", b);
   assert.equal(end.task, null);
   assert.equal(end.left, 2, "skipped ones still count");
+  // Opened on the newest (from the "Added to your Inbox" toast) and answered: the older one is still next.
+  assert.equal((await nextToSort("h1", "u1")).task.id, a, "no cursor after an answer");
   // The inbox tasks don't show on the shared To do list.
   assert.ok(!(await listTasks("h1", { list: "todo", status: "open" })).some((t) => ["a", "b", "sam's"].includes(t.title)));
 });

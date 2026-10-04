@@ -25,7 +25,7 @@ import { searchPlaces } from "./src/services/geocode.js";
 import { placesPageView, searchNudge } from "./src/web/places-page.js";
 import { cleanCoords } from "./public/js/lib/places.js";
 import { ACTIVITY_DAYS, activityView } from "./src/web/activity-page.js";
-import { cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
+import { addedFlash, cleanListQuery, cleanView, decorateTask, LINGER_MS, listQueryString, NAV, quickAddList, taskListView, VIEWS } from "./src/web/task-list.js";
 import { hideDone } from "./src/web/hidden-done.js";
 import { doneTodayView } from "./src/web/done-today.js";
 import { nextPhraseIndex, phraseIndex, phraseText } from "./src/web/household-phrase.js";
@@ -41,7 +41,7 @@ import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSug
 import { projectPageView, projectsPageView } from "./src/web/project-page.js";
 import { addQuestionPhoto, askAboutSuggestion, askAboutTask, declineProposal, getQuestionPhoto, getStepQuestion, getSuggestion, removeQuestionPhoto, retryQuestion, useProposal } from "./src/services/step-questions.js";
 import { taskAskView } from "./src/web/step-questions.js";
-import { NEEDS_DETAILS, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
+import { NEEDS_DETAILS, nextSortUrl, quickDates, SORT_CHOICES, sortDecision } from "./src/web/sort-page.js";
 import { shortcutsInTitle, withTypedShortcuts } from "./src/web/typed-shortcuts.js";
 import { INSERT_TOKEN, SHORTCUT_EXAMPLE, shortcutGroups } from "./src/web/shortcuts.js";
 import { checklistView } from "./src/web/checklist.js";
@@ -350,11 +350,9 @@ app.post("/tasks", requireHousehold, async (req, res) => {
   const parsed = parseQuickAdd(String(req.body.quick ?? ""), await quickAddContext(req));
   const view = cleanView(req.body.view);
   const list = quickAddList(parsed, view);
-  const id = await createTask(req.actor, { ...(await resolveNames(household.id, parsed)), list });
-  const flash =
-    list === "inbox" && view !== "inbox"
-      ? { message: "Added to your Inbox.", link: { href: `/sort?task=${id}`, label: "Sort it now" } }
-      : undefined;
+  const input = { ...(await resolveNames(household.id, parsed)), list };
+  const id = await createTask(req.actor, input);
+  const flash = addedFlash({ id, list, assigneeId: "assigneeId" in input ? input.assigneeId : req.user.id }, view, req.user.id) ?? undefined;
   await sendTaskList(req, res, { flash, signals: { quick: "" } });
 });
 
@@ -615,7 +613,7 @@ app.post("/reset/:step/:id/restore", requireHousehold, async (req, res) => {
 // --- Sorting the inbox ----------------------------------------------------------------
 // A plain HTML form, one task at a time: each answer saves and loads the next task.
 
-async function renderSortPage(req, res, { taskId, after, error, pick = "", status = 200 } = {}) {
+async function renderSortPage(req, res, { taskId, after, undo, error, pick = "", status = 200 } = {}) {
   const { householdId } = req.actor;
   let task = null;
   if (taskId) {
@@ -624,10 +622,15 @@ async function renderSortPage(req, res, { taskId, after, error, pick = "", statu
   }
   const next = await nextToSort(householdId, req.user.id, task ? null : after);
   task ??= next.task;
+  // Just deleted from here (?undo=): say so, with Undo, while it's still deleted.
+  const deleted = undo && (await getTask(householdId, undo, { includeDeleted: true }).catch((err) => (isNotFound(err) ? null : Promise.reject(err))));
   render(res, "pages/sort", {
     task: task && decorate(req, task),
     left: next.left,
+    // Only a run that skipped something keeps a cursor (`after`), so only it can end with tasks still to sort.
+    after: task ? after : null,
     skipped: Boolean(after) && !task && next.left > 0,
+    flash: deleted?.deleted_at ? { message: `Deleted “${deleted.title}”`, undo: `/sort/${deleted.id}/restore` } : {},
     resetting: Boolean(resetStarted(req)),
     choices: SORT_CHOICES,
     needsDetails: NEEDS_DETAILS,
@@ -643,7 +646,7 @@ async function renderSortPage(req, res, { taskId, after, error, pick = "", statu
 const queryString = (v) => (typeof v === "string" && v ? v : null);
 
 app.get("/sort", requireHousehold, (req, res) =>
-  renderSortPage(req, res, { taskId: queryString(req.query.task), after: queryString(req.query.after) }),
+  renderSortPage(req, res, { taskId: queryString(req.query.task), after: queryString(req.query.after), undo: queryString(req.query.undo) }),
 );
 
 app.post("/sort/:id", requireHousehold, async (req, res) => {
@@ -664,7 +667,14 @@ app.post("/sort/:id", requireHousehold, async (req, res) => {
     await updateTask(req.actor, task.id, await resolveNames(req.actor.householdId, input));
     if (decision.action === "done") await setDone(req.actor, task.id, true, { today: today(req) });
   }
-  redirect(res, `/sort?after=${encodeURIComponent(task.id)}`);
+  redirect(res, nextSortUrl(task.id, { skipping: Boolean(queryString(req.body.after)), deleted: decision.action === "delete" }));
+});
+
+app.post("/sort/:id/restore", requireHousehold, async (req, res) => {
+  await restoreTask(req.actor, req.params.id);
+  const url = `/sort?task=${encodeURIComponent(req.params.id)}`;
+  if (!isDatastar(req)) return redirect(res, url);
+  return sse(req, res, (stream) => stream.executeScript(`location.assign(${JSON.stringify(url)})`));
 });
 
 // --- Help ------------------------------------------------------------------------------

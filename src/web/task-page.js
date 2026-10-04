@@ -18,7 +18,7 @@ export const NEW_PROJECT = "new";
 /** The edit form's list chips. Only the picked list's hint shows. */
 const LIST_OPTIONS = [
   { value: "inbox", label: "Inbox", hint: "Just jotted down. Only you see it until you sort it." },
-  { value: "todo", label: "To do", hint: "Ready to do. Everyone in the household can see it." },
+  { value: "todo", label: "Ready to do", hint: "Shows up under Mine or Everyone, where the whole household can see it." },
   { value: "waiting", label: "Waiting on", hint: "Someone or something else has to happen first." },
   { value: "someday", label: "Maybe later", hint: "Not now, but you don't want to forget it." },
 ];

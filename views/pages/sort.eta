@@ -5,9 +5,9 @@
   <section class="empty-state">
     <% if (it.skipped) { %>
       <p class="empty-icon emoji" aria-hidden="true">👍</p>
-      <h1>That's the lot</h1>
-      <p>You skipped <%= it.left %>. <%= it.left === 1 ? "It's" : "They're" %> still in your inbox for later.</p>
-      <a class="button primary" href="/sort">Go through the skipped ones</a>
+      <h1>That's the lot for now</h1>
+      <p><%= it.left %> <%= it.left === 1 ? "task is" : "tasks are" %> still in your Inbox, waiting for later.</p>
+      <a class="button primary" href="/sort">Go through <%= it.left === 1 ? "it" : "them" %> now</a>
       <a href="<%= it.resetting ? '/reset/overdue' : '/' %>"><%= it.resetting ? "Back to your weekly reset" : "Back to my tasks" %></a>
     <% } else { %>
       <p class="empty-icon emoji" aria-hidden="true">🎉</p>
@@ -22,12 +22,14 @@
        It's one plain form: every answer is a submit button, and Datastar only adds the follow-up steps. */%>
   <nav class="sort-top">
     <a class="back" href="<%= it.resetting ? '/reset/inbox' : '/?view=inbox' %>">← <%= it.resetting ? "Weekly reset" : "Inbox" %></a>
-    <span class="sort-left"><span class="emoji" aria-hidden="true">📥</span> <%= it.left %> left to sort</span>
-    <a class="back" href="/sort?after=<%= t.id %>">Skip</a>
+    <span class="sort-left"><span class="emoji" aria-hidden="true">📥</span> <%= it.left === 1 ? "Last one!" : `${it.left} left, this one too` %></span>
+    <a class="skip" href="/sort?after=<%= t.id %>">Skip for now →</a>
   </nav>
   <form class="sort" method="post" action="/sort/<%= t.id %>" data-signals="{pick: '<%= it.pick %>', when: ''}">
     <%/* Disabled default button: Enter in a field never picks an answer by accident. */%>
     <button type="submit" disabled hidden aria-hidden="true"></button>
+    <%/* Set once something was skipped: the next task is then the one after this, not the oldest. */%>
+    <% if (it.after) { %><input type="hidden" name="after" value="<%= it.after %>"><% } %>
 
     <section class="sort-card">
       <label for="sort-title" class="hint">Your task · tap to change the wording</label>
@@ -69,7 +71,7 @@
         <% }) %>
         <label class="pill"><input type="radio" name="assigneeId" value=""><span>Anyone</span></label>
       </fieldset>
-      <button id="save-todo" name="choice" value="todo" class="button primary">Add to To do</button>
+      <button id="save-todo" name="choice" value="todo" class="button primary">Add to <%= c.todo.label %></button>
       <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
     </section>
 
@@ -92,9 +94,10 @@
         <input id="waiting-on" name="waitingOn" maxlength="200" autocomplete="off" placeholder="e.g. the plumber, a reply from Mom"
                data-on:keydown="evt.key === 'Enter' && (evt.preventDefault(), el.form.requestSubmit(document.getElementById('save-waiting')))">
       </label>
-      <button id="save-waiting" name="choice" value="waiting" class="button primary">Put on Waiting</button>
+      <button id="save-waiting" name="choice" value="waiting" class="button primary">Add to <%= c.waiting.label %></button>
       <button type="button" class="link" data-on:click="$pick = ''">← Pick something else</button>
     </section>
   </form>
   <p class="sort-footer"><a href="/tasks/<%= t.id %>">Open the full task</a></p>
 <% } %>
+<%~ include("/partials/flash", it.flash ?? {}) %>

@@ -31,7 +31,6 @@
   <nav class="reset-top">
     <a class="back" href="<%= v.prev ? `/reset/${v.prev}` : '/reset' %>">← Back</a>
     <span class="hint">Step <%= v.number %> of <%= v.total %></span>
-    <a class="back" href="<%= v.next ? `/reset/${v.next}` : '/reset' %>"<%~ v.next ? '' : ' hidden' %>>Skip</a>
   </nav>
   <section class="panel reset-card" aria-labelledby="reset-title">
     <h2 class="card-title" id="reset-title"><span class="emoji" aria-hidden="true"><%= s.icon %></span> <%= s.title %></h2>

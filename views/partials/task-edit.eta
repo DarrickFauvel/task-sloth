@@ -8,9 +8,9 @@
      Every change saves at once, like Settings: a choice when it's picked, text when you leave its box (or press
      Enter). Each save posts the whole form with ?saved=<field> (for the toast, and the only field it writes, so it
      can't undo someone else's change to another field) and seq (so a late one can't undo a newer one). When
-     someone else saves a change to this task, a notice above Done offers to show it. It waits for a name before saving "➕ New task…" or "➕ New project…", and skips a blank title (the browser says why).
-     Enter in a text box just leaves it (so it saves, and the form stays open). "Done" only closes the form: tapping
-     it has already left the box you were in, which saved it. Without script, Done is the plain submit. On wider screens When and Who & where sit side by side. Field names are unchanged. */%>
+     someone else saves a change to this task, a notice above Close offers to show it. It waits for a name before saving "➕ New task…" or "➕ New project…", and skips a blank title (the browser says why).
+     Enter in a text box just leaves it (so it saves, and the form stays open). "Close" only closes the form: tapping
+     it has already left the box you were in, which saved it. Without script, Close is the plain submit. On wider screens When and Who & where sit side by side. Field names are unchanged. */%>
 <div id="task-edit" data-show="$editing">
 <% if (it.form) { const f = it.form; const t = f.task; const checked = (on) => (on ? " checked" : "");
    /* The field a tap on the task page asked for (f.focus): scrolled to the middle and focused once the form shows
@@ -174,7 +174,7 @@
       </p>
       <p class="hint">Changes save as you go.</p>
       <%/* A hand-over note that's typed but not sent yet goes too. */%>
-      <button class="button primary" data-on:click__prevent="$handTo && $handNote.trim() && @post('/tasks/<%= t.id %>/hand-over', {filterSignals: {include: /^(handNote|handTo)$/}}); $editing = false">Done</button>
+      <button class="button primary" data-on:click__prevent="$handTo && $handNote.trim() && @post('/tasks/<%= t.id %>/hand-over', {filterSignals: {include: /^(handNote|handTo)$/}}); $editing = false">Close</button>
     </div>
   </form>
 <% } %>

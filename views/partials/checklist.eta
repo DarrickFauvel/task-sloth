@@ -29,8 +29,8 @@
             <input id="item-rename-<%= item.id %>" name="text" value="<%= label %>" data-bind:item-text required maxlength="300"
                    autocomplete="off" aria-label="Item name" data-on:keydown="evt.key === 'Escape' && ($itemRenaming = '')">
             <div class="rename-actions">
-              <button class="button primary">Save</button>
-              <button type="button" class="button" data-on:click="$itemRenaming = ''">Cancel</button>
+              <button class="button">Save</button>
+              <button type="button" class="link" data-on:click="$itemRenaming = ''">Cancel</button>
               <button class="link danger" formaction="/items/<%= item.id %>/delete" formnovalidate
                       data-on:click__prevent="@post('/items/<%= item.id %>/delete')">Remove</button>
               <% if (it.photosEnabled && item.photo_id) { %>
