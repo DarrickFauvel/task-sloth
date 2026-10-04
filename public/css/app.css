@@ -36,6 +36,7 @@
   --space-s: clamp(0.625rem, 0.55rem + 0.35vw, 0.8rem);
   --space-m: clamp(0.875rem, 0.75rem + 0.6vw, 1.25rem);
   --space-l: clamp(1.25rem, 1rem + 1.2vw, 2rem);
+  --space-xl: clamp(2rem, 1.6rem + 2vw, 3rem);
 
   --tap: 2.75rem; /* 44px: the smallest comfortable touch target */
   --radius: 0.85rem;    /* controls: inputs, buttons, tiles */
@@ -1692,6 +1693,8 @@ body:has(.landing) { overflow-x: clip; }
 .sloth-says .bubble p { margin: 0; }
 .sloth-says .bubble .actions { margin: var(--space-xs) 0 0; }
 .greeting .bubble { font-size: var(--step-0); }
+/* The hello on Mine gets room to breathe before the list starts. */
+.sloth-says.greeting { margin-bottom: var(--space-xl); }
 @keyframes bubble-in { from { opacity: 0; scale: 0.85; } }
 
 /* Tap the head to tuck the words away (on every page; toggleSloth in the layout): a small "…" bubble stays, to
