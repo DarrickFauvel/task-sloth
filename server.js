@@ -52,7 +52,7 @@ import { addDays, nextMidnight, nowIn, relativeLabel, todayIn } from "./public/j
 import { getAccessToken } from "./src/google/tokens.js";
 import { createTasksApi } from "./src/google/tasks-api.js";
 import { createSyncEngine } from "./src/sync/engine.js";
-import { SLOTH_HATS, hatOf } from "./src/web/sloth-hats.js";
+import { SLOTH_HATS, hatImageCss, hatOf } from "./src/web/sloth-hats.js";
 
 const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -69,10 +69,11 @@ const appQr = {
 
 // Templates link to public/ files with asset("/css/app.css"), which adds the file's hash (src/lib/assets.js).
 const { asset, importMap } = assetUrls(hashAssets(dir("./public")));
+const hatCss = hatImageCss(asset);
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction, asset, functionHeader: "const asset = this.config.asset;" });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, sloth: res.locals.sloth, hat: res.locals.hat, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, chrome: res.locals.chrome, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, sloth: res.locals.sloth, hat: res.locals.hat, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, hatCss, chrome: res.locals.chrome, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 

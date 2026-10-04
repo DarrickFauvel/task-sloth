@@ -29,6 +29,8 @@
   <%/* The rounded Nunito face app.css uses; preloaded so text doesn't swap fonts after it shows. */%>
   <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="<%= asset("/css/app.css") %>">
+  <%/* Where the hat pictures are (hatImageCss in src/web/sloth-hats.js), versioned like the stylesheet. */%>
+  <style><%~ it.hatCss ?? "" %></style>
   <%/* Gives a module's own imports (./lib/dates.js) the same versioned URLs as asset(); see src/lib/assets.js.
        It has to come before any module script. */%>
   <% if (it.importMap) { %><script type="importmap"><%~ it.importMap %></script><% } %>
