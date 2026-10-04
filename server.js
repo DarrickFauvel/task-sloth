@@ -52,6 +52,7 @@ import { addDays, nextMidnight, nowIn, relativeLabel, todayIn } from "./public/j
 import { getAccessToken } from "./src/google/tokens.js";
 import { createTasksApi } from "./src/google/tasks-api.js";
 import { createSyncEngine } from "./src/sync/engine.js";
+import { SLOTH_HATS, hatOf } from "./src/web/sloth-hats.js";
 
 const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -71,7 +72,7 @@ const { asset, importMap } = assetUrls(hashAssets(dir("./public")));
 const eta = new Eta({ views: dir("./views"), cache: config.isProduction, asset, functionHeader: "const asset = this.config.asset;" });
 // Every page gets the saved theme (see the layout); pages can still pass their own data.
 const render = (res, name, data = {}, status = 200) =>
-  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, sloth: res.locals.sloth, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, chrome: res.locals.chrome, ...data }), status);
+  sendHtml(res, eta.render(name, { theme: res.locals.theme, icons: res.locals.icons, sloth: res.locals.sloth, hat: res.locals.hat, you: res.locals.user?.color, renderedAt: res.locals.renderedAt, dev: !config.isProduction, importMap, chrome: res.locals.chrome, ...data }), status);
 
 // --- Google sync + live updates -------------------------------------------------------
 
@@ -119,6 +120,7 @@ app.use(async (req, res, next) => {
   res.locals.theme = ["light", "dark"].includes(req.cookies.theme) ? req.cookies.theme : null;
   res.locals.icons = req.cookies.icons === "off" ? "off" : null;
   res.locals.sloth = req.cookies.sloth === "quiet" ? "quiet" : null;
+  res.locals.hat = hatOf(req.cookies.hat);
   res.locals.config = config;
   // The header, bottom bar and back link that pages other than home show (see the layout's `nav`).
   if (req.membership && !isDatastar(req)) {
@@ -1312,6 +1314,7 @@ const renderSettings = async (req, res, { saved, error, signIn, status = 200 } =
     user: req.user, // loaded fresh each request, so a just-saved name shows
     membership: req.membership,
     colors: MEMBER_COLORS,
+    hats: SLOTH_HATS,
     colorNames: MEMBER_COLOR_NAMES,
     saved,
     error,
@@ -1323,7 +1326,7 @@ const renderSettings = async (req, res, { saved, error, signIn, status = 200 } =
 app.get("/settings", requireUser, (req, res) =>
   renderSettings(req, res, { saved: { profile: "Profile saved", photo: "Photo saved", "photo-removed": "Photo removed", "sign-in": "Sign-in details saved",
     "email-pending": "Check your new email for a link to confirm it", "email-cancelled": "Email change cancelled",
-    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", icons: "Appearance saved", password: "Password changed. Other devices are signed out.", household: "Household renamed" }[req.query.saved] }),
+    "email-sent": "Link sent. Check your inbox", theme: "Appearance saved", icons: "Appearance saved", hat: "Appearance saved", password: "Password changed. Other devices are signed out.", household: "Household renamed" }[req.query.saved] }),
 );
 
 app.post("/settings/profile", requireUser, async (req, res) => {
@@ -1520,6 +1523,17 @@ app.post("/settings/icons", requireUser, (req, res) => {
     : "icons=; Path=/; Max-Age=0; SameSite=Lax");
   if (isDatastar(req)) return sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: off ? "Icons hidden" : "Icons shown" })));
   redirect(res, "/settings?saved=icons");
+});
+
+// Task Sloth's hat (src/web/sloth-hats.js); the space helmet is the default, so it clears the cookie. Settings sets
+// the same cookie from the page (setHat in the layout), then posts here with ?hat= for the toast; without script it's the form.
+app.post("/settings/hat", requireUser, (req, res) => {
+  const hat = hatOf(String(req.body.hat ?? req.query.hat ?? ""));
+  res.append("Set-Cookie", hat === SLOTH_HATS[0].value
+    ? "hat=; Path=/; Max-Age=0; SameSite=Lax"
+    : `hat=${hat}; Path=/; Max-Age=31536000; SameSite=Lax`);
+  if (isDatastar(req)) return sse(req, res, (stream) => stream.patchElements(eta.render("partials/flash", { message: "Looking sharp!", sloth: true })));
+  redirect(res, "/settings?saved=hat");
 });
 
 // --- Household ------------------------------------------------------------------------

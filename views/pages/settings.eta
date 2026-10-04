@@ -87,7 +87,23 @@
         <small class="hint">The little pictures beside headings and menus.</small>
       </fieldset>
     </form>
-    <%/* Theme and icons are cookies, unlike name and color, which follow the account. */%>
+    <form method="post" action="/settings/hat">
+      <fieldset class="field">
+        <legend>Task Sloth's hat</legend>
+        <div class="hat-picker">
+          <%~ include("/partials/sloth-head", {}) %>
+          <div class="pills">
+            <% it.hats.forEach(({ value, label, emoji }) => { %>
+              <%/* Changes every head at once (setHat in the layout), then posts for the toast; without script, it's the form post. */%>
+              <button name="hat" value="<%= value %>" data-hat-choice="<%= value %>" class="pill<%= it.hat === value ? ' is-on' : '' %>"
+                      data-on:click__prevent="setHat('<%= value %>'); @post('/settings/hat?hat=<%= value %>')"><span class="emoji" aria-hidden="true"><%= emoji %></span> <%= label %></button>
+            <% }) %>
+          </div>
+        </div>
+        <small class="hint">Just for fun. It shows wherever Task Sloth pops up to say something.</small>
+      </fieldset>
+    </form>
+    <%/* Theme, icons and hat are cookies, unlike name and color, which follow the account. */%>
     <p class="hint">Saved on this device only.</p>
   </section>
 

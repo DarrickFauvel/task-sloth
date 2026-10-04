@@ -1679,7 +1679,39 @@ body:has(.landing) { overflow-x: clip; }
    tail points back at it. The hello on Mine, a kind word on a task, a project's progress line, the weekly
    reset nudge. The bubble is solid (the tint mixed into the surface) so the tail can overlap it cleanly. */
 .sloth-says { --bubble: color-mix(in srgb, var(--accent) 10%, var(--surface)); display: flex; align-items: flex-end; gap: var(--space-s); margin: var(--space-s) 0 0; }
-.sloth-head { display: block; flex: none; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--gradient-soft); box-shadow: inset 0 0 0 1px var(--tint-line); }
+.sloth-avatar { --head: 2.5rem; position: relative; display: block; flex: none; width: var(--head); height: var(--head); }
+.sloth-head { display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--gradient-soft); box-shadow: inset 0 0 0 1px var(--tint-line); }
+
+/* Its hat (Settings > Appearance; data-hat on the page, src/web/sloth-hats.js). The space helmet, the default, is a
+   glass dome over the head with a glint and a collar ring; the others are an emoji perched on top. */
+[data-hat="space"] .sloth-avatar::before {
+  --glint: color-mix(in srgb, light-dark(var(--surface), var(--fg)) 90%, transparent);
+  content: ""; position: absolute; inset: -14%; z-index: 1; border-radius: 50%; pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--muted) 55%, transparent);
+  background:
+    radial-gradient(ellipse 26% 14% at 33% 19%, var(--glint), transparent),
+    radial-gradient(ellipse 7% 7% at 74% 24%, var(--glint), transparent),
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 6%, transparent) 55%, color-mix(in srgb, var(--accent) 26%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface) 50%, transparent);
+}
+[data-hat="space"] .sloth-avatar::after {
+  content: ""; position: absolute; left: 4%; right: 4%; bottom: -10%; z-index: 2; height: 20%; border-radius: var(--radius-pill);
+  background: linear-gradient(var(--surface), color-mix(in srgb, var(--muted) 45%, var(--surface)));
+  border: 1px solid color-mix(in srgb, var(--muted) 55%, transparent);
+}
+/* The dome is wider than the head, so it gets room on each side to keep clear of the bubble's tail. */
+[data-hat="space"] .sloth-avatar { margin-inline: calc(var(--head) * 0.14); }
+[data-hat]:not([data-hat="space"], [data-hat="none"]) .sloth-avatar::after {
+  position: absolute; left: 50%; bottom: 72%; z-index: 1; translate: -50% 0; rotate: -14deg; pointer-events: none;
+  font-size: calc(var(--head) * 0.62); line-height: 1;
+}
+[data-hat="mushroom"] .sloth-avatar::after { content: "\1F344"; }
+[data-hat="top"] .sloth-avatar::after { content: "\1F3A9"; }
+[data-hat="crown"] .sloth-avatar::after { content: "\1F451"; rotate: -8deg; }
+[data-hat="sun"] .sloth-avatar::after { content: "\1F452"; }
+[data-hat="cap"] .sloth-avatar::after { content: "\1F9E2"; }
+/* Room above the head for a hat that pokes up. */
+[data-hat]:not([data-hat="none"]) .sloth-says { margin-top: var(--space-m); }
 .sloth-says .bubble {
   position: relative; min-width: 0; max-width: 34rem; margin: 0; padding: var(--space-xs) var(--space-s);
   border: 1px solid var(--tint-line); border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 0.3rem;
@@ -1701,8 +1733,8 @@ body:has(.landing) { overflow-x: clip; }
    tap for them back. The weekly reset nudge has buttons, so its head isn't a toggle and it never tucks away. */
 .sloth-toggle { position: relative; flex: none; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .sloth-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (hover: hover) { .sloth-toggle:hover .sloth-head { scale: 1.06; } }
-.sloth-toggle .sloth-head { transition: scale 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@media (hover: hover) { .sloth-toggle:hover .sloth-avatar { scale: 1.06; } }
+.sloth-toggle .sloth-avatar { transition: scale 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
 .sloth-toggle::after {
   content: "…"; position: absolute; left: calc(100% + 0.2rem); bottom: 0.2rem; display: none;
   padding: 0 0.5rem; border: 1px solid var(--tint-line); border-radius: var(--radius-pill) var(--radius-pill) var(--radius-pill) 0.3rem;
@@ -1713,14 +1745,18 @@ body:has(.landing) { overflow-x: clip; }
 [data-sloth="quiet"] .sloth-says:has(.sloth-toggle) { min-height: 2.5rem; }
 
 /* Icons off: no head, so no tail or toggle either; the words always show, as a plain bubble. */
-[data-icons="off"] .sloth-head, [data-icons="off"] .sloth-toggle { display: none; }
+[data-icons="off"] .sloth-avatar, [data-icons="off"] .sloth-toggle { display: none; }
 :root[data-icons="off"] .sloth-says .bubble { display: block; border-bottom-left-radius: var(--radius-lg); }
 [data-icons="off"] .sloth-says .bubble::before { display: none; }
 
 /* A cheering toast (after ticking something off) wears the head too. */
-.toast .sloth-head { width: 1.9rem; height: 1.9rem; margin-inline-start: calc(-1 * var(--space-xs)); }
+.toast .sloth-avatar { --head: 1.9rem; margin-inline-start: calc(-1 * var(--space-xs)); }
+
+/* Settings shows the head beside the hat choices, so a pick shows at once. */
+.hat-picker { display: flex; align-items: center; gap: var(--space-m); padding-top: var(--space-s); }
+.hat-picker .pills { flex: 1; min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .sloth-says .bubble { animation: none; }
-  .sloth-toggle .sloth-head { transition: none; }
+  .sloth-toggle .sloth-avatar { transition: none; }
 }
