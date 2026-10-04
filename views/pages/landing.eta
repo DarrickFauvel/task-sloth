@@ -27,20 +27,20 @@
         <div class="demo-top">
           <img class="brand-logo" src="<%= asset("/img/logo.png") %>" alt="" width="192" height="192">
           <span class="done-badge"><span class="done-emoji is-fire"><span>🔥</span><span>🔥</span></span><span class="done-count">5</span></span>
-          <span class="demo-avatars"><span class="avatar" style="--c: #5b8a3c">S</span><span class="avatar" style="--c: #c0693b">A</span></span>
+          <span class="demo-avatars"><span class="avatar" style="--c: <%= it.demo.me %>">S</span><span class="avatar" style="--c: <%= it.demo.them %>">A</span></span>
         </div>
         <div class="demo-add"><span class="demo-input"><type-writer>call the plumber 555-123-4567 tomorrow</type-writer></span><span class="button primary">Add</span></div>
         <h3 class="group overdue">Overdue <span class="count">1</span></h3>
         <ul class="tasks">
           <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Pick up prescription</span></span>
-            <span class="meta"><span class="due overdue">Today 17:00 · overdue</span><span class="chip">@Pharmacy</span><span class="who"><span class="dot" style="background: #c0693b"></span>Alex</span></span></div></li>
+            <span class="meta"><span class="due overdue">Today 17:00 · overdue</span><span class="chip">@Pharmacy</span><span class="who"><span class="dot" style="--c: <%= it.demo.them %>"></span>Alex</span></span></div></li>
         </ul>
         <h3 class="group">Today <span class="count">3</span></h3>
         <ul class="tasks">
           <li class="task demo-ticking"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Water the plants</span></span>
-            <span class="meta"><span class="due today">Today</span><span class="who"><span class="dot" style="background: #5b8a3c"></span>Me</span></span></div></li>
+            <span class="meta"><span class="due today">Today</span><span class="who"><span class="dot" style="--c: <%= it.demo.me %>"></span>Me</span></span></div></li>
           <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Groceries</span></span>
-            <span class="meta"><span class="due today">Today</span><span class="chip">@Target</span><span>☑ 3/8</span><span class="who"><span class="dot" style="background: #5b8a3c"></span>Me</span></span></div></li>
+            <span class="meta"><span class="due today">Today</span><span class="chip">@Target</span><span>☑ 3/8</span><span class="who"><span class="dot" style="--c: <%= it.demo.me %>"></span>Me</span></span></div></li>
           <li class="task"><span class="check"><span>✓</span></span><div class="task-body"><span class="task-title"><span>Book the car in for a service</span></span>
             <span class="meta"><span class="due today">Today</span><span class="chip phone">📞 Call</span><span>Up for grabs</span></span></div></li>
         </ul>

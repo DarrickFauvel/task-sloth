@@ -46,6 +46,20 @@ export const VIEW_HINTS = {
   done: "Everything finished in the last 24 hours. Older work is in Activity.",
 };
 
+/**
+ * What an empty list says (partials/task-list): a picture, a short title, and a line that teaches what goes here,
+ * with an `example` to type (a .token) where one helps.
+ */
+export const EMPTY_STATES = {
+  inbox: { icon: "🎉", title: "All sorted", text: "Nothing waiting in your Inbox. Jot things down above as they come to you, and sort them later." },
+  mine: { icon: "🌱", title: "Nothing on your plate", text: "Add something for yourself above, or take one from Up for grabs. Try:", example: "water the plants tomorrow" },
+  all: { icon: "🍃", title: "No open tasks", text: "Add one above for anyone in the household. Try:", example: "buy milk @Target sat" },
+  grabs: { icon: "🙋", title: "Nothing up for grabs", text: "Tasks nobody has taken yet show up here. Add one for anyone with", example: "@anyone" },
+  waiting: { icon: "⏳", title: "Not waiting on anyone", text: "When something needs a reply, a repair or another task first, move it here." },
+  someday: { icon: "💭", title: "Nothing parked here yet", text: "When an idea isn't for now, sort it into Maybe later. It'll keep." },
+  done: { icon: "☕", title: "Nothing finished yet", text: "Ticked-off tasks rest here for a day. Older ones are in Activity." },
+};
+
 /** A finished task stays on its list (ticked) this long, so a mis-tap is easy to undo. */
 export const LINGER_MS = 10 * 60_000;
 /** How far back the Done tab goes. */
@@ -184,7 +198,7 @@ export async function taskListView({ userId, membership, view, project: projectI
         doneYesterday: await doneYesterdayBy({ householdId, userId, timeZone, now }),
       })
     : "";
-  const base = { ...query, filterLabel, refreshAt, greeting: greetingLine, hint: VIEW_HINTS[view] ?? "", inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
+  const base = { ...query, filterLabel, refreshAt, greeting: greetingLine, hint: VIEW_HINTS[view] ?? "", empty: EMPTY_STATES[view], inboxCount: await inboxCount(householdId, userId), resetDue: view === "mine" && resetDue,
     // The household's places with something to do there, for "Near you" (public/js/near-you.js) on this device.
     nearYou: nearYouPlaces(await listPlaces(householdId)),
     suggest: await suggestData(householdId, userId, membership, today),

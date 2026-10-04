@@ -195,7 +195,7 @@ async function deletedNotice(req) {
 
 app.get("/", async (req, res) => {
   // Not signed in: the landing page, instead of straight to the sign-in form.
-  if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl });
+  if (!req.user) return render(res, "pages/landing", { baseUrl: config.baseUrl, demo: { me: MEMBER_COLORS[0], them: MEMBER_COLORS[3] } });
   if (req.membership) rememberView(res, cleanView(req.query.view));
   const list = req.membership
     ? await taskListView({ userId: req.user.id, membership: req.membership, ...cleanListQuery(req.query), groupBy: groupBy(req), layout: layoutOf(req), ...clock(req), resetDue: await resetDueFor(req, req.membership) })

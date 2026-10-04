@@ -12,7 +12,7 @@ class QuickSuggest extends HTMLElement {
   connectedCallback() {
     this.input = this.parentElement.querySelector("input");
     this.list = document.createElement("ul");
-    this.list.className = "suggestions";
+    this.list.className = "add-suggestions";
     this.list.id = `suggestions-${++ids}`;
     this.list.setAttribute("role", "listbox");
     this.list.setAttribute("aria-label", "Suggestions");
@@ -66,7 +66,7 @@ class QuickSuggest extends HTMLElement {
         if (s.color) {
           const dot = document.createElement("span");
           dot.className = "dot";
-          dot.style.background = s.color;
+          dot.style.setProperty("--c", s.color);
           label.append(dot);
         }
         label.append(s.label);

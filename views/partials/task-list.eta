@@ -27,7 +27,7 @@
   <% it.groups.filter((g) => g.working).forEach(renderGroup) %>
   <%/* Focus sessions going on in the household (src/web/focus-page.js); yours links back to it. */%>
   <% (it.focusLines ?? []).forEach((f) => { %>
-    <p class="focus-line"><span class="dot" style="background: <%= f.color ?? 'var(--accent)' %>"></span><span><%= f.text %></span><% if (f.mine) { %> <a href="/focus">Back to it →</a><% } %></p>
+    <p class="focus-line"><span class="dot"<% if (f.color) { %> style="--c: <%= f.color %>"<% } %>></span><span><%= f.text %></span><% if (f.mine) { %> <a href="/focus">Back to it →</a><% } %></p>
   <% }) %>
   <%~ include("/partials/list-switches", it) %>
   <% if (it.focusHere && !(it.focusLines ?? []).some((f) => f.mine)) { const c = it.focusHere; %>
@@ -43,15 +43,12 @@
   <% } else if (!it.groups.length && it.filterLabel) { %>
     <p class="empty">No <%= it.view === "done" ? "finished" : "open" %> tasks for <%= it.filterLabel %> here.</p>
   <% } else if (!it.groups.length) { %>
-    <p class="empty"><%= {
-      inbox: "All sorted 🎉 Nothing waiting in your inbox.",
-      mine: "Nothing on your plate. Nice.",
-      all: "No open tasks. Add one above.",
-      grabs: "Nothing up for grabs.",
-      waiting: "Not waiting on anyone right now.",
-      someday: "Nothing parked here yet. When an idea isn't for now, sort it into “Maybe later”.",
-      done: "Nothing finished in the last 24 hours.",
-    }[it.view] %></p>
+    <%/* Teaches what this list is for (EMPTY_STATES in src/web/task-list.js). */%>
+    <div class="empty-state is-inline">
+      <p class="empty-icon emoji" aria-hidden="true"><%= it.empty.icon %></p>
+      <h2><%= it.empty.title %></h2>
+      <p class="hint"><%= it.empty.text %><% if (it.empty.example) { %> <code class="token"><%= it.empty.example %></code><% } %></p>
+    </div>
   <% } %>
   <%/* The other groups, after the switches. */%>
   <% it.groups.filter((g) => !g.working).forEach(renderGroup) %>

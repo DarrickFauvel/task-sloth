@@ -12,12 +12,12 @@
           <li class="board-card<%= done ? ' is-done' : '' %>" id="card-<%= t.id %>" draggable="true" data-task="<%= t.id %>">
             <a class="board-title" href="/tasks/<%= t.id %>"><%= t.title %></a>
             <span class="meta">
-              <% if (t.worker) { %><span class="working"><span class="dot" style="background: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're on it" : `${t.worker.name.split(" ")[0]}'s on it` %></span><% } %>
+              <% if (t.worker) { %><span class="working"><span class="dot" style="--c: <%= t.worker.color %>"></span><%= t.worker.id === it.userId ? "You're on it" : `${t.worker.name.split(" ")[0]}'s on it` %></span><% } %>
               <% if (t.dueLabel && !done) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
               <% if (t.blockedBy && !done) { %><a class="blocked" href="/tasks/<%= t.waiting_task_id %>">⏳ after “<%= t.blockedBy %>”</a><% } %>
               <% if (t.waitingLabel) { %><span>⏳ <%= t.waitingLabel %></span><% } %>
               <%~ include("/partials/context-tags", { t }) %>
-              <% if (t.assignee && t.assignee.id !== t.worker?.id) { %><span class="who"><span class="dot" style="background: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span><% } %>
+              <% if (t.assignee && t.assignee.id !== t.worker?.id) { %><span class="who"><span class="dot" style="--c: <%= t.assignee.color %>"></span><%= t.assignee.id === it.userId ? "Me" : t.assignee.name %></span><% } %>
             </span>
             <details class="move">
               <summary>Move to</summary>
