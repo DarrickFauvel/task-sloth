@@ -5,6 +5,7 @@
 <div id="flash" class="toasts" role="status" aria-live="polite">
 <% if (it.message) { const wait = it.error ? 7000 : it.undo ? 6000 : 4000; %>
   <div class="toast<%= it.error ? ' is-error' : '' %>"<%~ it.error ? ' role="alert"' : '' %><%~ it.sticky ? '' : ` data-init="setTimeout(() => dismissToast(el), ${wait})"` %>>
+    <% if (it.sloth) { %><%~ include("/partials/sloth-head", {}) %><% } %>
     <span class="toast-message"><%= it.message %></span>
     <% if (it.link) { %><a class="toast-action" href="<%= it.link.href %>"><%= it.link.label %></a><% } %>
     <% if (it.undo) { %><button type="button" class="toast-action" data-on:click="@post('<%= it.undo %>')">Undo</button><% } %>

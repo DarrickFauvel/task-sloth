@@ -1,12 +1,17 @@
-<%/* The home page's top bar: the brand with the household's name tucked under it (scrolled, the household line
+<%/* The app's top bar (on home, and slim on other pages via the layout's nav): the brand with the household's name tucked under it (scrolled, the household line
      and your name tuck away; see /js/sticky-header.js), then the "done today" badge, then your name and avatar
      as one button that opens the account menu. The menu is a native popover: tapping outside or Esc closes it,
      with no script. The household name sits outside the heading and link, so neither reads it out. */%>
 <% const u = it.user; const household = it.membership?.household.name; %>
 <header class="bar app-header">
   <div class="brand-block">
-    <%/* Clicking the brand (it still takes you home) asks for a new line under it. */%>
-    <h1 data-on:click="evt.target.closest('.brand') && @post('/household-line')"><%~ include("/partials/brand", {}) %></h1>
+    <%/* Clicking the brand (it still takes you home) asks for a new line under it. Slim (other pages), the page
+         has its own heading, so the brand isn't one. */%>
+    <% if (it.slim) { %>
+      <div class="brand-title"><%~ include("/partials/brand", {}) %></div>
+    <% } else { %>
+      <h1 data-on:click="evt.target.closest('.brand') && @post('/household-line')"><%~ include("/partials/brand", {}) %></h1>
+    <% } %>
     <%/* A sloth-paced line with the household's name in it (src/web/household-phrase.js), typed out once and kept. */%>
     <% if (household && it.line) { %><%~ include("/partials/household-line", { line: it.line }) %><% } %>
   </div>
@@ -27,9 +32,16 @@
       <span class="hint"><%= household ?? "No household yet" %><%= u.username ? ` · @${u.username}` : "" %></span>
     </div>
   </div>
-  <% if (household) { %><a class="menu-item" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span> Activity</a><% } %>
-  <% if (household && it.coach) { %><a class="menu-item" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span> Projects</a><% } %>
-  <% if (household) { %><a class="menu-item" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span> Weekly reset</a><% } %>
+  <%/* Two groups: places around the household, then you and the app. */%>
+  <% if (household) { %>
+    <p class="menu-group">Around the house</p>
+    <a class="menu-item" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span> Activity</a>
+    <% if (it.coach) { %><a class="menu-item" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span> Projects</a><% } %>
+    <a class="menu-item" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span> Weekly reset</a>
+    <a class="menu-item" href="/places"><span class="menu-icon emoji" aria-hidden="true">📍</span> Where / how</a>
+    <hr class="menu-divider">
+    <p class="menu-group">You</p>
+  <% } %>
   <a class="menu-item" href="/settings"><span class="menu-icon emoji" aria-hidden="true">⚙️</span> Settings</a>
   <a class="menu-item" href="/help"><span class="menu-icon emoji" aria-hidden="true">❓</span> How it works</a>
   <a class="menu-item" href="/about"><span class="menu-icon emoji" aria-hidden="true">ℹ️</span> About</a>
@@ -50,6 +62,8 @@
     <span class="moon">Dark mode</span><span class="sun">Light mode</span>
   </button>
   <form method="post" action="/logout"><button class="menu-item"><span class="menu-icon emoji" aria-hidden="true">↪</span> Sign out</button></form>
+  <%/* On a phone the menu is a bottom sheet, and every sheet ends with Close (hidden on wider screens). */%>
+  <button type="button" class="button menu-close" popovertarget="account-menu" popovertargetaction="hide">Close</button>
 </div>
 <% if (household) { %><script type="module" src="<%= asset("/js/type-writer.js") %>"></script><% } %>
 <script type="module" src="<%= asset("/js/sticky-header.js") %>"></script>

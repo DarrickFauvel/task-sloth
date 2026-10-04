@@ -2,7 +2,7 @@
      Desktop shows every view as a tab; phones get the bottom bar (see partials/more-views for "More"). */%>
 <% const l = it.list; const href = (view) => `/?${it.listQueryString({ ...l, view })}`; %>
 <% const current = (view) => (view === l.view ? ' aria-current="page"' : ""); %>
-<% const badge = () => (l.inboxCount ? `<span class="badge">${l.inboxCount}</span>` : ""); %>
+<% const badge = () => (l.inboxCount ? `<span class="badge">${l.inboxCount}</span>` : ""); /* the desktop tab's; the bar has its own */ %>
 <% const inMore = it.nav.more.some((m) => m.view === l.view); %>
 <div id="tabs">
   <nav class="tabs" aria-label="Lists">
@@ -10,30 +10,21 @@
       <a href="<%= href(key) %>"<%~ current(key) %>><%= label %><% if (key === "inbox") { %> <%~ badge() %><% } %></a>
     <% }) %>
   </nav>
-  <nav class="bottom-nav" aria-label="Lists">
-    <% it.nav.bar.forEach((key) => { %>
-      <a href="<%= href(key) %>"<%~ current(key) %>>
-        <span class="nav-icon"><%~ include("/partials/nav-icon", { name: key }) %><% if (key === "inbox") { %><%~ badge() %><% } %></span>
-        <span><%= key === "all" ? "Everyone" : it.views[key] %></span>
-      </a>
-    <% }) %>
-    <button type="button" aria-haspopup="dialog"<%~ inMore ? ' aria-current="page"' : "" %>
-            data-on:click="document.getElementById('more-views').showModal()">
-      <span class="nav-icon"><%~ include("/partials/nav-icon", { name: "more" }) %></span>
-      <span>More</span>
-    </button>
-  </nav>
+  <%~ include("/partials/bottom-nav", { bar: it.nav.bar, views: it.views, href, current: (view) => view === l.view, inboxCount: l.inboxCount, moreCurrent: inMore }) %>
   <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>
   <% if (inMore) { %><h2 class="view-title"><%= it.views[l.view] %></h2><% } %>
-  <% if (l.greeting) { %><p class="greeting"><%= l.greeting %></p><% } %>
+  <% if (l.greeting) { %><div class="sloth-says greeting"><%~ include("/partials/sloth-head", { toggle: true }) %><p class="bubble"><%= l.greeting %></p></div><% } %>
   <% if (l.hint) { %><p class="hint tab-hint"><%= l.hint %></p><% } %>
   <%/* On Mine, once a week (see src/services/reset.js): the weekly reset. "Not now" hides it for a day. */%>
   <% if (l.resetDue) { %>
-    <aside class="panel reset-nudge" aria-label="Weekly reset">
-      <p><strong>Time for your weekly reset?</strong> It's been a week. About ten minutes gets everything current.</p>
-      <div class="actions">
-        <a class="button" href="/reset">Start</a>
-        <form method="post" action="/reset/later" data-on:submit="@post('/reset/later')"><button class="link">Not now</button></form>
+    <aside class="sloth-says reset-nudge" aria-label="Weekly reset">
+      <%~ include("/partials/sloth-head", {}) %>
+      <div class="bubble">
+        <p><strong>Time for your weekly reset?</strong> It's been a week. About ten minutes gets everything current.</p>
+        <div class="actions">
+          <a class="button" href="/reset">Start</a>
+          <form method="post" action="/reset/later" data-on:submit="@post('/reset/later')"><button class="link">Not now</button></form>
+        </div>
       </div>
     </aside>
   <% } %>

@@ -1,9 +1,9 @@
-<% layout("/layout", { title: "Where / how" }) %>
+<% layout("/layout", { title: "Where / how", appNav: "full" }) %>
 <script type="module" src="<%= asset("/js/near-you-switch.js") %>"></script>
 <%/* Settings-style cards: "Near you" on this device, then the where/hows on the map and the rest (partials/places-list),
      with a sheet each for adding a spot (partials/place-sheets; "I'm here now" is <here-button>, in near-you-switch.js). */%>
 <div class="settings-page places-page">
-<a class="back" href="/settings">← Settings</a>
+<a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
 <h1>Where / how</h1>
 <p class="hint">Where or how a task gets done: a shop like <code>@Target</code>, or a way like <code>@phone</code>. Type @ and a name in a task to add one. Give the ones that are real places a spot on the map (a shop with several branches can have one for each), and Task Sloth can tell you when you're near one.</p>
 <%~ include("/partials/flash", it.flash ?? {}) %>

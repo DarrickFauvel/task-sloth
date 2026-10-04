@@ -1,6 +1,6 @@
-<% layout("/layout", { title: "Projects" }) %>
+<% layout("/layout", { title: "Projects", appNav: "full" }) %>
 <%/* Projects started from a goal (src/services/coach.js): a form to start one, then the ones on the go. */%>
-<a class="back" href="/">← Lists</a>
+<a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
 <h1>Start a project</h1>
 <p class="hint">Say what you want to get done. Claude suggests how to start and the first few steps, and you pick which ones go on your list.<% if (it.photosEnabled) { %> Add photos along the way and it'll tell you what's changed and what to do next.<% } %></p>
 

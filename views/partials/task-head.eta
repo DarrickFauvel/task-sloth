@@ -27,7 +27,7 @@
     <p class="holding-up"><span class="emoji" aria-hidden="true">🔗</span> Holding up <%= t.blocking.map((b) => `“${b}”`).join(", ") %>. They'll be ready to go once this is done.</p>
   <% } %>
   <%/* A kind word for something overdue, waiting long, or sitting a while (src/web/encouragement.js). */%>
-  <% if (it.nudge && !done) { %><p class="nudge"><span class="emoji" aria-hidden="true">🌿</span> <%= it.nudge %></p><% } %>
+  <% if (it.nudge && !done) { %><div class="sloth-says nudge"><%~ include("/partials/sloth-head", { toggle: true }) %><p class="bubble"><%= it.nudge %></p></div><% } %>
   <% if (t.notes) { %><p class="notes tap-edit" <%~ editOnTap("notes") %>><%~ include("/partials/phone-text", { parts: t.notesParts }) %></p><% } %>
   <div class="actions">
     <form method="post" action="/tasks/<%= t.id %>/<%= action %>" data-on:submit="@post('/tasks/<%= t.id %>/<%= action %>', {contentType: 'form'})">

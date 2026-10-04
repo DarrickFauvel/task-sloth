@@ -1,4 +1,4 @@
-<% layout("/layout", { title: "Sort my inbox" }) %>
+<% layout("/layout", { title: "Sort my inbox", appNav: "slim" }) %>
 <% if (!it.task) { %>
   <%/* Part of a weekly reset (it.resetting): the way back is to the reset, not the inbox. */%>
   <a class="back" href="<%= it.resetting ? '/reset/inbox' : '/?view=inbox' %>">← <%= it.resetting ? "Weekly reset" : "Inbox" %></a>

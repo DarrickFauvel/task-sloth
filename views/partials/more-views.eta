@@ -1,5 +1,6 @@
 <%/* The phone bar's "More" sheet: the views that don't fit in the bar, each with a few words on what it's for.
-     It sits outside #tabs so a live update can't close it while it's open. */%>
+     It sits outside #tabs so a live update can't close it while it's open. Off home (it.offHome) no list is on
+     screen, so none is marked. Projects is in the account menu. */%>
 <% const l = it.list; %>
 <dialog id="more-views" class="sheet" aria-labelledby="more-views-title" closedby="any"
         data-on:click="evt.target === el && el.close()">
@@ -8,7 +9,7 @@
     <ul class="more-list">
       <% it.nav.more.forEach(({ view, blurb }) => { %>
         <li>
-          <a href="/?<%= it.listQueryString({ ...l, view }) %>"<%~ view === l.view ? ' aria-current="page"' : "" %>>
+          <a href="/?<%= it.listQueryString({ ...l, view }) %>"<%~ view === l.view && !it.offHome ? ' aria-current="page"' : "" %>>
             <strong><%= it.views[view] %></strong>
             <span class="hint"><%= blurb %></span>
           </a>
@@ -20,14 +21,6 @@
           <span class="hint">Work through one project or place, a task at a time</span>
         </a>
       </li>
-      <% if (it.coach) { %>
-        <li>
-          <a href="/projects">
-            <strong>Projects</strong>
-            <span class="hint">Start something new: Claude suggests where to begin and checks in on your photos</span>
-          </a>
-        </li>
-      <% } %>
     </ul>
     <form method="dialog"><button class="button">Close</button></form>
   </div>

@@ -186,7 +186,7 @@ button.icon:focus-visible { opacity: 1; }
 .offline-logo { width: 7rem; height: 7rem; } /* public/offline.html */
 
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); }
-.bar h1 { margin: 0; font-size: var(--step-2); }
+.bar h1, .bar .brand-title { margin: 0; font-size: var(--step-2); font-weight: 700; }
 .brand { color: inherit; text-decoration: none; }
 /* The sloth beside the name, in the header and on the sign-in pages. */
 .brand, .brand-line { display: flex; align-items: center; gap: var(--space-xs); }
@@ -293,9 +293,6 @@ button.icon:focus-visible { opacity: 1; }
 .account-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: hover) { .account-button:hover { border-color: var(--line); } }
 .account-name { min-width: 0; font-size: var(--step--1); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar-actions { display: flex; gap: var(--space-s); align-items: center; }
-.bar-actions form { margin: 0; }
-.bar-actions a { text-decoration: none; }
 .stack { display: grid; gap: var(--space-s); }
 .row { display: grid; gap: var(--space-s); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-m); align-items: center; }
@@ -432,6 +429,8 @@ quick-suggest { display: contents; }
 .nav-icon .badge { position: absolute; top: -0.35rem; left: calc(100% - 0.5rem); }
 /* Keep the end of the list clear of the bar. */
 main:has(.bottom-nav) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+/* The task edit form has its own bar at the bottom (Close); the lists' bar steps aside while it's open. */
+body:has(#task-edit:not([style*="none"]) .edit-actions) .bottom-nav { display: none; }
 .view-title { margin: var(--space-s) 0 var(--space-2xs); font-size: var(--step-1); }
 
 .more-list { list-style: none; margin: var(--space-xs) 0 0; padding: 0; width: 100%; text-align: left; }
@@ -931,7 +930,6 @@ label.pill span, button.pill, a.pill {
 /* --- Bigger screens ------------------------------------------------------------------------ */
 
 @media (min-width: 30rem) {
-  .bar-actions { gap: var(--space-m); }
   .row { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
   #invite.stack { max-width: 22rem; }
   #tabs > p > .button { width: auto; }
@@ -1188,6 +1186,10 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .menu-head { display: flex; align-items: center; gap: var(--space-s); padding: var(--space-xs) 0 var(--space-s); border-bottom: 1px solid var(--line); margin-bottom: var(--space-2xs); }
 .menu-head div { display: grid; min-width: 0; }
 .menu-head .hint { overflow-wrap: anywhere; }
+/* "Around the house" and "You": small labels over the two groups, with a hairline between. */
+.menu-group { margin: var(--space-2xs) 0 0; padding: 0 var(--space-xs); font-size: var(--step--2); font-weight: 600; color: var(--muted); }
+.menu-divider { margin: var(--space-2xs) 0; border: 0; border-top: 1px solid var(--line); }
+.menu-close { margin-top: var(--space-xs); }
 .menu form { margin: 0; }
 .menu-item {
   display: flex; align-items: center; gap: var(--space-s); width: 100%; min-height: var(--tap); padding: 0 var(--space-xs);
@@ -1203,6 +1205,7 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
   @starting-style { .menu:popover-open { opacity: 0; transform: translateY(-0.5rem) scale(0.97); } }
   .menu:popover-open::backdrop { background: rgb(0 0 0 / 0); }
   .menu-head { padding: var(--space-xs); }
+  .menu-close { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .menu, .menu::backdrop { transition-duration: 0.01s; } }
 
@@ -1252,9 +1255,9 @@ label.pill.swatch input:checked + span { transform: scale(1.08); }
 .reset-nav { display: flex; justify-content: flex-end; margin: var(--space-m) 0; }
 .reset-nav form { margin: 0; }
 /* Mine's once-a-week suggestion, and "You're near Target" above the list (public/js/near-you.js). */
-.reset-nudge, .near-banner { margin: var(--space-s) 0 0; padding: var(--space-s) var(--space-m); background: var(--tint); border-color: var(--tint-line); }
-.reset-nudge p, .near-banner p { margin: 0; }
-.reset-nudge .actions, .near-banner .actions { margin: 0; }
+.near-banner { margin: var(--space-s) 0 0; padding: var(--space-s) var(--space-m); background: var(--tint); border-color: var(--tint-line); }
+.near-banner p { margin: 0; }
+.near-banner .actions { margin: 0; }
 .activity time { flex: none; font-size: var(--step--1); }
 /* The Where / how page: the where/hows on the map, each with its spots (address → map, × removes) and "Add a spot";
    the rest as chips. Each opens its own sheet with "I'm here now" and an address search. */
@@ -1373,6 +1376,16 @@ label.pill.swatch input:checked + span { background: var(--c); box-shadow: 0 0 0
 .account { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2xs) var(--space-s); margin: 0; }
 .account dt { color: var(--muted); }
 .account dd { margin: 0; overflow-wrap: anywhere; }
+/* "Change username, email or password": a link-looking summary that opens the sign-in form below it. */
+.change-sign-in > summary {
+  display: flex; align-items: center; width: fit-content; min-height: var(--tap);
+  color: var(--accent); font-weight: 600; cursor: pointer; list-style: none;
+}
+.change-sign-in > summary::-webkit-details-marker { display: none; }
+.change-sign-in > summary::after { content: "›"; margin-inline-start: var(--space-2xs); transition: rotate 0.2s ease; }
+.change-sign-in[open] > summary::after { rotate: 90deg; }
+.change-sign-in > form { margin-top: var(--space-xs); }
+@media (prefers-reduced-motion: reduce) { .change-sign-in > summary::after { transition: none; } }
 
 /* Going from page to page, the old page cross-fades into the new one instead of flashing blank (where the
    browser supports cross-document view transitions; elsewhere pages just load). Quick, so it never feels slow. */
@@ -1653,7 +1666,52 @@ body:has(.landing) { overflow-x: clip; }
 .checkin-note { font-style: italic; }
 .encouragement { font-weight: 600; }
 
-/* Cozy encouragement (src/web/encouragement.js): the hello on Mine, a kind word on a task, a project's progress line. */
-.greeting { margin: var(--space-xs) 0 0; font-size: var(--step-0); }
-.nudge { margin: var(--space-xs) 0 0; padding: var(--space-xs) var(--space-s); border-radius: var(--radius); background: var(--tint); color: var(--fg); font-size: var(--step--1); }
-.progress-line { margin: var(--space-2xs) 0 0; color: var(--muted); font-size: var(--step--1); }
+/* --- Task Sloth says ---------------------------------------------------------------------- */
+
+/* Cozy encouragement (src/web/encouragement.js) comes from Task Sloth: its head, then a speech bubble whose
+   tail points back at it. The hello on Mine, a kind word on a task, a project's progress line, the weekly
+   reset nudge. The bubble is solid (the tint mixed into the surface) so the tail can overlap it cleanly. */
+.sloth-says { --bubble: color-mix(in srgb, var(--accent) 10%, var(--surface)); display: flex; align-items: flex-end; gap: var(--space-s); margin: var(--space-s) 0 0; }
+.sloth-head { display: block; flex: none; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--gradient-soft); box-shadow: inset 0 0 0 1px var(--tint-line); }
+.sloth-says .bubble {
+  position: relative; min-width: 0; max-width: 34rem; margin: 0; padding: var(--space-xs) var(--space-s);
+  border: 1px solid var(--tint-line); border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 0.3rem;
+  background: var(--bubble); color: var(--fg); font-size: var(--step--1); box-shadow: var(--shadow-soft);
+  transform-origin: bottom left; animation: bubble-in 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.sloth-says .bubble::before {
+  content: ""; position: absolute; left: -0.45rem; bottom: 0.55rem; width: 0.75rem; height: 0.75rem;
+  background: var(--bubble); border: solid var(--tint-line); border-width: 0 0 1px 1px; rotate: 45deg; border-bottom-left-radius: 0.15rem;
+}
+.sloth-says .bubble p { margin: 0; }
+.sloth-says .bubble .actions { margin: var(--space-xs) 0 0; }
+.greeting .bubble { font-size: var(--step-0); }
+@keyframes bubble-in { from { opacity: 0; scale: 0.85; } }
+
+/* Tap the head to tuck the words away (on every page; toggleSloth in the layout): a small "…" bubble stays, to
+   tap for them back. The weekly reset nudge has buttons, so its head isn't a toggle and it never tucks away. */
+.sloth-toggle { position: relative; flex: none; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.sloth-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .sloth-toggle:hover .sloth-head { scale: 1.06; } }
+.sloth-toggle .sloth-head { transition: scale 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.sloth-toggle::after {
+  content: "…"; position: absolute; left: calc(100% + 0.2rem); bottom: 0.2rem; display: none;
+  padding: 0 0.5rem; border: 1px solid var(--tint-line); border-radius: 999px 999px 999px 0.3rem;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--muted); font-weight: 700; line-height: 1.4;
+}
+[data-sloth="quiet"] .sloth-says:has(.sloth-toggle) .bubble { display: none; }
+[data-sloth="quiet"] .sloth-toggle::after { display: block; }
+[data-sloth="quiet"] .sloth-says:has(.sloth-toggle) { min-height: 2.5rem; }
+
+/* Icons off: no head, so no tail or toggle either; the words always show, as a plain bubble. */
+[data-icons="off"] .sloth-head, [data-icons="off"] .sloth-toggle { display: none; }
+:root[data-icons="off"] .sloth-says .bubble { display: block; border-bottom-left-radius: var(--radius-lg); }
+[data-icons="off"] .sloth-says .bubble::before { display: none; }
+
+/* A cheering toast (after ticking something off) wears the head too. */
+.toast .sloth-head { width: 1.9rem; height: 1.9rem; margin-inline-start: calc(-1 * var(--space-xs)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sloth-says .bubble { animation: none; }
+  .sloth-toggle .sloth-head { transition: none; }
+}
