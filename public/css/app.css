@@ -1732,6 +1732,23 @@ body:has(.landing) { overflow-x: clip; }
   1%, 11% { scale: 1; opacity: 0.9; }
   9.9%, 19.9% { scale: 4; opacity: 0; }
 }
+/* In its helmet, Task Sloth drifts as if weightless: a slow sway about the helmet's center (the avatar's center, since
+   the dome fills it) while it bobs gently up and down, the whole helmet together with its antenna and collar. The
+   pivot rides along with the bob, so it always turns about the center. It moves with `rotate` and `translate`, so
+   the hover's `scale` still works. The bob and the sway run on different clocks, so the drift never quite repeats. */
+[data-hat="space"] .sloth-avatar {
+  transform-origin: 50% 50%;
+  animation: space-sway 8s ease-in-out infinite, space-bob 5.5s ease-in-out infinite;
+}
+@keyframes space-sway {
+  0%, 100% { rotate: 0deg; }
+  30% { rotate: -4deg; }
+  65% { rotate: 3deg; }
+}
+@keyframes space-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 calc(var(--head) * -0.08); }
+}
 /* The picture hats (public/img/hats/, --hat-<name> from the layout): perched on the top left of the head, leaning
    with it. Sized in heads, so they fit every head size. :where() keeps it weak so each hat below sets its own fit. */
 :where([data-hat]:not([data-hat="space"], [data-hat="none"])) .sloth-avatar::after {
@@ -1813,4 +1830,5 @@ body:has(.landing) { overflow-x: clip; }
   .sloth-toggle .sloth-avatar { transition: none; }
   [data-hat="space"] .sloth-antenna::after, [data-hat="space"] .sloth-antenna::before { animation: none; }
   [data-hat] .sloth-avatar::after { animation: none; }
+  [data-hat="space"] .sloth-avatar { animation: none; }
 }
