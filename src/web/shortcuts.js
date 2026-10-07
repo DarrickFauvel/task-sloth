@@ -27,7 +27,7 @@ export function shortcutGroups(people = []) {
       icon: "🏷️", title: "Group it",
       rows: [
         { label: "Tag", tokens: ["+errand", "+kids"] },
-        { label: "Project", tokens: ["#Birthday"] },
+        { label: "Project (makes one if it's new)", tokens: ["#Birthday"] },
       ],
     },
     { icon: "❗", title: "Priority", note: "!! is high, !low is low", rows: [{ tokens: ["!!", "!low"] }] },

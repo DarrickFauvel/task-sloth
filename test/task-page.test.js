@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { autosaveInput, editFormView, editInput, savedMessage } from "../src/web/task-page.js";
+import { autosaveInput, blockerGroups, editFormView, editInput, savedMessage } from "../src/web/task-page.js";
 
 const ctx = { members: [{ id: "u1", name: "Alice" }], projects: [] };
 const labels = (view) => view.repeats.map((r) => r.label);
@@ -112,4 +112,23 @@ test("autosaveInput writes only the field that changed", () => {
   assert.deepEqual(autosaveInput(editInput({ title: "x", projectId: "new", newProject: "Yard" }), "newProject"), { projectName: "Yard" });
   assert.deepEqual(autosaveInput(editInput({ title: "x", waitingTaskId: "new", newBlocker: "buy seed" }), "newBlocker"), { newBlocker: "buy seed" });
   assert.equal(autosaveInput(input, "toString"), input, "an unknown field writes the whole form");
+});
+
+test("the tasks to wait for are grouped by project, this task's own first, A to Z", () => {
+  const task = { id: "t0", project_id: "p-kitchen" };
+  const open = [
+    { id: "t0", title: "this one", project_id: "p-kitchen", project_name: "Kitchen", project_emoji: "🏠" },
+    { id: "t1", title: "paint swatches" },
+    { id: "t2", title: "Paint the fence", project_id: "p-garden", project_name: "Garden", project_emoji: "🌻" },
+    { id: "t3", title: "paint cabinets", project_id: "p-kitchen", project_name: "Kitchen", project_emoji: "🏠", due_date: "2026-10-07", assignee_id: "u-sam", context_name: "Target" },
+    { id: "t4", title: "Buy paint", project_id: "p-kitchen", project_name: "Kitchen", project_emoji: "🏠" },
+    { id: "t5", title: "Call the bank", project_id: "p-admin", project_name: "admin", project_emoji: "📁" },
+  ];
+  const groups = blockerGroups(task, open, { members: [{ id: "u-sam", name: "Sam Lee" }], today: "2026-10-06" });
+  assert.deepEqual(groups.map((g) => g.label), ["Same project · 🏠 Kitchen", "📁 admin", "🌻 Garden", "No project"]);
+  assert.deepEqual(groups[0].tasks.map((t) => t.title), ["Buy paint", "paint cabinets"]);
+  assert.equal(groups[0].tasks[1].meta, "Tomorrow · Sam · @Target");
+  assert.equal(groups[0].tasks[0].meta, "");
+  // Without a project of its own, nothing is "same project".
+  assert.ok(!blockerGroups({ id: "x" }, open).some((g) => g.label.startsWith("Same project")));
 });

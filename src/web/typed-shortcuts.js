@@ -37,7 +37,9 @@ export function describeDetails(parsed, { today, meId, members = [], projects = 
   }
   if (parsed.contextId || parsed.contextName) parts.push(`@${name(contexts, parsed.contextId) ?? parsed.contextName}`);
   for (const tag of parsed.tags ?? []) parts.push(`+${tag}`);
-  if (parsed.projectId || parsed.projectName) parts.push(`#${name(projects, parsed.projectId) ?? parsed.projectName}`);
+  // A name that isn't a project yet makes one, so say so: # isn't a tag (that's +).
+  if (parsed.projectId) parts.push(`#${name(projects, parsed.projectId) ?? parsed.projectName}`);
+  else if (parsed.projectName) parts.push(`new project “${parsed.projectName}”`);
   if (parsed.priority === 1) parts.push("high priority");
   if (parsed.priority === -1) parts.push("low priority");
   return parts.join(" · ");

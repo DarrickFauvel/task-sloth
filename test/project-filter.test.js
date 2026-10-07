@@ -8,6 +8,7 @@ import { migrate } from "../src/db/migrate.js";
 import { createTask } from "../src/services/tasks.js";
 import { createProject } from "../src/services/projects.js";
 import { cleanListQuery, listQueryString, taskListView } from "../src/web/task-list.js";
+import { projectsPageView } from "../src/web/project-page.js";
 
 const dir = mkdtempSync(join(tmpdir(), "task-sloth-test-"));
 const actor = { id: "u1", householdId: "h1" };
@@ -55,4 +56,25 @@ test("a list narrowed to a project shows only that project's tasks", async () =>
   const unfiltered = await taskListView({ userId: "u1", membership, view: "all", project: theirs, today });
   assert.deepEqual(titles(unfiltered), ["mow", "new tap", "paint cabinets"]);
   assert.equal(unfiltered.project, null);
+});
+
+test("the projects page lists every open project, each opening its own page", async () => {
+  const shed = await createProject("h1", { name: "Shed" });
+  const office = await createProject("h1", { name: "Office" });
+  await db.run("UPDATE projects SET goal = 'Clean the office' WHERE id = ?", [office]);
+  const gone = await createProject("h1", { name: "Old" });
+  await db.run("UPDATE projects SET archived = 1 WHERE id = ?", [gone]);
+  const done = await createTask(actor, { title: "sweep", projectId: shed, list: "todo" });
+  await createTask(actor, { title: "fix door", projectId: shed, list: "todo" });
+  await db.run("UPDATE tasks SET status = 'done' WHERE id = ?", [done]);
+
+  const { projects, empty } = await projectsPageView("h1");
+  const byName = Object.fromEntries(projects.map((p) => [p.name, p]));
+  assert.equal(byName.Old, undefined);
+  assert.equal(byName.Theirs, undefined);
+  assert.deepEqual([byName.Shed.done, byName.Shed.total, byName.Shed.open], [1, 2, 1]);
+  assert.equal(byName.Shed.href, `/projects/${shed}`);
+  assert.equal(byName.Office.href, `/projects/${office}`);
+  // Garden (from the test above) is empty; Office is too, but it has a goal, so it doesn't count.
+  assert.equal(empty, 1);
 });

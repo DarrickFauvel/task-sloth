@@ -18,7 +18,7 @@ import { completeInSession, endFocus, focusChoices, getFocus, resumeFocus, setAs
 import { focusPageView } from "./src/web/focus-page.js";
 import { addComment, assignTask, createTask, deleteTask, getTask, inboxCount, listBlockedBy, listTasks, LISTS, nextToSort, restoreTask, setDone, moveTask, startWorking, stopWorking, updateTask } from "./src/services/tasks.js";
 import { addItems, autoCategorize, clearChecked, deleteItem, moveItem, renameItem, setItemChecked, uncheckAll } from "./src/services/checklist.js";
-import { createProject, listProjects, projectProgress } from "./src/services/projects.js";
+import { createProject, listProjects, projectProgress, removeEmptyProjects, removeProject, updateProject } from "./src/services/projects.js";
 import { finishedLine, milestoneLine, taskNudge } from "./src/web/encouragement.js";
 import { addSpot, ensureContext, getContext, listContexts, listSpots, removeSpot } from "./src/services/contexts.js";
 import { searchPlaces } from "./src/services/geocode.js";
@@ -38,7 +38,7 @@ import { cancelEmailChange, confirmEmail, describeLink, describeResetLink, email
 import { PHOTO_SIZES, taskPhotosView } from "./src/web/task-photos.js";
 import { addItemPhoto, addPhoto, getPhoto, PHOTO_MAX_BYTES, PURGE_INTERVAL_MS, purgeDeletedTaskPhotos, removePhoto } from "./src/services/photos.js";
 import { signedImageUrl } from "./src/lib/cloudinary.js";
-import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getCheckinPhoto, openCheckin, removeCheckinPhoto, startProject } from "./src/services/coach.js";
+import { addCheckinPhoto, addSuggestions, askCheckin, discardCheckin, dismissSuggestion, getCheckin, getCheckinPhoto, openCheckin, removeCheckinPhoto, setGoal, startProject } from "./src/services/coach.js";
 import { projectPageView, projectsPageView } from "./src/web/project-page.js";
 import { addQuestionPhoto, askAboutSuggestion, askAboutTask, declineProposal, getQuestionPhoto, getStepQuestion, getSuggestion, removeQuestionPhoto, retryQuestion, useProposal } from "./src/services/step-questions.js";
 import { taskAskView } from "./src/web/step-questions.js";
@@ -237,8 +237,8 @@ app.get("/events", requireHousehold, async (req, res) => {
   const since = Number(req.query.since) || 0;
   const next = Number(req.query.next) || null;
   const taskId = typeof req.query.task === "string" ? req.query.task : null;
-  // A project page (Projects, with Claude); `project` is taken: it narrows the home page's list.
-  const goalId = typeof req.query.goal === "string" && coachConfigured() ? req.query.goal : null;
+  // A project page; `project` is taken: it narrows the home page's list.
+  const goalId = typeof req.query.goal === "string" ? req.query.goal : null;
   const { householdId } = req.actor;
   // Switching lists on the home page (public/js/list-nav.js) streams the new one from here.
   if (!taskId && !goalId && typeof req.query.view === "string") rememberView(res, listQuery.view);
@@ -1128,10 +1128,69 @@ async function ask(req, checkinId, note = "") {
   return null;
 }
 
-const renderProjects = async (req, res, { error = null, form = {}, status = 200 } = {}) =>
-  render(res, "pages/projects", { projects: await projectsPageView(req.actor.householdId), photosEnabled: photosConfigured(), error, form }, status);
+/** After removing (?removed=<name>, or ?cleared=<how many empty ones>), a toast saying so. */
+function removedNotice(query) {
+  if (typeof query.removed === "string") return { message: `Removed “${query.removed.slice(0, 80)}”. Its tasks are still on your lists.` };
+  const n = Number(query.cleared);
+  if (Number.isInteger(n) && n >= 0 && query.cleared !== undefined) return { message: n ? `Removed ${n} empty ${n === 1 ? "project" : "projects"}` : "No empty projects to remove" };
+  return null;
+}
 
-app.get("/projects", requireHousehold, requireCoach, (req, res) => renderProjects(req, res));
+const renderProjects = async (req, res, { error = null, form = {}, status = 200 } = {}) =>
+  render(res, "pages/projects", {
+    ...(await projectsPageView(req.actor.householdId)),
+    coachEnabled: coachConfigured(), photosEnabled: photosConfigured(), error, form, flash: removedNotice(req.query),
+  }, status);
+
+// Every project is listed here; starting one from a goal (the form, and POST) needs Claude.
+app.get("/projects", requireHousehold, (req, res) => renderProjects(req, res));
+
+// Plain form posts that leave for the Projects page, with a toast.
+app.post("/projects/remove-empty", requireHousehold, async (req, res) => {
+  redirect(res, `/projects?cleared=${await removeEmptyProjects(req.actor.householdId)}`);
+});
+app.post("/projects/:id/remove", requireHousehold, async (req, res) => {
+  const project = await removeProject(req.actor.householdId, req.params.id);
+  redirect(res, `/projects?removed=${encodeURIComponent(project.name)}`);
+});
+
+// The edit sheet: name, emoji, logo and color. Datastar re-renders the page's live part and closes the sheet, or keeps it
+// open with the error in it ($editError); without script, back to the page.
+app.post("/projects/:id/edit", requireHousehold, async (req, res) => {
+  const { name, emoji, color, icon } = req.body;
+  let error = null;
+  try {
+    await updateProject(req.actor.householdId, req.params.id, { name, emoji, color, icon });
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    error = err.message;
+  }
+  if (!isDatastar(req)) return redirect(res, `/projects/${req.params.id}`);
+  if (error) return sse(req, res, (stream) => stream.patchSignals(JSON.stringify({ editError: error })));
+  const parts = renderProject(await projectView(req, req.params.id));
+  await sse(req, res, (stream) => {
+    for (const html of parts) stream.patchElements(html);
+    stream.patchElements(eta.render("partials/flash", { message: "Saved" }));
+    stream.patchSignals(JSON.stringify({ editError: "" }));
+    stream.executeScript("document.getElementById('project-edit')?.close()");
+  });
+});
+
+// A project made by typing #name asks Claude for a plan: it gets a goal, then the same start as POST /projects.
+app.post("/projects/:id/goal", requireHousehold, requireCoach, async (req, res) => {
+  try {
+    await setGoal(req.actor, req.params.id, { goal: req.body.goal, notes: req.body.notes });
+  } catch (err) {
+    if (!(err instanceof HttpError && err.status === 400)) throw err;
+    const view = await projectView(req, req.params.id);
+    return render(res, "pages/project", { ...view, goalError: err.message, goalForm: req.body, renderedAt: res.locals.renderedAt }, 400);
+  }
+  if (!photosConfigured()) {
+    const view = await projectView(req, req.params.id);
+    await ask(req, view.start.id);
+  }
+  redirect(res, `/projects/${req.params.id}`);
+});
 
 // A plain form post. With photos, the project page asks for them first; without, Claude gets the goal right away.
 app.post("/projects", requireHousehold, requireCoach, async (req, res) => {
@@ -1149,7 +1208,7 @@ app.post("/projects", requireHousehold, requireCoach, async (req, res) => {
   redirect(res, `/projects/${id}`);
 });
 
-app.get("/projects/:id", requireHousehold, requireCoach, async (req, res) => {
+app.get("/projects/:id", requireHousehold, async (req, res) => {
   const view = await projectView(req, req.params.id);
   render(res, "pages/project", { ...view, renderedAt: res.locals.renderedAt });
 });

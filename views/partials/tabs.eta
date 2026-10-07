@@ -9,6 +9,7 @@
     <% Object.entries(it.views).forEach(([key, label]) => { %>
       <a href="<%= href(key) %>"<%~ current(key) %>><%= label %><% if (key === "inbox") { %> <%~ badge() %><% } %></a>
     <% }) %>
+    <a href="/projects">Projects</a>
   </nav>
   <%~ include("/partials/bottom-nav", { bar: it.nav.bar, views: it.views, href, current: (view) => view === l.view, inboxCount: l.inboxCount, moreCurrent: inMore }) %>
   <%/* On a phone the bar can't name a view that's under "More", so say it here. */%>

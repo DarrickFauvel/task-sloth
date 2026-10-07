@@ -44,6 +44,8 @@ test("describeDetails covers every kind of detail", () => {
     "Tomorrow 15:00 · for Samantha · @Target · +errand · #Birthday · high priority",
   );
   assert.equal(describeDetails({ recurrence: { unit: "week", every: 1 }, dueDate: "2026-09-30", assigneeId: null }, ctx), "Today · ↻ Weekly · for anyone");
+  // A # name that isn't a project yet says it makes one.
+  assert.equal(describeDetails({ projectName: "Garden" }, ctx), "new project “Garden”");
 });
 
 test("sort page: the picked answer wins, typed details fill the gaps", () => {

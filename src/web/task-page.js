@@ -1,6 +1,7 @@
 import { parseTagList } from "../services/tags.js";
 import { quickDates } from "./sort-page.js";
 import { describeRecurrence, parseRule } from "../../public/js/lib/recurrence.js";
+import { relativeLabel } from "../../public/js/lib/dates.js";
 
 const REPEAT_PRESETS = [
   null,
@@ -22,6 +23,33 @@ const LIST_OPTIONS = [
   { value: "waiting", label: "Waiting on", hint: "Someone or something else has to happen first." },
   { value: "someday", label: "Maybe later", hint: "Not now, but you don't want to forget it." },
 ];
+
+const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true });
+
+/**
+ * The tasks this one could wait for, grouped by project so the right one is easy to find (the grouped dropdown in
+ * task-edit.eta, and the search sheet in public/js/task-picker.js): this task's own project first, then the others
+ * A to Z, then the ones in no project; A to Z within each. Each says when it's due, who has it and where, if set.
+ */
+export function blockerGroups(task, openTasks, { members = [], today = null } = {}) {
+  const groups = new Map();
+  for (const o of openTasks) {
+    if (o.id === task.id) continue;
+    const key = o.project_id ?? "";
+    if (!groups.has(key)) {
+      const same = key && key === task.project_id;
+      const name = key ? `${o.project_emoji ?? ""} ${o.project_name}`.trim() : "No project";
+      groups.set(key, { label: same ? `Same project · ${name}` : name, name: o.project_name ?? "", same, tasks: [] });
+    }
+    const who = members.find((m) => m.id === o.assignee_id)?.name.split(" ")[0];
+    const meta = [o.due_date && today ? relativeLabel(o.due_date, today) : null, who, o.context_name && `@${o.context_name}`];
+    groups.get(key).tasks.push({ id: o.id, title: o.title, meta: meta.filter(Boolean).join(" · ") });
+  }
+  const order = (g) => (g.same ? 0 : g.name ? 1 : 2);
+  return [...groups.values()]
+    .sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    .map(({ label, tasks }) => ({ label, tasks: tasks.sort(byTitle) }));
+}
 
 /**
  * Shapes views/partials/task-edit.eta: the task plus the choices for each group of chips.
@@ -50,7 +78,7 @@ export function editFormView(task, { members, projects, contexts = [], today = n
     focus: focusField,
     // New on every render, for ids that make a re-render replace (not morph) the selects; see task-edit.eta.
     renderKey: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-    blockers: openTasks.filter((o) => o.id !== task.id).map((o) => ({ id: o.id, title: o.title })),
+    blockerGroups: blockerGroups(task, openTasks, { members, today }),
     quickDates: today ? quickDates(today) : [],
     // The folded "More" card (project, tags, priority): one line saying what's set, and open when any of it
     // is set or a tap on the task page asked for one of its fields.

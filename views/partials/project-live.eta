@@ -1,6 +1,7 @@
-<%/* A project page's live part (src/web/project-page.js), re-rendered on every change in the household: the goal and
-     progress, the plan (or asking for it), suggestions to add, the check-in being put together, the tasks, and the
-     check-ins so far. it.primary picks the one filled button. */%>
+<%/* A project page's live part (src/web/project-page.js), re-rendered on every change in the household: the name and
+     progress; then, for a project with a goal (it.planned), the plan (or asking for it), suggestions to add and the
+     check-in being put together; the tasks; and the check-ins so far. A project without a goal can ask Claude for a
+     plan, when Claude is set up. it.primary picks the one filled button (none without Claude). */%>
 <% const p = it.project; const btn = (key) => (it.primary === key ? "button primary" : "button"); %>
 <% const date = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); %>
 <%/* Photos: thumbnails that open the viewer; `remove` adds a ✕ while Claude doesn't have them yet. The viewer takes
@@ -61,8 +62,12 @@
 
 <div id="project-live" class="project-page">
   <header class="project-head">
-    <h1><span class="emoji" aria-hidden="true"><%= p.emoji %></span> <%= p.name %></h1>
-    <p class="hint">Goal: <%= p.goal %></p>
+    <h1><%~ include("/partials/project-mark", { emoji: p.emoji, src: it.iconSrc, decor: true }) %> <%= p.name %></h1>
+    <% if (p.goal) { %><p class="hint">Goal: <%= p.goal %></p><% } %>
+    <div class="project-head-actions">
+      <button type="button" class="button" aria-haspopup="dialog" data-on:click="document.getElementById('project-edit').showModal()">Edit</button>
+      <% if (it.open.length) { %><a class="button" href="/?view=all&project=<%= p.id %>">Show on my lists</a><% } %>
+    </div>
     <% if (it.progress.total) { %>
       <div class="focus-progress">
         <progress max="<%= it.progress.total %>" value="<%= it.progress.done %>"></progress>
@@ -72,7 +77,28 @@
     <% } %>
   </header>
 
-  <% if (!it.plan) { const s = it.start; %>
+  <% if (!it.planned) { %>
+    <% if (it.coachEnabled) { const f = it.goalForm ?? {}; %>
+      <section class="panel" aria-labelledby="plan-title">
+        <h2 id="plan-title" class="card-title"><span class="emoji" aria-hidden="true">🧭</span> Ask Claude for a plan</h2>
+        <p class="hint">Not sure where to start? Say what “done” looks like, and Claude suggests how to begin and the first few steps. You pick which ones go on your list.</p>
+        <form class="stack" method="post" action="/projects/<%= p.id %>/goal">
+          <label class="stack">
+            <span class="field-title">What do you want to get done?</span>
+            <input name="goal" required maxlength="300" autocomplete="off" value="<%= f.goal ?? '' %>"
+                   placeholder="e.g. <%= p.name %>, all sorted" aria-describedby="goal-error">
+          </label>
+          <% if (it.goalError) { %><p id="goal-error" class="flash is-error" role="alert"><%= it.goalError %></p><% } %>
+          <label class="stack">
+            <span class="field-title">Anything Claude should know? <span class="count">Optional</span></span>
+            <textarea name="notes" rows="2" maxlength="2000" placeholder="How much time you have, who's helping, what's bothering you most…"><%= f.notes ?? '' %></textarea>
+          </label>
+          <button class="<%= btn('plan') %>"><%= it.photosEnabled ? "Next: photos" : "Suggest a plan" %></button>
+          <p class="hint">What you write goes to Claude, Anthropic's AI, to make the suggestions.</p>
+        </form>
+      </section>
+    <% } %>
+  <% } else if (!it.plan) { const s = it.start; %>
     <section class="panel" aria-labelledby="plan-title">
       <h2 id="plan-title" class="card-title"><span class="emoji" aria-hidden="true">🧭</span> Get a plan</h2>
       <% if (s.status === "thinking") { %>
@@ -198,7 +224,7 @@
     <% } else if (it.done.length) { %>
       <p class="hint">Everything's done.</p>
     <% } else { %>
-      <p class="hint">No tasks yet. <%= it.plan ? "Add the suggested steps, or add your own from your lists by typing" : "Once there's a plan, its steps can go here. You can also add your own by typing" %> <span class="token">#<%= p.name.split(" ")[0] %></span> in a new task.</p>
+      <p class="hint">No tasks yet. <%= it.plan ? "Add the suggested steps, or add your own from your lists by typing" : it.planned ? "Once there's a plan, its steps can go here. You can also add your own by typing" : "Add some from your lists by typing" %> <span class="token"><%= it.hashName %></span> in a new task.</p>
     <% } %>
     <% if (it.done.length) { %>
       <details>

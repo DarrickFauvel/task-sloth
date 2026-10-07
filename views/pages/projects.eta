@@ -1,36 +1,22 @@
 <% layout("/layout", { title: "Projects", appNav: "full" }) %>
-<%/* Projects started from a goal (src/services/coach.js): a form to start one, then the ones on the go. */%>
+<%/* Every open project (src/web/project-page.js), each opening its own page, and a way to tidy away the empty ones;
+     then, with Claude, a form to start one from a goal (src/services/coach.js). */%>
 <a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>
-<h1>Start a project</h1>
-<p class="hint">Say what you want to get done. Claude suggests how to start and the first few steps, and you pick which ones go on your list.<% if (it.photosEnabled) { %> Add photos along the way and it'll tell you what's changed and what to do next.<% } %></p>
+<h1>Projects</h1>
+<p class="hint">A project is a bigger job made of little tasks. Type <span class="token">#</span> and a name in any task to put it in one, like <span class="token">Paint the fence #Garden</span>.</p>
 
-<form class="panel stack" method="post" action="/projects">
-  <label class="stack">
-    <span class="field-title">What do you want to get done?</span>
-    <input name="goal" required maxlength="300" autocomplete="off" value="<%= it.form.goal ?? '' %>"
-           placeholder="e.g. Clean the office, Clear out the garage" aria-describedby="goal-error">
-  </label>
-  <% if (it.error) { %><p id="goal-error" class="flash is-error" role="alert"><%= it.error %></p><% } %>
-  <label class="stack">
-    <span class="field-title">Anything Claude should know? <span class="count">Optional</span></span>
-    <textarea name="notes" rows="3" maxlength="2000"
-              placeholder="How much time you have, who's helping, what's bothering you most…"><%= it.form.notes ?? '' %></textarea>
-  </label>
-  <button class="button primary"><%= it.photosEnabled ? "Next: photos" : "Suggest a plan" %></button>
-  <p class="hint">What you write<%= it.photosEnabled ? ", and any photos you add," : "" %> goes to Claude, Anthropic's AI, to make the suggestions.</p>
-</form>
+<%~ include("/partials/flash", it.flash ?? {}) %>
 
 <% if (it.projects.length) { %>
-  <h2>On the go</h2>
   <ul class="project-cards">
     <% it.projects.forEach((p) => { %>
       <li>
-        <a class="panel project-card" href="/projects/<%= p.id %>" style="--c: <%= p.color %>">
-          <strong><span class="emoji" aria-hidden="true"><%= p.emoji %></span> <%= p.name %></strong>
-          <span class="hint"><%= p.goal %></span>
+        <a class="panel project-card" href="<%= p.href %>" style="--c: <%= p.color %>">
+          <strong><%~ include("/partials/project-mark", { emoji: p.emoji, src: p.iconSrc, decor: true }) %> <%= p.name %></strong>
+          <% if (p.goal) { %><span class="hint"><%= p.goal %></span><% } %>
           <% if (p.total) { %>
             <progress max="<%= p.total %>" value="<%= p.done %>" aria-label="<%= p.done %> of <%= p.total %> done"></progress>
-            <span class="hint"><%= p.done %> of <%= p.total %> done</span>
+            <span class="hint"><%= p.open ? `${p.open} to do · ` : "" %><%= p.done %> of <%= p.total %> done</span>
           <% } else { %>
             <span class="hint">No tasks yet</span>
           <% } %>
@@ -38,9 +24,36 @@
       </li>
     <% }) %>
   </ul>
+  <% if (it.empty) { %>
+    <form method="post" action="/projects/remove-empty" class="project-tidy">
+      <p class="hint"><%= it.empty === 1 ? "One project has nothing in it. Open it to rename or remove it, or tidy it away here." : `${it.empty} projects have nothing in them. Open one to rename or remove it, or tidy them all away.` %></p>
+      <button class="button">Remove <%= it.empty === 1 ? "the empty project" : `${it.empty} empty projects` %></button>
+    </form>
+  <% } %>
 <% } else { %>
   <section class="empty-state">
     <p class="empty-icon emoji" aria-hidden="true">🌱</p>
     <p>No projects yet. Big jobs feel smaller once they're a list of little ones.</p>
   </section>
+<% } %>
+
+<% if (it.coachEnabled) { %>
+  <h2>Start one with Claude</h2>
+  <p class="hint">Say what you want to get done. Claude suggests how to start and the first few steps, and you pick which ones go on your list.<% if (it.photosEnabled) { %> Add photos along the way and it'll tell you what's changed and what to do next.<% } %></p>
+
+  <form class="panel stack" method="post" action="/projects">
+    <label class="stack">
+      <span class="field-title">What do you want to get done?</span>
+      <input name="goal" required maxlength="300" autocomplete="off" value="<%= it.form.goal ?? '' %>"
+             placeholder="e.g. Clean the office, Clear out the garage" aria-describedby="goal-error">
+    </label>
+    <% if (it.error) { %><p id="goal-error" class="flash is-error" role="alert"><%= it.error %></p><% } %>
+    <label class="stack">
+      <span class="field-title">Anything Claude should know? <span class="count">Optional</span></span>
+      <textarea name="notes" rows="3" maxlength="2000"
+                placeholder="How much time you have, who's helping, what's bothering you most…"><%= it.form.notes ?? '' %></textarea>
+    </label>
+    <button class="button primary"><%= it.photosEnabled ? "Next: photos" : "Suggest a plan" %></button>
+    <p class="hint">What you write<%= it.photosEnabled ? ", and any photos you add," : "" %> goes to Claude, Anthropic's AI, to make the suggestions.</p>
+  </form>
 <% } %>

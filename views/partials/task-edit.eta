@@ -106,15 +106,23 @@
       <label class="edit-field waiting-field">Waiting on who or what?
         <input name="waitingOn"<%~ focus("waitingOn") %> value="<%= t.waiting_on ?? '' %>" maxlength="200" autocomplete="off" placeholder="e.g. the plumber">
       </label>
-      <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. */%>
+      <%/* Blocked by another task: it stays on its list, marked ⏳, until that task is done. The tasks are grouped by
+           project (f.blockerGroups); <task-picker> turns the dropdown into a sheet you can search, and the dropdown
+           stays the field that's saved. */%>
       <label class="edit-field">Has to wait for another task?
-        <select name="waitingTaskId" id="edit-blocker-<%= f.renderKey %>"<%~ focus("waitingTaskId") %>>
-          <option value="">No, ready when you are</option>
-          <% f.blockers.forEach((b) => { %>
-            <option value="<%= b.id %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
-          <% }) %>
-          <option value="new">➕ New task…</option>
-        </select>
+        <task-picker>
+          <select name="waitingTaskId" id="edit-blocker-<%= f.renderKey %>"<%~ focus("waitingTaskId") %>>
+            <option value="">No, ready when you are</option>
+            <% f.blockerGroups.forEach((g) => { %>
+              <optgroup label="<%= g.label %>">
+                <% g.tasks.forEach((b) => { %>
+                  <option value="<%= b.id %>" data-meta="<%= b.meta %>"<%~ b.id === t.waiting_task_id ? " selected" : "" %>><%= b.title %></option>
+                <% }) %>
+              </optgroup>
+            <% }) %>
+            <option value="new">➕ New task…</option>
+          </select>
+        </task-picker>
         <span class="hint">It'll show ⏳ until that task is done, then it's ready to go (back on To do, if it was on Waiting on).</span>
       </label>
       <%/* Shown only while "➕ New task…" is picked (CSS :has). Shortcuts work: "patch the walls sat @sam". */%>

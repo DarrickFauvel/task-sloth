@@ -65,7 +65,7 @@ export function parseQuickAdd(input, ctx) {
     const name = (quoted ?? bare).replace(/[-_]/g, " ").trim();
     const match = projects.find((p) => normalize(p.name) === normalize(name));
     if (match) out.projectId = match.id;
-    else out.projectName = name.replace(/^./, (c) => c.toUpperCase());
+    else out.projectName = name; // as typed, so #eBay stays "eBay"
   });
 
   // !priority

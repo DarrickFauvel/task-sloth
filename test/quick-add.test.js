@@ -36,8 +36,9 @@ test("#project matches existing projects loosely, otherwise names a new one", ()
   assert.equal(parse("milk #weekly-shop").projectId, "p-shop");
   assert.equal(parse('milk #"weekly shop"').projectId, "p-shop");
   const fresh = parse("paint fence #garden_work");
-  assert.equal(fresh.projectName, "Garden work");
+  assert.equal(fresh.projectName, "garden work");
   assert.equal(fresh.projectId, undefined);
+  assert.equal(parse("sell camera #eBay").projectName, "eBay", "keeps the name as typed");
 });
 
 test("!priority", () => {

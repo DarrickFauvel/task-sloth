@@ -30,6 +30,8 @@ export function shortcutName(prefix, name, chars) {
 }
 const AT_CHARS = /^[\p{L}\p{N}_.'-]+$/u;
 const HASH_CHARS = /^[\p{L}\p{N}_-]+$/u;
+/** How to type a project's name after #, e.g. "#Weekly-shop". */
+export const projectShortcut = (name) => shortcutName("#", name, HASH_CHARS);
 
 /** "Fri, Oct 9" for a YYYY-MM-DD date. */
 const dayLabel = (ymd) =>

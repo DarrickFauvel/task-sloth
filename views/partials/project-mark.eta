@@ -1,0 +1,4 @@
+<%/* A project's emoji, or its logo when it has one (PROJECT_ICONS in src/services/projects.js): it.emoji, it.src (the
+     logo's path, or none), and it.decor to mark it as an illustration that icons-off hides (headings and cards; the
+     chips show it either way, like their emoji). */%>
+<% if (it.src) { %><img class="project-logo<%= it.decor ? ' emoji' : '' %>" src="<%= asset(it.src) %>" alt="" width="20" height="20"><% } else if (it.decor) { %><span class="emoji" aria-hidden="true"><%= it.emoji %></span><% } else { %><%= it.emoji %><% } %>
