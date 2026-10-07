@@ -11,3 +11,51 @@
   <%~ include("/partials/flash", it.flash ?? {}) %>
 </div>
 <% if (it.photosEnabled) { %><%~ include("/partials/photo-viewer", {}) %><% } %>
+
+<%/* The edit sheet: name, emoji, logo and color, then removing the project. It sits outside the live part, so an update
+     can't close it while it's open. Saving keeps it open with the error ($editError), or closes it. */%>
+<% const p = it.project; const n = it.open.length; %>
+<dialog id="project-edit" class="sheet project-edit" aria-labelledby="project-edit-title" closedby="any"
+        data-signals="{editError: ''}" data-on:click="evt.target === el && el.close()">
+  <div class="sheet-body">
+    <h2 id="project-edit-title">Edit project</h2>
+    <form class="stack" method="post" action="/projects/<%= p.id %>/edit"
+          data-on:submit="evt.preventDefault(); @post('/projects/<%= p.id %>/edit', {contentType: 'form'})">
+      <label class="stack">
+        <span class="field-title">Name</span>
+        <input name="name" required maxlength="80" autocomplete="off" value="<%= p.name %>" aria-describedby="project-edit-error">
+      </label>
+      <p id="project-edit-error" class="flash is-error" role="alert" data-show="$editError" data-text="$editError" style="display: none"></p>
+      <label class="stack">
+        <span class="field-title">Emoji</span>
+        <input name="emoji" maxlength="16" autocomplete="off" value="<%= p.emoji %>">
+      </label>
+      <% if (it.icons.length) { %>
+        <fieldset class="field">
+          <legend>Logo <span class="count">Optional</span></legend>
+          <div class="pills logo-picks">
+            <label class="pill"><input type="radio" name="icon" value=""<%~ p.icon ? "" : " checked" %>><span>Emoji</span></label>
+            <% it.icons.forEach((i) => { %>
+              <label class="pill"><input type="radio" name="icon" value="<%= i.key %>"<%~ p.icon === i.key ? " checked" : "" %>><span><img class="project-logo" src="<%= asset(i.src) %>" alt="" width="20" height="20"> <%= i.label %></span></label>
+            <% }) %>
+          </div>
+          <small class="hint">Shows in place of the emoji on the project's page and chips.</small>
+        </fieldset>
+      <% } %>
+      <fieldset class="field">
+        <legend>Color</legend>
+        <div class="pills swatches">
+          <% it.colors.forEach((c) => { %>
+            <label class="pill swatch"><input type="radio" name="color" value="<%= c %>"<%~ c === p.color ? " checked" : "" %>><span style="--c: <%= c %>" title="<%= it.colorNames[c] %>" aria-label="<%= it.colorNames[c] %>"></span></label>
+          <% }) %>
+        </div>
+      </fieldset>
+      <button class="button">Save</button>
+    </form>
+    <form class="stack" method="post" action="/projects/<%= p.id %>/remove">
+      <p class="hint"><%= n ? `Removing it keeps its ${n === 1 ? "open task" : `${n} open tasks`} on your lists, just without a project.` : "Nothing's left to do in it, so removing it just tidies it away." %><%= it.planned ? " Claude's plan and check-ins go with it." : "" %></p>
+      <button class="link danger">Remove project</button>
+    </form>
+    <form method="dialog"><button class="button">Close</button></form>
+  </div>
+</dialog>

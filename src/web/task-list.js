@@ -1,11 +1,10 @@
-import { coachConfigured } from "../config.js";
 import { inboxCount, isWorking, listTasks, tagList } from "../services/tasks.js";
 import { tasksWithNewComments } from "../services/comments.js";
 import { getContext, listContexts, listPlaces } from "../services/contexts.js";
 import { nearYouPlaces } from "./places-page.js";
 import { focusLines } from "./focus-page.js";
 import { focusChoices } from "../services/focus.js";
-import { getProject, listProjects } from "../services/projects.js";
+import { getProject, listProjects, PROJECT_ICONS } from "../services/projects.js";
 import { isHiddenDone } from "./hidden-done.js";
 import { doneYesterdayBy } from "./done-today.js";
 import { greeting } from "./encouragement.js";
@@ -105,12 +104,13 @@ export const listQueryString = ({ view, project, context, tag }) =>
  * Adds the display fields views/partials/task-row.eta and views/pages/task.eta use.
  * `time` ("HH:MM" in the viewer's time zone) makes a task due earlier today overdue; without it, only the date counts.
  */
+/** Where a project opens: its own page (tasks, progress, and Claude's plan if it has a goal). */
+export const projectHref = (id) => `/projects/${id}`;
+
 /** Where a task's project chip goes, and what its tooltip says; null without a project. */
 export function projectLink(t) {
   if (!t.project_id) return null;
-  return Number(t.project_has_goal) && coachConfigured()
-    ? { href: `/projects/${t.project_id}`, title: `Open the ${t.project_name} project` }
-    : { href: `/?view=all&project=${t.project_id}`, title: `All open tasks in ${t.project_name}` };
+  return { href: projectHref(t.project_id), title: `Open the ${t.project_name} project` };
 }
 
 export function decorateTask(t, membership, today, time = null) {
@@ -136,8 +136,9 @@ export function decorateTask(t, membership, today, time = null) {
     notesParts: splitPhones(t.notes ?? ""),
     repeats: describeRecurrence(parseRule(t.recurrence)),
     tags: tagList(t),
-    // A project started from a goal has its own page (Projects, with Claude); any other opens the list narrowed to it.
+    // The project chip opens the project's page, and shows its logo in place of the emoji if it has one.
     projectLink: projectLink(t),
+    projectIcon: PROJECT_ICONS[t.project_icon]?.src ?? null,
     // Blocked by another (still open) task: "patch the walls". It shows on every list the task is on.
     blockedBy: t.waiting_task_id && t.waiting_task_status === "open" ? t.waiting_task_title : "",
     // Open tasks waiting on this one.

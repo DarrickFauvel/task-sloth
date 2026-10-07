@@ -36,7 +36,7 @@
       <% if (t.dueLabel) { %><span class="due <%= t.dueState %>"><%= t.dueText %></span><% } %>
       <% if (t.repeats) { %><span>↻ <%= t.repeats %></span><% } %>
       <%~ include("/partials/context-tags", { t }) %>
-      <% if (t.project_name && it.target.kind !== "project") { %><span><%= t.project_emoji %> <%= t.project_name %></span><% } %>
+      <% if (t.project_name && it.target.kind !== "project") { %><span><%~ include("/partials/project-mark", { emoji: t.project_emoji, src: t.projectIcon }) %> <%= t.project_name %></span><% } %>
     </span>
     <% if (t.notes) { %><p class="focus-notes"><%= t.notes %></p><% } %>
     <% if (Number(t.item_count)) { %><a class="focus-checklist" href="/tasks/<%= t.id %>">☑ <%= t.item_done %> of <%= t.item_count %> on its checklist →</a><% } %>

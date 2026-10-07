@@ -10,4 +10,6 @@
     <h2>Made by</h2>
     <p><a href="https://darrickdevelops.com" rel="noopener">Darrick Develops</a></p>
   </section>
+  <%/* Required by the icons' CC BY 4.0 license (PROJECT_ICONS in src/services/projects.js). */%>
+  <p class="hint">Project logos from <a href="https://selfh.st/icons/" rel="noopener">selfh.st/icons</a>, used under <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>.</p>
 </article>

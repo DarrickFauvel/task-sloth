@@ -1,5 +1,6 @@
 <% layout("/layout", { title: it.task.title, appNav: "full" }) %>
 <script type="module" src="<%= asset("/js/reorder-items.js") %>"></script>
+<script type="module" src="<%= asset("/js/task-picker.js") %>"></script>
 <% if (it.photos.enabled) { %><script type="module" src="<%= asset("/js/task-photo.js") %>"></script><% } %>
 <% const t = it.task; %>
 <a class="back" href="<%= it.chrome?.back.href ?? '/' %>">← <%= it.chrome?.back.label ?? 'All tasks' %></a>

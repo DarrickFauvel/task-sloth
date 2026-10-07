@@ -1,6 +1,6 @@
 <%/* The phone bar's "More" sheet: the views that don't fit in the bar, each with a few words on what it's for.
      It sits outside #tabs so a live update can't close it while it's open. Off home (it.offHome) no list is on
-     screen, so none is marked. Projects is in the account menu. */%>
+     screen, so none is marked. Projects is its own page, so it's never marked either. */%>
 <% const l = it.list; %>
 <dialog id="more-views" class="sheet" aria-labelledby="more-views-title" closedby="any"
         data-on:click="evt.target === el && el.close()">
@@ -15,6 +15,12 @@
           </a>
         </li>
       <% }) %>
+      <li>
+        <a href="/projects">
+          <strong>Projects</strong>
+          <span class="hint">Bigger jobs, and how far along each one is</span>
+        </a>
+      </li>
       <li>
         <a href="/focus">
           <strong>Focus</strong>

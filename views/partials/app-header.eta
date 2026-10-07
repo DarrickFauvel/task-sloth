@@ -37,7 +37,7 @@
   <% if (household) { %>
     <nav class="menu-tiles" aria-label="Around the house">
       <a class="menu-tile" href="/activity"><span class="menu-icon emoji" aria-hidden="true">🕘</span>Activity</a>
-      <% if (it.coach) { %><a class="menu-tile" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span>Projects</a><% } %>
+      <a class="menu-tile" href="/projects"><span class="menu-icon emoji" aria-hidden="true">🌱</span>Projects</a>
       <a class="menu-tile" href="/reset"><span class="menu-icon emoji" aria-hidden="true">🧹</span>Weekly reset</a>
       <a class="menu-tile" href="/places"><span class="menu-icon emoji" aria-hidden="true">📍</span>Where / how</a>
     </nav>

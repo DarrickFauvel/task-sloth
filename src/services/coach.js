@@ -137,6 +137,22 @@ export async function startProject(actor, { goal, notes }) {
   return id;
 }
 
+/** Gives a project made by typing #name a goal, so Claude can plan it like one started on the Projects page. */
+export async function setGoal(actor, projectId, { goal, notes }) {
+  goal = String(goal ?? "").trim().slice(0, 300);
+  if (!goal) throw new HttpError(400, "What do you want to get done?");
+  notes = String(notes ?? "").trim().slice(0, 2000);
+  const project = await db.get("SELECT goal FROM projects WHERE id = ? AND household_id = ? AND archived = 0", [projectId, actor.householdId]);
+  if (!project) throw new HttpError(404, "Project not found");
+  if (project.goal != null) throw new HttpError(400, "This project already has a goal");
+  const ts = now();
+  await db.batch([
+    { sql: "UPDATE projects SET goal = ?, goal_notes = ?, updated_at = ? WHERE id = ?", args: [goal, notes, ts, projectId] },
+    checkinInsert(actor, projectId, "start", ts),
+  ]);
+  changed(actor.householdId);
+}
+
 /** A project with a goal, for its page. */
 export async function getGoalProject(householdId, id) {
   const project = await db.get("SELECT * FROM projects WHERE id = ? AND household_id = ? AND goal IS NOT NULL", [id, householdId]);

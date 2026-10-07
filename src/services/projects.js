@@ -1,7 +1,16 @@
 import { db, newId, now } from "../db/client.js";
 import { HttpError } from "../lib/http.js";
+import { changed } from "./changes.js";
 
 export const PROJECT_COLORS = ["#5b8a3c", "#b04a6b", "#2f8f6b", "#c0693b", "#3c7fa6", "#8a6a4f", "#7a68b5"];
+
+/**
+ * Logos a project can show in place of its emoji: the key stored in projects.icon, then its name and file. They're
+ * bundled (public/img/project-icons/), never fetched. selfh.st icons are CC BY 4.0, credited on the About page.
+ */
+export const PROJECT_ICONS = {
+  ebay: { label: "eBay", src: "/img/project-icons/ebay.svg" },
+};
 
 export async function listProjects(householdId, { includeArchived = false } = {}) {
   return db.all(
@@ -49,17 +58,54 @@ export async function createProject(householdId, { name, emoji, color }) {
   return id;
 }
 
-export async function updateProject(householdId, id, { name, emoji, color, archived }) {
+export async function updateProject(householdId, id, { name, emoji, color, icon, archived }) {
   const p = await getProject(householdId, id);
+  const newName = String(name ?? p.name).trim().slice(0, 80) || p.name;
+  // Typed #names pick a project by name, so two open ones can't share one.
+  const clash = await db.get(
+    "SELECT id FROM projects WHERE household_id = ? AND name = ? COLLATE NOCASE AND archived = 0 AND id <> ?",
+    [householdId, newName, id],
+  );
+  if (clash) throw new HttpError(400, `There's already a project called “${newName}”`);
   await db.run(
-    "UPDATE projects SET name = ?, emoji = ?, color = ?, archived = ?, updated_at = ? WHERE id = ?",
+    "UPDATE projects SET name = ?, emoji = ?, color = ?, icon = ?, archived = ?, updated_at = ? WHERE id = ?",
     [
-      String(name ?? p.name).trim().slice(0, 80) || p.name,
-      emoji?.trim() || p.emoji,
+      newName,
+      String(emoji ?? "").trim().slice(0, 16) || p.emoji,
       PROJECT_COLORS.includes(color) ? color : p.color,
+      // "" picks no logo; a key that isn't one of PROJECT_ICONS (or leaving it out) keeps the one it has.
+      icon === "" ? null : Object.hasOwn(PROJECT_ICONS, icon ?? "") ? icon : p.icon,
       archived === undefined ? p.archived : archived ? 1 : 0,
       now(),
       id,
     ],
   );
+  changed(householdId);
+}
+
+/**
+ * Removes a project. It's archived rather than deleted, since finished tasks and Claude's check-ins still point at
+ * it; its open tasks stay on their lists, just without a project. Typing its name again starts a new one.
+ */
+export async function removeProject(householdId, id) {
+  const p = await getProject(householdId, id);
+  const ts = now();
+  await db.batch([
+    { sql: "UPDATE tasks SET project_id = NULL, updated_at = ? WHERE household_id = ? AND project_id = ? AND status <> 'done'", args: [ts, householdId, id] },
+    { sql: "UPDATE projects SET archived = 1, updated_at = ? WHERE id = ?", args: [ts, id] },
+  ]);
+  changed(householdId);
+  return p;
+}
+
+/** Removes every open project with no tasks at all and no goal (one with a goal may be waiting on Claude's plan). */
+export async function removeEmptyProjects(householdId) {
+  const result = await db.run(
+    `UPDATE projects SET archived = 1, updated_at = ?
+      WHERE household_id = ? AND archived = 0 AND goal IS NULL
+        AND NOT EXISTS (SELECT 1 FROM tasks t WHERE t.project_id = projects.id AND t.deleted_at IS NULL)`,
+    [now(), householdId],
+  );
+  if (result.rowsAffected) changed(householdId);
+  return result.rowsAffected;
 }
